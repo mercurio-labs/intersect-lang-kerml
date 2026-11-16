@@ -86,42 +86,42 @@ fn tree(schema: &Schema, store: &dyn ModelRead, id: &str) -> Value {
         ("ownedRelationship", "relationships"),
         ("ownedRelatedElement", "elements"),
     ] {
-        if let Some(Value::Array(ids)) = store.value(id, feature).unwrap() {
-            if key == "elements" || !ids.is_empty() {
-                result[key] = Value::Array(
-                    ids.iter()
-                        .map(|v| {
-                            let child = v.as_str().unwrap();
-                            let opposite = if feature == "ownedRelationship" {
-                                "owningRelatedElement"
-                            } else {
-                                "owningRelationship"
-                            };
-                            assert_eq!(store.value(child, opposite).unwrap(), Some(json!(id)));
-                            tree(schema, store, child)
-                        })
-                        .collect(),
-                );
-            }
+        if let Some(Value::Array(ids)) = store.value(id, feature).unwrap()
+            && (key == "elements" || !ids.is_empty())
+        {
+            result[key] = Value::Array(
+                ids.iter()
+                    .map(|v| {
+                        let child = v.as_str().unwrap();
+                        let opposite = if feature == "ownedRelationship" {
+                            "owningRelatedElement"
+                        } else {
+                            "owningRelationship"
+                        };
+                        assert_eq!(store.value(child, opposite).unwrap(), Some(json!(id)));
+                        tree(schema, store, child)
+                    })
+                    .collect(),
+            );
         }
     }
     for field in ["visibility", "direction", "value"] {
-        if let Some(value) = store.value(id, field).unwrap() {
-            if !value.is_null() {
-                result[field] = if let Ok(feature) = schema.effective_feature(&class, field) {
-                    if let Some(enumeration) = schema.enumerations.get(&feature.feature.target) {
-                        json!(
-                            enumeration
-                                .format(&serde_json::from_value(value).unwrap())
-                                .unwrap()
-                        )
-                    } else {
-                        value
-                    }
+        if let Some(value) = store.value(id, field).unwrap()
+            && !value.is_null()
+        {
+            result[field] = if let Ok(feature) = schema.effective_feature(&class, field) {
+                if let Some(enumeration) = schema.enumerations.get(&feature.feature.target) {
+                    json!(
+                        enumeration
+                            .format(&serde_json::from_value(value).unwrap())
+                            .unwrap()
+                    )
                 } else {
                     value
-                };
-            }
+                }
+            } else {
+                value
+            };
         }
     }
     result
