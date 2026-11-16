@@ -267,6 +267,9 @@ fn resource_uri(path: &Path) -> String {
     path.to_string_lossy()
         .replace('\\', "/")
         .trim_start_matches("./")
+        .replace('%', "%25")
+        .replace('#', "%23")
+        .replace('?', "%3F")
         .replace(' ', "%20")
 }
 
@@ -947,6 +950,10 @@ mod tests {
         assert_eq!(
             resource_uri(Path::new(r"./models\Simple Tests/a.sysml")),
             "models/Simple%20Tests/a.sysml"
+        );
+        assert_eq!(
+            resource_uri(Path::new("models/#1%20/a?.sysml")),
+            "models/%231%2520/a%3F.sysml"
         );
     }
 

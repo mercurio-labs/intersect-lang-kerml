@@ -571,7 +571,9 @@ mod tests {
 
     #[test]
     fn archive_inputs_resolve_against_the_project_path() -> Result<(), String> {
-        let root = std::env::temp_dir().join(format!("intersect-cli-kpar-{}", std::process::id()));
+        let root = std::env::temp_dir()
+            .join(format!("intersect-cli-kpar-{}", std::process::id()))
+            .join("project #1%");
         let deps = root.join("deps");
         std::fs::create_dir_all(&deps).map_err(|e| e.to_string())?;
         let write = |path: &Path, name: &str, usage: Vec<Usage>, file: &str, text: &str| {
