@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "sysml.structure",
+  "label": "Structure tools",
+  "groups": [
+    {
+      "id": "navigation",
+      "label": "Navigation",
+      "entries": [
+        {
+          "id": "select",
+          "label": "Select",
+          "icon": "pointer",
+          "gesture": "select",
+          "command": "presentation.select"
+        },
+        {
+          "id": "fit",
+          "label": "Fit diagram",
+          "icon": "maximize",
+          "gesture": "action",
+          "command": "presentation.fit"
+        },
+        {
+          "id": "layout",
+          "label": "Arrange",
+          "icon": "layout",
+          "gesture": "action",
+          "command": "presentation.layout"
+        }
+      ]
+    },
+    {
+      "id": "structure",
+      "label": "Structure",
+      "entries": [
+        {
+          "id": "part",
+          "label": "Part",
+          "icon": "box",
+          "gesture": "place",
+          "command": "sysml.createPartUsage",
+          "inputs": [{ "id": "name", "label": "Name", "default": "newPart" }]
+        },
+        {
+          "id": "port",
+          "label": "Port",
+          "icon": "port",
+          "gesture": "place",
+          "command": "sysml.createPortUsage",
+          "inputs": [{ "id": "name", "label": "Name", "default": "newPort" }]
+        }
+      ]
+    }
+  ]
+}

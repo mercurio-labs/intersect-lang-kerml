@@ -1,0 +1,23 @@
+rcore 1;
+package intersect.kerml.localTypeScope version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+
+// Explicit local profile over the original nominal metamodel and physical
+// containment. This implements neither imports/inheritance nor all KerML scope.
+// Each namespace owns memberships; their contained Type elements supply names.
+// The nearest namespace with matches wins, while same-level ambiguity survives.
+bind scope k.FeatureTyping.type = visible_types;
+
+fn visible_types(typing:k.FeatureTyping, spelling:String)->Sequence<k.Type> {
+  let scopes = map(ancestors::<k.Namespace>(typing),
+    |namespace| local_types(namespace, spelling));
+  match find(scopes, |candidates| !isEmpty(candidates)) {
+    Some(candidates) => candidates,
+    None => []
+  }
+}
+
+fn local_types(namespace:k.Namespace, spelling:String)->Sequence<k.Type> =
+  Sequence(flatMap(contents::<k.Membership>(namespace),
+    |membership| filter(contents::<k.Type>(membership),
+      |candidate| candidate.declaredName == Some(spelling))));

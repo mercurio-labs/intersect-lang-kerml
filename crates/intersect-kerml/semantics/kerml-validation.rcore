@@ -1,0 +1,2681 @@
+rcore 1;
+package intersect.kerml.validation version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+import package intersect.kerml.implicitGeneralizations version "1" as implicit;
+import package intersect.kerml.nameResolution version "1" as resolution;
+
+// KerML validation rules, ported from the Pilot's KerMLValidator
+// (org.omg.kerml.xtext/src/org/omg/kerml/xtext/validation/KerMLValidator.xtend
+// at 692170b71867353b8f90341e61556f49a5beb0e5). Each `bind validate` runs
+// after structural validation on every object of its class that the load
+// added, and reports `Issue`s with the Pilot's issue code and message
+// verbatim and the rule's inventory id (docs/pilot-validation-rules.md). The
+// SysML hosts run these rules too (SysMLValidator extends KerMLValidator).
+//
+// An issue is reported on the object the Pilot reports it on, so a rule
+// whose Pilot target is not the checked object (the second reference
+// subsetting of a feature, the only differencing of a type, ...) is bound to
+// the target's class and reads the checked object through containment. The
+// Pilot's derived properties used here are read from stored features:
+// `ownedX` of a type or feature is its owned relationships of kind X, the
+// owning type of a feature is the type owning its feature membership, and a
+// membership's element is its owned related element or `memberElement`.
+//
+// SysMLValidator overrides three KerML checks: checkDataType and checkClass
+// only change the message (rules SysML.checkDataType/checkClass, same
+// codes), and checkOperatorExpression drops the bracket warning. A data type
+// or class in a SysML resource is always a definition (the SysML notation
+// has no KerML `datatype` or `class`), so the SysML messages are chosen for
+// definitions; an operator expression is in a SysML resource when its
+// resource name ends in `.sysml`.
+//
+// Batch B5 (namespace distinguishability) runs in the `k.Element` binding
+// and batch B3's four KerML rules in the `k.Feature` binding, beside the B1
+// rules of those classes, so that each shares its binding's memoised
+// derived sets (inherited memberships, effective names, types).
+//
+// Batch B4's KerML rules (derived feature semantics) extend the bindings of
+// the classes they report on; their helpers are in the section "Batch B4"
+// at the end of this file.
+
+bind validate k.Element = element_rules;
+bind validate k.Annotation = annotation_annotating_element;
+bind validate k.Import = import_top_level_visibility;
+bind validate k.Specialization = specialization_rules;
+bind validate k.Type = type_rules;
+bind validate k.Differencing = differencing_rules;
+bind validate k.Intersecting = intersecting_rules;
+bind validate k.Unioning = unioning_rules;
+bind validate k.Membership = type_owned_multiplicity;
+bind validate k.Feature = feature_and_type_rules;
+bind validate k.FeatureChaining = feature_chaining_rules;
+bind validate k.ReferenceSubsetting = feature_owned_reference_subsetting;
+bind validate k.CrossSubsetting = cross_subsetting_rules;
+bind validate k.Redefinition = redefinition_rules;
+bind validate k.Subsetting = subsetting_rules;
+bind validate k.Subsetting = subsetting_multiplicity_rules;
+bind validate k.ParameterMembership = parameter_membership_owning_type;
+bind validate k.ReturnParameterMembership = return_parameter_membership_rules;
+bind validate k.ResultExpressionMembership = result_expression_membership_rules;
+bind validate k.OperatorExpression = operator_expression_rules;
+bind validate k.FeatureReferenceExpression = feature_reference_expression_rules;
+bind validate k.InstantiationExpression = instantiation_expression_rules;
+bind validate k.FlowEnd = flow_end_rules;
+bind validate k.PayloadFeature = payload_rules;
+bind validate k.FeatureValue = feature_value_rules;
+bind validate k.MultiplicityRange = multiplicity_range_bounds;
+bind validate k.LibraryPackage = library_package_not_standard;
+
+fn error(id:String, text:String, feature:String, rule:String)->Sequence<Issue> =
+  [issue_rule("error", id, text, feature, rule)];
+
+fn when(condition:Bool, issues:Sequence<Issue>)->Sequence<Issue> =
+  if condition { issues } else { no_issues() };
+
+fn no_issues()->Sequence<Issue> = [];
+
+// --- Root -----------------------------------------------------------------
+
+// checkElement, validateElementIsImpliedIncluded.
+fn element_is_implied_included(e:k.Element)->Sequence<Issue> =
+  when(!e.isImpliedIncluded && e.ownedRelationship.exists(|r| r.isImplied),
+    error("validateElementIsImpliedIncluded",
+      "Element cannot have implied relationships included", "",
+      "KerML.checkElement.INVALID_ELEMENT_IS_IMPLIED_INCLUDED"));
+
+// checkAnnotation: validateAnnotationAnnotatingElement and
+// validateAnnotationAnnotatedElementOwnership. The owned annotating element
+// is the first annotating element the annotation owns; the owning
+// annotating element is its owning related element when that is an
+// annotating element; the owning annotated element is its owning related
+// element when that is its annotated element.
+fn annotation_annotating_element(a:k.Annotation)->Sequence<Issue> {
+  let owned = a.ownedRelatedElement.exists(|e| oclIsKindOf::<k.AnnotatingElement>(e));
+  let owning = match a.owningRelatedElement {
+    Some(e) => oclIsKindOf::<k.AnnotatingElement>(e),
+    None => false
+  };
+  let owning_annotated = match a.owningRelatedElement {
+    Some(e) => !owning && e == a.annotatedElement,
+    None => false
+  };
+  when(owned == owning,
+    error("validateAnnotationAnnotatingElement",
+      "Must either own or be owned by its annotating element", "",
+      "KerML.checkAnnotation.INVALID_ANNOTATION_ANNOTATING_ELEMENT"))
+  .concat(when(owning_annotated && !owned,
+    error("validateAnnotationAnnotatedElementOwnership",
+      "Must own its annotating element", "",
+      "KerML.checkAnnotation.INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP")))
+  .concat(when(!owning_annotated && owned,
+    error("validateAnnotationAnnotatedElementOwnership",
+      "Must be owned by its annotated element", "",
+      "KerML.checkAnnotation.INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP")))
+}
+
+// checkImport, validateImportTopLevelVisibility: an import owned by a root
+// namespace (one without an owner) must be private.
+fn import_top_level_visibility(i:k.Import)->Sequence<Issue> =
+  match container::<k.Namespace>(i) {
+    Some(n) => match container::<k.Element>(n) {
+      Some(_) => [],
+      None => if i.visibility == k.VisibilityKind.`private` { [] } else {
+        [issue_rule("error", "validateImportTopLevelVisibility",
+          "Top level import must be private", "",
+          "KerML.checkImport.INVALID_IMPORT_TOP_LEVEL_VISIBILITY")]
+      }
+    },
+    None => []
+  };
+
+// --- Core: specializations and types --------------------------------------
+
+// checkSpecialization, validateSpecializationSpecificNotConjugated (the
+// specific type owns a conjugation), and the owned-specialization checks of
+// checkDataType, checkClass, checkStructure and checkBehavior, which report
+// on the specialization (feature general). An owned specialization is one
+// the type owns whose specific type is that type.
+fn specialization_rules(s:k.Specialization)->Sequence<Issue> =
+  match specific_of(s) {
+    Some(specific) => when(conjugated(specific),
+        error("validateSpecializationSpecificNotConjugated",
+          "Conjugated type cannot be a specialized type", "specific",
+          "KerML.checkSpecialization.INVALID_SPECIALIZATION_SPECIFIC_NOT_CONJUGATED"))
+      .concat(match owning_type_of(s) {
+        Some(t) => if t == specific { owned_specialization_rules(t, s) } else { no_issues() },
+        None => no_issues()
+      }),
+    None => no_issues()
+  };
+
+// The ends of a specialization through the stored feature that redefines
+// `specific` or `general` in its metaclass. The referencing feature of a
+// reference subsetting and the crossing feature of a cross subsetting are
+// derived (the feature that owns them), so they are read through ownership.
+fn specific_of(s:k.Specialization)->Option<k.Type> =
+  match s {
+    t: k.FeatureTyping => asType::<k.Type>(t.typedFeature),
+    c: k.Subclassification => asType::<k.Type>(c.subclassifier),
+    r: k.Redefinition => asType::<k.Type>(r.redefiningFeature),
+    _: k.ReferenceSubsetting => owning_type_of(s),
+    _: k.CrossSubsetting => owning_type_of(s),
+    x: k.Subsetting => asType::<k.Type>(x.subsettingFeature),
+    _ => Some(s.specific)
+  };
+
+fn general_of(s:k.Specialization)->k.Type =
+  match s {
+    p: k.ConjugatedPortTyping => p.conjugatedPortDefinition,
+    t: k.FeatureTyping => t.type,
+    c: k.Subclassification => c.superclassifier,
+    r: k.Redefinition => r.redefinedFeature,
+    x: k.ReferenceSubsetting => x.referencedFeature,
+    c: k.CrossSubsetting => c.crossedFeature,
+    x: k.Subsetting => x.subsettedFeature,
+    _ => s.general
+  };
+
+fn subsetted_of(s:k.Subsetting)->k.Feature =
+  match s {
+    r: k.Redefinition => r.redefinedFeature,
+    x: k.ReferenceSubsetting => x.referencedFeature,
+    c: k.CrossSubsetting => c.crossedFeature,
+    _ => s.subsettedFeature
+  };
+
+fn subsetting_of(s:k.Subsetting)->Option<k.Feature> =
+  match s {
+    r: k.Redefinition => Some(r.redefiningFeature),
+    _: k.ReferenceSubsetting => owning_feature_of(s),
+    _: k.CrossSubsetting => owning_feature_of(s),
+    _ => Some(s.subsettingFeature)
+  };
+
+fn owning_feature_of(r:k.Relationship)->Option<k.Feature> =
+  match r.owningRelatedElement {
+    Some(e) => asType::<k.Feature>(e),
+    None => None
+  };
+
+fn conjugated(t:k.Type)->Bool =
+  t.ownedRelationship.exists(|r| oclIsKindOf::<k.Conjugation>(r));
+
+fn owned_specialization_rules(t:k.Type, s:k.Specialization)->Sequence<Issue> {
+  let g = general_of(s);
+  let sysml = oclIsKindOf::<k.Definition>(t);
+  let data_type = match t {
+    _: k.DataType => when(oclIsKindOf::<k.Class>(g) || oclIsKindOf::<k.Association>(g),
+      if sysml {
+        error("validateDataTypeSpecialization", "Cannot specialize item definition",
+          "general", "SysML.checkDataType.INVALID_ATTRIBUTE_DEFINITION_SPECIALIZATION")
+      } else {
+        error("validateDataTypeSpecialization", "Cannot specialize class or association",
+          "general", "KerML.checkDataType.INVALID_DATA_TYPE_SPECIALIZATION")
+      }),
+    _ => no_issues()
+  };
+  let class_issues = match t {
+    _: k.Class => when(oclIsKindOf::<k.DataType>(g)
+        || (oclIsKindOf::<k.Association>(g) && !oclIsKindOf::<k.Association>(t)),
+      if sysml {
+        error("validateClassSpecialization", "Cannot specialize attribute definition",
+          "general", "SysML.checkClass.INVALID_ITEM_DEFINITION_SPECIALIZATION")
+      } else {
+        error("validateClassSpecialization", "Cannot specialize data type or association",
+          "general", "KerML.checkClass.INVALID_CLASS_SPECIALIZATION")
+      }),
+    _ => no_issues()
+  };
+  let structure = match t {
+    _: k.Structure => when(oclIsKindOf::<k.Behavior>(g),
+      error("validateStructureSpecialization", "Cannot specialize behavior",
+        "general", "KerML.checkStructure.INVALID_STRUCTURE_SPECIALIZATION")),
+    _ => no_issues()
+  };
+  let behavior = match t {
+    _: k.Behavior => when(oclIsKindOf::<k.Structure>(g),
+      error("validateBehaviorSpecialization", "Cannot specialize structure",
+        "general", "KerML.checkBehavior.INVALID_BEHAVIOR_SPECIALIZATION")),
+    _ => no_issues()
+  };
+  data_type.concat(class_issues).concat(structure).concat(behavior)
+}
+
+// checkType, validateTypeAtMostOneConjugator.
+fn type_at_most_one_conjugator(t:k.Type)->Sequence<Issue> =
+  when(t.ownedRelationship.selectByKind::<k.Conjugation>().size() > 1,
+    error("validateTypeAtMostOneConjugator", "Cannot have more than one conjugator", "",
+      "KerML.checkType.INVALID_TYPE_AT_MOST_ONE_CONJUGATOR"));
+
+// The type owning a relationship as one of its own (not through a
+// membership).
+fn owning_type_of(r:k.Relationship)->Option<k.Type> =
+  match r.owningRelatedElement {
+    Some(e) => asType::<k.Type>(e),
+    None => None
+  };
+
+// checkType: validateOwnedDifferencingNotOne (reported on the only owned
+// differencing) and validateTypeDifferencingTypesNotSelf (on a differencing
+// whose differencing type is the type itself).
+fn differencing_rules(r:k.Differencing)->Sequence<Issue> =
+  match owning_type_of(r) {
+    Some(t) => when(t.ownedRelationship.selectByKind::<k.Differencing>().size() == 1,
+        error("validateOwnedDifferencingNotOne", "Cannot have only one differencing", "",
+          "KerML.checkType.INVALID_TYPE_OWNED_DIFFERENCING_NOT_ONE"))
+      .concat(when(r.differencingType == t,
+        error("validateTypeDifferencingTypesNotSelf", "Type cannot difference with itself", "",
+          "KerML.checkType.INVALID_TYPE_DIFFERENCING_TYPES_NOT_SELF"))),
+    None => []
+  };
+
+fn intersecting_rules(r:k.Intersecting)->Sequence<Issue> =
+  match owning_type_of(r) {
+    Some(t) => when(t.ownedRelationship.selectByKind::<k.Intersecting>().size() == 1,
+        error("validateOwnedIntersectingNotOne", "Cannot have only one intersecting", "",
+          "KerML.checkType.INVALID_TYPE_OWNED_INTERSECTING_NOT_ONE"))
+      .concat(when(r.intersectingType == t,
+        error("validateTypeIntersectingTypesNotSelf", "Type cannot intersect with itself", "",
+          "KerML.checkType.INVALID_TYPE_INTERSECTING_TYPES_NOT_SELF"))),
+    None => []
+  };
+
+fn unioning_rules(r:k.Unioning)->Sequence<Issue> =
+  match owning_type_of(r) {
+    Some(t) => when(t.ownedRelationship.selectByKind::<k.Unioning>().size() == 1,
+        error("validateOwnedUnioningNotOne", "Cannot have only one unioning", "",
+          "KerML.checkType.INVALID_TYPE_OWNED_UNIONING_NOT_ONE"))
+      .concat(when(r.unioningType == t,
+        error("validateTypeUnioningTypesNotSelf", "Type cannot union with itself", "",
+          "KerML.checkType.INVALID_TYPE_UNIONING_TYPES_NOT_SELF"))),
+    None => []
+  };
+
+// checkType, validateTypeOwnedMultiplicity: of the memberships a type owns
+// whose element is a multiplicity, the second and later are reported
+// (feature memberElement).
+fn type_owned_multiplicity(m:k.Membership)->Sequence<Issue> =
+  if !multiplicity_membership(m) { [] } else {
+    match owning_type_of(m) {
+      Some(t) => match t.ownedRelationship.selectByKind::<k.Membership>()
+          .filter(|o| multiplicity_membership(o)).first() {
+        Some(first) => when(first != m,
+          error("validateTypeOwnedMultiplicity", "Only one multiplicity is allowed",
+            "memberElement", "KerML.checkType.INVALID_TYPE_OWNED_MULTIPLICITY")),
+        None => []
+      },
+      None => []
+    }
+  };
+
+fn multiplicity_membership(m:k.Membership)->Bool =
+  resolution.elements_of(m).exists(|e| oclIsKindOf::<k.Multiplicity>(e));
+
+// --- Core: features ---------------------------------------------------------
+
+// The type that owns a feature through a feature membership.
+fn owning_type(f:k.Feature)->Option<k.Type> =
+  match container::<k.FeatureMembership>(f) {
+    Some(m) => container::<k.Type>(m),
+    None => None
+  };
+
+// Feature::isVariable as the Pilot reads it. The KerML parser makes a
+// constant feature variable (FeatureParserPostProcessor); a SysML usage is
+// variable when it may vary in time (UsageImpl.isVariable is
+// Usage::mayTimeVary, false for succession and binding connector usages).
+fn variable(f:k.Feature)->Bool =
+  match f {
+    _: k.SuccessionAsUsage => false,
+    _: k.BindingConnectorAsUsage => false,
+    u: k.Usage => may_time_vary(u),
+    _ => f.isVariable || f.isConstant
+  };
+
+// UsageAdapter.mayTimeVary: the owning type specializes
+// Occurrences::Occurrence and the usage is not a portion, not a self link or
+// happens link, and not a composite action. Specialization includes the
+// implicit library generalizations (as sysml-construction's constant ends).
+fn may_time_vary(u:k.Usage)->Bool =
+  match owning_type(u) {
+    Some(t) => if u.isPortion || !specializes(t, "Occurrences::Occurrence") { false } else {
+      let own = supertypes_of(u);
+      !(reaches(own, u, "Links::SelfLink")
+        || reaches(own, u, "Occurrences::HappensLink")
+        || (u.isComposite && reaches(own, u, "Actions::Action")))
+    },
+    None => false
+  };
+
+fn specializes(t:k.Type, name:String)->Bool = reaches(supertypes_of(t), t, name);
+
+fn reaches(types:Sequence<k.Type>, r:k.Type, name:String)->Bool =
+  resolution.library(r, name).selectByKind::<k.Type>()
+    .exists(|target| types.exists(|g| g == target));
+
+fn supertypes_of(t:k.Type)->Sequence<k.Type> = closure(Sequence([t]), no_types(t), 0);
+
+fn closure(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, depth:Int64)->Sequence<k.Type> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| generals_of(g)).distinct()
+      .reject(|g| known.contains(g)));
+    closure(next, known, depth + 1)
+  };
+
+fn generals_of(t:k.Type)->Sequence<k.Type> =
+  resolution.naming_generals(t)
+    .concat(resolution.library(t, implicit.library_default(t)).selectByKind::<k.Type>()
+      .reject(|g| g == t))
+    .concat(resolution.binary_library(t).selectByKind::<k.Type>())
+    .concat(last_chained(t));
+
+fn last_chained(t:k.Type)->Sequence<k.Type> =
+  match contents::<k.FeatureChaining>(t).last() {
+    Some(c) => Sequence([c.chainingFeature]).selectByKind::<k.Type>(),
+    None => []
+  };
+
+fn no_types(t:k.Type)->Sequence<k.Type> = [];
+
+// checkFeature: validateFeatureConstantIsVariable,
+// validateFeatureEndNoDirection,
+// validateFeatureEndNotDerivedAbstractCompositeOrPortion and
+// validateFeaturePortionNotVariable, all on the feature; checkEndFeatureMembership
+// (on the owned member feature) and checkParameterMembership's direction
+// check (on the owned member parameter); checkConstructionExpression's and
+// checkInvocationExpression's owned-feature checks (on the owned feature).
+fn feature_rules(f:k.Feature)->Sequence<Issue> =
+  when(f.isConstant && !variable(f),
+    error("validateFeatureConstantIsVariable", "Only a variable feature can be constant", "",
+      "KerML.checkFeature.INVALID_FEATURE_CONSTANT_IS_VARIABLE"))
+  .concat(when(f.isEnd && has_direction(f),
+    error("validateFeatureEndNoDirection", "End feature cannot have direction", "",
+      "KerML.checkFeature.INVALID_FEATURE_END_NO_DIRECTION")))
+  .concat(when(f.isEnd && (f.isDerived || f.isAbstract || f.isComposite || f.isPortion),
+    error("validateFeatureEndNotDerivedAbstractCompositeOrPortion",
+      "End feature cannot be derived, abstract, composite or portion", "",
+      "KerML.checkFeature.INVALID_FEATURE_END_NOT_DERIVED_ABSTRACT_COMPOSITE_OR_PORTION")))
+  .concat(when(f.isPortion && variable(f),
+    error("validateFeaturePortionNotVariable", "A portion cannot be variable", "",
+      "KerML.checkFeature.INVALID_FEATURE_PORTION_NOT_VARIABLE")))
+  .concat(match container::<k.Membership>(f) {
+    Some(m) => membership_feature_rules(f, m),
+    None => no_issues()
+  });
+
+fn has_direction(f:k.Feature)->Bool =
+  match f.direction { Some(_) => true, None => false };
+
+fn direction_is(f:k.Feature, d:k.FeatureDirectionKind)->Bool =
+  match f.direction { Some(x) => x == d, None => false };
+
+fn membership_feature_rules(f:k.Feature, m:k.Membership)->Sequence<Issue> =
+  end_feature_membership_is_end(f, m)
+    .concat(parameter_membership_direction(f, m))
+    .concat(match container::<k.Type>(m) {
+      Some(t) => match asType::<k.FeatureMembership>(m) {
+        Some(fm) => expression_owned_features(f, fm, t),
+        None => no_issues()
+      },
+      None => no_issues()
+    });
+
+// checkEndFeatureMembership, validateEndFeatureMembershpIsEnd (code
+// spelled as in the Pilot).
+fn end_feature_membership_is_end(f:k.Feature, m:k.Membership)->Sequence<Issue> =
+  match m {
+    _: k.EndFeatureMembership => when(!f.isEnd,
+      error("validateEndFeatureMembershpIsEnd", "Must be an end feature", "",
+        "KerML.checkEndFeatureMembership.INVALID_END_FEATURE_MEMBERSHIP_IS_END")),
+    _ => []
+  };
+
+// checkParameterMembership, validateParameterMembershipDirection: the
+// parameter's direction must be its membership's parameterDirection, `out`
+// for a return parameter membership and `in` for any other.
+fn parameter_membership_direction(f:k.Feature, m:k.Membership)->Sequence<Issue> =
+  match m {
+    _: k.ReturnParameterMembership => when(!direction_is(f, k.FeatureDirectionKind.`out`),
+      error("validateParameterMembershipDirection", "Must have direction 'out'", "",
+        "KerML.checkParameterMembership.INVALID_PARAMETER_MEMBERSHIP_DIRECTION")),
+    _: k.ParameterMembership => when(!direction_is(f, k.FeatureDirectionKind.`in`),
+      error("validateParameterMembershipDirection", "Must have direction 'in'", "",
+        "KerML.checkParameterMembership.INVALID_PARAMETER_MEMBERSHIP_DIRECTION")),
+    _ => []
+  };
+
+// The owned result parameter of a type (TypeUtil.getOwnedResultParameterOf):
+// the first feature it owns through a return parameter membership that is a
+// parameter (it has a direction).
+fn owned_result(t:k.Type)->Option<k.Feature> =
+  contents::<k.ReturnParameterMembership>(t)
+    .flatMap(|m| contents::<k.Feature>(m))
+    .filter(|p| has_direction(p))
+    .first();
+
+fn has_owned_result(t:k.Type)->Bool =
+  match owned_result(t) { Some(_) => true, None => false };
+
+fn is_owned_result(t:k.Type, f:k.Feature)->Bool =
+  match owned_result(t) { Some(r) => r == f, None => false };
+
+// checkConstructionExpression, validateConstructorExpressionOwnedFeatures,
+// and checkInvocationExpression, validateInvocationExpressionOwnedFeatures:
+// a feature a constructor expression owns, other than its result, is
+// reported; so is one an invocation expression owns, other than its result,
+// whose direction is not `in`, when the expression's instantiated type is
+// valid.
+fn expression_owned_features(f:k.Feature, m:k.FeatureMembership, t:k.Type)->Sequence<Issue> =
+  match t {
+    e: k.ConstructorExpression => when(!is_owned_result(e, f),
+      error("validateConstructorExpressionOwnedFeatures", "Owned feature not allowed", "",
+        "KerML.checkConstructionExpression.INVALID_CONSTRUCTOR_EXPRESSION_OWNED_FEATURES")),
+    e: k.InvocationExpression => when(!is_owned_result(e, f)
+        && !direction_is(f, k.FeatureDirectionKind.`in`) && valid_invocation_type(e),
+      error("validateInvocationExpressionOwnedFeatures", "Must be an in parameter", "",
+        "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_OWNED_FEATURES")),
+    _ => []
+  };
+
+// InstantiationExpression::instantiatedType: for an operator expression the
+// library function of its operator and for a trigger invocation the library
+// function of its kind (taken as found: the notation's operators and kinds
+// all have one); otherwise the element of its first owned membership that is
+// not a feature membership, when that is a type.
+fn instantiated_type(e:k.InstantiationExpression)->Sequence<k.Type> =
+  match e {
+    _: k.OperatorExpression => Sequence([e]).selectByKind::<k.Type>(),
+    _: k.TriggerInvocationExpression => Sequence([e]).selectByKind::<k.Type>(),
+    _ => match e.ownedRelationship.selectByKind::<k.Membership>()
+        .reject(|m| oclIsKindOf::<k.FeatureMembership>(m))
+        .flatMap(|m| resolution.elements_of(m)).first() {
+      Some(t) => Sequence([t]).selectByKind::<k.Type>(),
+      None => []
+    }
+  };
+
+// validateInvocationExpressionInstantiatedType's condition: the
+// instantiated type is a behavior, or a feature typed by exactly one type,
+// a behavior (its owned typings only: the derived types of a feature are
+// not read here). Operator expressions and trigger invocations name library
+// functions.
+fn valid_invocation_type(e:k.InvocationExpression)->Bool =
+  match e {
+    _: k.OperatorExpression => true,
+    _: k.TriggerInvocationExpression => true,
+    _ => instantiated_type(e).exists(|t| match t {
+      _: k.Behavior => true,
+      f: k.Feature => typed_by_one_behavior(f),
+      _ => false
+    })
+  };
+
+fn typed_by_one_behavior(f:k.Feature)->Bool {
+  let typings = f.ownedRelationship.selectByKind::<k.FeatureTyping>();
+  typings.size() == 1 && typings.exists(|x| oclIsKindOf::<k.Behavior>(general_of(x)))
+}
+
+// checkFeature: validateFeatureChainingFeatureNotOne (on the only owned
+// feature chaining) and validateFeatureChainingFeaturesNotSelf (on a
+// chaining whose chaining feature is the feature itself).
+fn feature_chaining_rules(c:k.FeatureChaining)->Sequence<Issue> =
+  match owning_type_of(c) {
+    Some(t) => when(t.ownedRelationship.selectByKind::<k.FeatureChaining>().size() == 1,
+        error("validateFeatureChainingFeatureNotOne", "Cannot have only one chaining feature", "",
+          "KerML.checkFeature.INVALID_FEATURE_CHAINING_FEATURE_NOT_ONE"))
+      .concat(when(c.chainingFeature == t,
+        error("validateFeatureChainingFeaturesNotSelf",
+          "Feature cannot have itself in a feature chain", "",
+          "KerML.checkFeature.INVALID_FEATURE_CHAINING_FEATURES_NOT_SELF")))
+      .concat(feature_chaining_conformance(c, t)),
+    None => []
+  };
+
+// checkFeature, validateFeatureOwnedReferenceSubsetting and
+// validateFeatureOwnedCrossSubsetting: the second and later reference (or
+// cross) subsettings a feature owns are reported.
+fn feature_owned_reference_subsetting(r:k.ReferenceSubsetting)->Sequence<Issue> =
+  match owning_type_of(r) {
+    Some(t) => match t.ownedRelationship.selectByKind::<k.ReferenceSubsetting>().first() {
+      Some(first) => when(first != r,
+        error("validateFeatureOwnedReferenceSubsetting",
+          "At most one reference subsetting is allowed", "",
+          "KerML.checkFeature.INVALID_FEATURE_OWNED_REFERENCE_SUBSETTING")),
+      None => []
+    },
+    None => []
+  };
+
+fn feature_owned_cross_subsetting(r:k.CrossSubsetting)->Sequence<Issue> =
+  match owning_type_of(r) {
+    Some(t) => match t.ownedRelationship.selectByKind::<k.CrossSubsetting>().first() {
+      Some(first) => when(first != r,
+        error("validateFeatureOwnedCrossSubsetting",
+          "At most one cross subsetting is allowed", "",
+          "KerML.checkFeature.INVALID_FEATURE_OWNED_CROSS_SUBSETTING")),
+      None => []
+    },
+    None => []
+  };
+
+// checkRedefinition, validateRedefinitionEndConformance: the redefined
+// feature is an end, the redefining one is not, and the redefining feature's
+// owning type is an association or a connector.
+fn redefinition_end_conformance(r:k.Redefinition)->Sequence<Issue> {
+  let redefining = r.redefiningFeature;
+  when(r.redefinedFeature.isEnd && !redefining.isEnd && match owning_type(redefining) {
+      Some(t) => oclIsKindOf::<k.Association>(t) || oclIsKindOf::<k.Connector>(t),
+      None => false
+    },
+    error("validateRedefinitionEndConformance", "Redefining feature must be an end feature",
+      "redefinedFeature", "KerML.checkRedefinition.INVALID_REDEFINITION_END_CONFORMANCE"))
+}
+
+// checkSubsetting: validateSubsettingUniquenessConformance and
+// validateSubsettingConstantConformance, on every subsetting (redefinitions,
+// reference and cross subsettings included).
+fn subsetting_rules(s:k.Subsetting)->Sequence<Issue> {
+  let subsetted = subsetted_of(s);
+  match subsetting_of(s) {
+    Some(subsetting) => when(subsetted.isUnique && !subsetting.isUnique,
+        error("validateSubsettingUniquenessConformance",
+          "Subsetting/redefining feature cannot be nonunique if subsetted/redefined feature is unique",
+          "subsettingFeature", "KerML.checkSubsetting.INVALID_SUBSETTING_UNIQUENESS_CONFORMANCE"))
+      .concat(when(subsetted.isConstant && !subsetting.isConstant && variable(subsetting),
+        error("validateSubsettingConstantConformance",
+          "Subsetting/redefining feature must be constant if subsetted/redefined feature is constant",
+          "subsettedFeature", "KerML.checkSubsetting.INVALID_SUBSETTING_CONSTANT_CONFORMANCE")))
+      .concat(subsetting_featuring(subsetting, subsetted)),
+    None => no_issues()
+  }
+}
+
+// --- Kernel: parameters and results ---------------------------------------
+
+// checkParameterMembership, validateParameterMembershipOwningType: a
+// parameter membership other than a return parameter membership must be
+// owned by a behavior, a step or a constructor expression's result.
+fn parameter_membership_owning_type(m:k.ParameterMembership)->Sequence<Issue> =
+  match m {
+    _: k.ReturnParameterMembership => [],
+    _ => when(!match owning_type_of(m) {
+        Some(t) => oclIsKindOf::<k.Behavior>(t) || oclIsKindOf::<k.Step>(t) || constructor_result(t),
+        None => false
+      },
+      error("validateParameterMembershipOwningType", "Parameter membership not allowed",
+        "ownedMemberParameter",
+        "KerML.checkParameterMembership.INVALID_PARAMETER_MEMBERSHIP_OWNING_TYPE"))
+  };
+
+// ExpressionUtil.isConstructorResult: a feature owned by a constructor
+// expression through a return parameter membership.
+fn constructor_result(t:k.Type)->Bool =
+  match container::<k.ReturnParameterMembership>(t) {
+    Some(m) => match container::<k.ConstructorExpression>(m) { Some(_) => true, None => false },
+    None => false
+  };
+
+// checkReturnParameterMembership, validateReturnParameterMembershipOwningType,
+// and the at-most-one checks of checkExpression
+// (validateExpressionResultParameterMembership) and checkFunction
+// (validateFunctionResultParameterMembership): the second and later return
+// parameter memberships are reported (feature ownedMemberParameter).
+fn return_parameter_membership_rules(m:k.ReturnParameterMembership)->Sequence<Issue> =
+  match owning_type_of(m) {
+    Some(t) => match t {
+      e: k.Expression => when(!first_return(e, m),
+        error("validateExpressionResultParameterMembership",
+          "Only one return parameter is allowed", "ownedMemberParameter",
+          "KerML.checkExpression.INVALID_EXPRESSION_RESULT_PARAMETER_MEMBERSHIP")),
+      f: k.Function => when(!first_return(f, m),
+        error("validateFunctionResultParameterMembership",
+          "Only one return parameter is allowed", "ownedMemberParameter",
+          "KerML.checkFunction.INVALID_FUNCTION_RESULT_PARAMETER_MEMBERSHIP")),
+      _ => return_not_allowed()
+    },
+    None => return_not_allowed()
+  };
+
+fn return_not_allowed()->Sequence<Issue> =
+  error("validateReturnParameterMembershipOwningType", "Return parameter membership not allowed",
+    "ownedMemberParameter",
+    "KerML.checkReturnParameterMembership.INVALID_RETURN_PARAMETER_MEMBERSHIP_OWNING_TYPE");
+
+fn first_return(t:k.Type, m:k.ReturnParameterMembership)->Bool =
+  match t.ownedRelationship.selectByKind::<k.ReturnParameterMembership>().first() {
+    Some(first) => first == m,
+    None => true
+  };
+
+// checkResultExpressionMembership,
+// validateResultExpressionMembershipOwningType (the Pilot names
+// ParameterMembership.ownedMemberParameter as the feature).
+fn result_expression_membership_owning_type(m:k.ResultExpressionMembership)->Sequence<Issue> =
+  when(!match owning_type_of(m) {
+      Some(t) => oclIsKindOf::<k.Function>(t) || oclIsKindOf::<k.Expression>(t),
+      None => false
+    },
+    error("validateResultExpressionMembershipOwningType", "Result expression not allowed",
+      "ownedMemberParameter",
+      "KerML.checkResultExpressionMembership.INVALID_RESULT_EXPRESSION_MEMBERSHIP_OWNING_TYPE"));
+
+// --- Kernel: expressions --------------------------------------------------
+
+// checkCollectExpression, checkFeatureChainExpression, checkSelectExpression
+// and checkIndexExpression: the operator of each kind; and the KerML
+// checkOperatorExpression warning for '[' (SysMLValidator replaces it, so
+// not in SysML resources).
+fn operator_expression_rules(e:k.OperatorExpression)->Sequence<Issue> =
+  operator_kind_rules(e).concat(when(e.operator == "[" && !sysml_resource(e),
+    [issue_rule("warning", "validateOperatorExpressionBracketOperator_",
+      "Use #(...) for indexing", "",
+      "KerML.checkOperatorExpression.INVALID_OPERATOR_EXPRESSION_BRACKET_OPERATOR")]));
+
+fn operator_kind_rules(e:k.OperatorExpression)->Sequence<Issue> =
+  match e {
+    _: k.CollectExpression => when(e.operator != "collect",
+      error("validateCollectExpressionOperator", "Operator must be 'collect'", "",
+        "KerML.checkCollectExpression.INVALID_COLLECT_EXPRESSION_OPERATOR")),
+    _: k.FeatureChainExpression => when(e.operator != ".",
+      error("validateFeatureChainExpressionOperator", "Operator must be '.'", "",
+        "KerML.checkFeatureChainExpression.INVALID_FEATURE_CHAIN_EXPRESSION_OPERATOR")),
+    _: k.SelectExpression => when(e.operator != "select",
+      error("validateSelectExpressionOperator", "Operator must be 'select'", "",
+        "KerML.checkSelectExpression.INVALID_SELECT_EXPRESSION_OPERATOR")),
+    _: k.IndexExpression => when(e.operator != "#",
+      error("validateIndexExpressionOperator", "Operator must be '#'", "",
+        "KerML.checkIndexExpression.INVALID_INDEX_EXPRESSION_OPERATOR")),
+    _ => []
+  };
+
+fn sysml_resource(e:k.Element)->Bool =
+  match resource(e).split(".").last() { Some(x) => x == "sysml", None => false };
+
+// checkFeatureReferenceExpression: validateFeatureReferenceExpressionReferentIsFeature
+// (the referent, the element of the first owned membership that is not a
+// parameter membership, is not a feature) and
+// validateFeatureReferenceExpressionResult (no owned result parameter; the
+// Pilot passes the code as the message).
+fn feature_reference_expression_rules(e:k.FeatureReferenceExpression)->Sequence<Issue> =
+  when(match e.ownedRelationship.selectByKind::<k.Membership>()
+        .reject(|m| oclIsKindOf::<k.ParameterMembership>(m))
+        .flatMap(|m| resolution.elements_of(m)).first() {
+      Some(r) => !oclIsKindOf::<k.Feature>(r),
+      None => false
+    },
+    error("validateFeatureReferenceExpressionReferentIsFeature", "Must be a valid feature", "",
+      "KerML.checkFeatureReferenceExpression.INVALID_FEATURE_REFERENCE_EXPRESSION_REFERENT_IS_FEATURE"))
+  .concat(when(!has_owned_result(e),
+    error("validateFeatureReferenceExpressionResult", "validateFeatureReferenceExpressionResult", "",
+      "KerML.checkFeatureReferenceExpression.INVALID_FEATURE_REFERENCE_EXPRESSION_RESULT")));
+
+// checkInstantiationExpression: validateInstantiationExpressionInstantiatedType
+// and validateInstantiationExpressionResult (the Pilot passes the code as
+// the message).
+fn instantiation_expression_rules(e:k.InstantiationExpression)->Sequence<Issue> =
+  when(instantiated_type(e).isEmpty(),
+    error("validateInstantiationExpressionInstantiatedType",
+      "Must have an invoked/instantiated type", "",
+      "KerML.checkInstantiationExpression.INVALID_INSTANTIATION_EXPRESSION_INSTANTIATED_TYPE"))
+  .concat(when(!has_owned_result(e),
+    error("validateInstantiationExpressionResult", "validateInstantiationExpressionResult", "",
+      "KerML.checkInstantiationExpression.INVALID_INSTANTIATION_EXPRESSION_RESULT")))
+  .concat(invocation_instantiated_type(e));
+
+// --- Kernel: flows, feature values, multiplicities, packages --------------
+
+// checkFlow, validateFlowItemFeature (on the second and later payload
+// features a flow owns), and checkFlowEnd: validateFlowEndIsEnd,
+// validateFlowEndNestedFeature (it owns exactly one feature) and
+// validateFlowEndOwningType.
+fn flow_end_rules(e:k.FlowEnd)->Sequence<Issue> =
+  when(!e.isEnd,
+    error("validateFlowEndIsEnd", "Must be an end feature", "",
+      "KerML.checkFlowEnd.INVALID_FLOW_END_IS_END"))
+  .concat(when(owned_features(e).size() != 1,
+    error("validateFlowEndNestedFeature", "Flow end must have a nested input or output feature", "",
+      "KerML.checkFlowEnd.INVALID_FLOW_END_NESTED_FEATURE")))
+  .concat(when(!match owning_type(e) { Some(t) => oclIsKindOf::<k.Flow>(t), None => false },
+    error("validateFlowEndOwningType", "Flow end not allowed", "",
+      "KerML.checkFlowEnd.INVALID_FLOW_END_OWNING_TYPE")))
+  .concat(flow_end_subsetting(e));
+
+fn owned_features(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+
+fn payload_rules(p:k.PayloadFeature)->Sequence<Issue> =
+  match owning_type(p) {
+    Some(t) => match t {
+      flow: k.Flow => match owned_features(flow).selectByKind::<k.PayloadFeature>().first() {
+        Some(first) => when(first != p,
+          error("validateFlowItemFeature", "Only one item feature is allowed", "",
+            "KerML.checkFlow.INVALID_FLOW_ITEM_FEATURE")),
+        None => []
+      },
+      _ => []
+    },
+    None => []
+  };
+
+// checkFeatureValue, validateFeatureValueIsInitial: an initial value on a
+// feature that is not variable. The Pilot does not check for a missing
+// feature (it throws, and reports nothing).
+fn feature_value_is_initial(v:k.FeatureValue)->Sequence<Issue> =
+  if !v.isInitial { [] } else {
+    match container::<k.Feature>(v) {
+      Some(f) => when(!variable(f),
+        error("validateFeatureValueIsInitial", "Initialized feature must be variable", "",
+          "KerML.checkFeatureValue.INVALID_FEATURE_VALUE_IS_INITIAL")),
+      None => []
+    }
+  };
+
+// checkMultiplicityRange, validateMultiplicityRangeBounds: the bounds (the
+// owned member expressions: lower and upper with two, upper alone with one)
+// must be the first owned members.
+fn multiplicity_range_bounds(m:k.MultiplicityRange)->Sequence<Issue> {
+  let members = Sequence(contents::<k.OwningMembership>(m).flatMap(|o| contents::<k.Element>(o)));
+  let bounds = members.selectByKind::<k.Expression>().selectByKind::<k.Element>();
+  let valid = if bounds.size() >= 2 {
+    same(members.at(0), bounds.at(0)) && same(members.at(1), bounds.at(1))
+  } else {
+    bounds.notEmpty() && same(members.at(0), bounds.at(0))
+  };
+  when(!valid,
+    error("validateMultiplicityRangeBounds", "Bound expressions must be first two owned members", "",
+      "KerML.checkMultiplicityRange.INVALID_MULTIPLICITY_RANGE_BOUNDS"))
+}
+
+fn same(a:Option<k.Element>, b:Option<k.Element>)->Bool =
+  match a {
+    Some(x) => match b { Some(y) => x == y, None => false },
+    None => false
+  };
+
+// checkLibraryPackage, validateLibraryPackageNotStandard_ (warning): a
+// standard library package outside the model library. As the Pilot's
+// SysMLLibraryUtil.isLibraryResource, a resource is in the library when its
+// name contains the library folder `sysml.library`.
+fn library_package_not_standard(p:k.LibraryPackage)->Sequence<Issue> =
+  when(p.isStandard && resource(p).split("sysml.library").size() < 2,
+    [issue_rule("warning", "validateLibraryPackageNotStandard_",
+      "User library packages should not be marked as standard", "isStandard",
+      "KerML.checkLibraryPackage.INVALID_LIBRARY_PACKAGE_NOT_STANDARD")]);
+
+// --- Names: namespace distinguishability (batch B5) -----------------------
+
+// checkNamespace, validateNamespaceDistinguishablity (warning, code spelled
+// as in the Pilot), in the binding of every element: an element owned by an
+// owning membership is checked as that membership's member (target the
+// element, feature declaredShortName or declaredName), a membership that is
+// not an owning membership as an alias (target the membership, feature
+// memberShortName or memberName), and a type for its inherited memberships
+// (target the type). The Pilot skips the memberships of invocation, feature
+// reference, literal and null expressions and of binding connectors, and
+// never checks imported memberships.
+//
+// Names are the Pilot's membership names: an owning membership's are its
+// element's effective name and short name, any other membership's its
+// stored memberName and memberShortName. Two memberships clash when one's
+// name or short name is the other's name or short name and their member
+// elements differ.
+fn element_rules(e:k.Element)->Sequence<Issue> =
+  element_is_implied_included(e).concat(distinguishability(e));
+
+fn distinguishability(e:k.Element)->Sequence<Issue> =
+  owned_member_distinguishability(e)
+    .concat(alias_distinguishability(e))
+    .concat(inherited_distinguishability(e));
+
+fn distinct_warning(text:String, feature:String)->Sequence<Issue> =
+  [issue_rule("warning", "validateNamespaceDistinguishablity", text, feature,
+    "KerML.checkNamespace.INVALID_NAMESPACE_DISTINGUISHABILITY")];
+
+fn distinguished(ns:k.Namespace)->Bool =
+  match ns {
+    _: k.InvocationExpression => false,
+    _: k.FeatureReferenceExpression => false,
+    _: k.LiteralExpression => false,
+    _: k.NullExpression => false,
+    _: k.BindingConnector => false,
+    _ => true
+  };
+
+// An owned member: "Duplicate of other owned member name" against the other
+// owning memberships of its namespace, and for a type "Duplicate of
+// inherited member name" against its inherited memberships.
+fn owned_member_distinguishability(e:k.Element)->Sequence<Issue> =
+  match container::<k.OwningMembership>(e) {
+    Some(m) => match container::<k.Namespace>(m) {
+      Some(ns) => if distinguished(ns) && is_owned_member(m, e) {
+        owned_label_issues(ns, e, effective_short_name(e), "declaredShortName")
+          .concat(owned_label_issues(ns, e, effective_name(e), "declaredName"))
+      } else { no_issues() },
+      None => no_issues()
+    },
+    None => no_issues()
+  };
+
+fn is_owned_member(m:k.OwningMembership, e:k.Element)->Bool =
+  match contents::<k.Element>(m).first() { Some(x) => x == e, None => false };
+
+// Each owning membership owns its own element, so another owning membership
+// with the label has a different element: the label occurs twice.
+fn owned_label_issues(ns:k.Namespace, e:k.Element, label:Option<String>, feature:String)->Sequence<Issue> =
+  match label {
+    Some(n) => when(owning_labels(ns).filter(|x| x == n).size() > 1,
+        distinct_warning("Duplicate of other owned member name", feature))
+      .concat(inherited_label_issues(ns, e, n, feature)),
+    None => no_issues()
+  };
+
+// The labels of a namespace's owning memberships, each membership's
+// distinct labels once.
+fn owning_labels(ns:k.Namespace)->Sequence<String> =
+  Sequence(contents::<k.OwningMembership>(ns).flatMap(|m| membership_labels(m)));
+
+fn inherited_label_issues(ns:k.Namespace, e:k.Element, n:String, feature:String)->Sequence<Issue> =
+  match asType::<k.Type>(ns) {
+    Some(t) => if inherited_labels(t).contains(n) {
+      let dups = Sequence(inherited_memberships(t).filter(|d| labelled_other(d, n, e)));
+      when(dups.notEmpty(),
+        distinct_warning(with_sources("Duplicate of inherited member name", ns, n, dups), feature))
+    } else { no_issues() },
+    None => no_issues()
+  };
+
+// A membership that is not an owning membership (an alias): "Duplicate of
+// owned member name", "Duplicate of other alias name" and, in a type,
+// "Duplicate of inherited member name".
+fn alias_distinguishability(e:k.Element)->Sequence<Issue> =
+  match e {
+    _: k.OwningMembership => no_issues(),
+    m: k.Membership => match container::<k.Namespace>(m) {
+      Some(ns) => if distinguished(ns) {
+        alias_label_issues(ns, m, m.memberShortName, "memberShortName")
+          .concat(alias_label_issues(ns, m, m.memberName, "memberName"))
+      } else { no_issues() },
+      None => no_issues()
+    },
+    _ => no_issues()
+  };
+
+fn alias_label_issues(ns:k.Namespace, m:k.Membership, label:Option<String>, feature:String)->Sequence<Issue> =
+  match label {
+    Some(n) => {
+      let elem = m.memberElement;
+      let owning = Sequence(contents::<k.OwningMembership>(ns).filter(|o| labelled_other(o, n, elem)));
+      let aliases = Sequence(contents::<k.Membership>(ns)
+        .reject(|o| oclIsKindOf::<k.OwningMembership>(o))
+        .filter(|o| labelled_other(o, n, elem)));
+      when(owning.notEmpty(), distinct_warning("Duplicate of owned member name", feature))
+        .concat(when(aliases.notEmpty(), distinct_warning("Duplicate of other alias name", feature)))
+        .concat(inherited_label_issues(ns, elem, n, feature))
+    },
+    None => no_issues()
+  };
+
+// A type's inherited memberships among themselves: one warning on the type
+// per label carried by memberships of more than one element.
+fn inherited_distinguishability(e:k.Element)->Sequence<Issue> =
+  match asType::<k.Type>(e) {
+    Some(t) => if distinguished(t) {
+      let labels = inherited_labels(t);
+      let unique = labels.distinct();
+      if unique.size() == labels.size() { no_issues() } else {
+        Sequence(unique.filter(|n| labels.filter(|x| x == n).size() > 1)
+          .flatMap(|n| inherited_clash(t, n)))
+      }
+    } else { no_issues() },
+    None => no_issues()
+  };
+
+fn inherited_clash(t:k.Type, n:String)->Sequence<Issue> {
+  let dups = Sequence(inherited_memberships(t).filter(|d| membership_labels(d).contains(n)));
+  when(dups.flatMap(|d| member_elements(d)).distinct().size() > 1,
+    distinct_warning(with_sources("Duplicate of inherited member name", t, n, dups), ""))
+}
+
+fn labelled_other(m:k.Membership, n:String, e:k.Element)->Bool =
+  !member_elements(m).contains(e) && membership_labels(m).contains(n);
+
+// The member element (MembershipImpl.memberElement): an owning membership's
+// owned member element, or the stored memberElement.
+fn member_elements(m:k.Membership)->Sequence<k.Element> =
+  match resolution.elements_of(m).first() {
+    Some(x) => Sequence([x]),
+    None => no_element_list()
+  };
+
+fn no_element_list()->Sequence<k.Element> = [];
+
+fn membership_labels(m:k.Membership)->Sequence<String> =
+  match m {
+    o: k.OwningMembership => match contents::<k.Element>(o).first() {
+      Some(e) => labels_of(effective_short_name(e), effective_name(e)),
+      None => no_labels()
+    },
+    _ => labels_of(m.memberShortName, m.memberName)
+  };
+
+fn labels_of(short:Option<String>, name:Option<String>)->Sequence<String> =
+  match short {
+    Some(s) => match name {
+      Some(n) => if s == n { Sequence([s]) } else { Sequence([s, n]) },
+      None => Sequence([s])
+    },
+    None => match name {
+      Some(n) => Sequence([n]),
+      None => no_labels()
+    }
+  };
+
+fn no_labels()->Sequence<String> = [];
+
+fn inherited_labels(t:k.Type)->Sequence<String> =
+  Sequence(inherited_memberships(t).flatMap(|m| membership_labels(m)));
+
+// identifyDuplicates: the names of the namespaces owning the duplicates,
+// other than the namespace checked (an unnamed one as ""), sorted (Java
+// String order; the UTF-8 byte order compared here is the same for names in
+// the Basic Multilingual Plane), each escaped as a name, joined with ", ".
+// When that is empty, the message is unchanged; otherwise " '<name>' from
+// <names>" is appended, the name escaped as a string (the stored name: names
+// are stored with their escapes as written).
+fn with_sources(text:String, ns:k.Namespace, n:String, dups:Sequence<k.Membership>)->String {
+  let owners = Sequence(dups.flatMap(|d| membership_owner(d)).filter(|o| o != ns));
+  let names = Sequence(owners.map(|o| match effective_name(o) { Some(x) => x, None => "" }));
+  let joined = join_labels(Sequence(sorted_labels(names, 0, no_labels()).map(|x| escaped_name(x))), ", ");
+  if joined == "" { text } else { text + " '" + n + "' from " + joined }
+}
+
+fn membership_owner(m:k.Membership)->Sequence<k.Namespace> =
+  match container::<k.Namespace>(m) {
+    Some(o) => Sequence([o]),
+    None => no_namespace_list()
+  };
+
+fn no_namespace_list()->Sequence<k.Namespace> = [];
+
+fn join_labels(xs:Sequence<String>, sep:String)->String =
+  match xs.first() {
+    Some(x) => x + join_tail(xs, sep, 1),
+    None => ""
+  };
+
+fn join_tail(xs:Sequence<String>, sep:String, i:Int64)->String =
+  match xs.at(i) {
+    Some(x) => sep + x + join_tail(xs, sep, i + 1),
+    None => ""
+  };
+
+// Insertion sort by `text_less`.
+fn sorted_labels(xs:Sequence<String>, i:Int64, acc:Sequence<String>)->Sequence<String> =
+  match xs.at(i) {
+    Some(x) => sorted_labels(xs, i + 1,
+      Sequence(acc.filter(|y| !text_less(x, y)))
+        .concat(Sequence([x]))
+        .concat(Sequence(acc.filter(|y| text_less(x, y))))),
+    None => acc
+  };
+
+// String order without string comparison: the lowercase hexadecimal of the
+// UTF-8 bytes, compared digit by digit (each digit found by splitting).
+fn text_less(a:String, b:String)->Bool = hex_less(hex(a), hex(b));
+
+fn hex_less(x:String, y:String)->Bool =
+  if x == "" { y != "" } else {
+    if y == "" { false } else {
+      let a = hex_lead(x, 0);
+      let b = hex_lead(y, 0);
+      if a == b {
+        match hex_digits().at(a) {
+          Some(d) => hex_less(hex_rest(x, d), hex_rest(y, d)),
+          None => false
+        }
+      } else { a < b }
+    }
+  };
+
+fn hex_digits()->Sequence<String> = "0 1 2 3 4 5 6 7 8 9 a b c d e f".split(" ");
+
+// The value of the first digit of a non-empty hexadecimal string.
+fn hex_lead(h:String, i:Int64)->Int64 =
+  match hex_digits().at(i) {
+    Some(d) => match h.split(d).first() {
+      Some(p) => if p == "" { i } else { hex_lead(h, i + 1) },
+      None => 16
+    },
+    None => 16
+  };
+
+// `h` without its first digit `d`.
+fn hex_rest(h:String, d:String)->String {
+  let pieces = h.split(d);
+  match pieces.at(1) {
+    Some(x) => x + join_tail(pieces, d, 2),
+    None => ""
+  }
+}
+
+// ElementUtil.escapeName: a name that is empty, `$` or an identifier
+// ([a-zA-Z_][a-zA-Z_0-9]*) unchanged, any other quoted.
+fn escaped_name(x:String)->String =
+  if x == "" || x == "$" || is_identifier(x) { x } else { "'" + x + "'" };
+
+fn is_identifier(x:String)->Bool =
+  !"0 1 2 3 4 5 6 7 8 9".split(" ").exists(|d| match x.split(d).first() {
+    Some(p) => p == "",
+    None => false
+  }) && without_chars(x, identifier_chars(), 0) == "";
+
+fn identifier_chars()->Sequence<String> =
+  "a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9 _".split(" ");
+
+fn without_chars(x:String, chars:Sequence<String>, i:Int64)->String =
+  if x == "" { x } else {
+    match chars.at(i) {
+      Some(c) => without_chars(concat_pieces(x.split(c), 0), chars, i + 1),
+      None => x
+    }
+  };
+
+fn concat_pieces(xs:Sequence<String>, i:Int64)->String =
+  match xs.at(i) {
+    Some(x) => x + concat_pieces(xs, i + 1),
+    None => ""
+  };
+
+// --- Effective names --------------------------------------------------------
+
+// Element::effectiveName as the Pilot computes it: a conjugated port
+// definition is "~" and its port definition's name; a feature with a
+// declared name or short name has its declared name; an unnamed feature
+// takes its naming feature's effective name (FeatureUtil.computeEffectiveName,
+// a naming cycle giving none); any other element has its declared name.
+fn effective_name(e:k.Element)->Option<String> =
+  match e {
+    c: k.ConjugatedPortDefinition => match ancestors::<k.PortDefinition>(c).first() {
+      Some(p) => match p.declaredName { Some(n) => Some("~" + n), None => None },
+      None => None
+    },
+    f: k.Feature => feature_label(f, false, 0),
+    _ => e.declaredName
+  };
+
+fn effective_short_name(e:k.Element)->Option<String> =
+  match e {
+    _: k.ConjugatedPortDefinition => e.declaredShortName,
+    f: k.Feature => feature_label(f, true, 0),
+    _ => e.declaredShortName
+  };
+
+fn feature_label(f:k.Feature, short:Bool, depth:Int64)->Option<String> =
+  if has_declared_label(f) {
+    if short { f.declaredShortName } else { f.declaredName }
+  } else {
+    if depth > 16 { None } else {
+      match naming_feature(f).first() {
+        Some(g) => if g == f { None } else { feature_label(g, short, depth + 1) },
+        None => None
+      }
+    }
+  };
+
+fn has_declared_label(e:k.Element)->Bool =
+  match e.declaredName {
+    Some(_) => true,
+    None => match e.declaredShortName { Some(_) => true, None => false }
+  };
+
+// Feature::namingFeature and its SysML redefinitions: a variant usage's
+// referenced feature; the performed action, exhibited state or included use
+// case (the basic feature of the reference subsetting, when of that kind);
+// a required or assumed constraint's referenced constraint; a view
+// rendering's referenced feature target; a transition's payload parameter's
+// trigger payload; otherwise the first redefined feature, owned or computed.
+fn naming_feature(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.VariantMembership>(f) {
+    Some(_) => or_features(referenced_features(f), redefined_directly(f)),
+    None => match f {
+      _: k.ExhibitStateUsage =>
+        or_features(basic_referenced(f).selectByKind::<k.StateUsage>().selectByKind::<k.Feature>(), redefined_directly(f)),
+      _: k.IncludeUseCaseUsage =>
+        or_features(basic_referenced(f).selectByKind::<k.UseCaseUsage>().selectByKind::<k.Feature>(), redefined_directly(f)),
+      _: k.PerformActionUsage =>
+        or_features(basic_referenced(f).selectByKind::<k.ActionUsage>().selectByKind::<k.Feature>(), redefined_directly(f)),
+      _: k.ConstraintUsage => match container::<k.RequirementConstraintMembership>(f) {
+        Some(_) => or_features(basic_referenced(f).selectByKind::<k.ConstraintUsage>().selectByKind::<k.Feature>(), Sequence([f])),
+        None => redefined_directly(f)
+      },
+      _: k.RenderingUsage => match container::<k.ViewRenderingMembership>(f) {
+        Some(_) => or_features(basic_referenced(f), redefined_directly(f)),
+        None => redefined_directly(f)
+      },
+      _: k.ReferenceUsage => or_features(transition_payload_parameter(f), redefined_directly(f)),
+      _ => redefined_directly(f)
+    }
+  };
+
+fn or_features(first:Sequence<k.Feature>, otherwise:Sequence<k.Feature>)->Sequence<k.Feature> =
+  if first.notEmpty() { first } else { otherwise };
+
+fn no_feature_list()->Sequence<k.Feature> = [];
+
+fn referenced_features(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.ReferenceSubsetting>(f).first() {
+    Some(r) => Sequence([r.referencedFeature]),
+    None => no_feature_list()
+  };
+
+// FeatureUtil.getBasicFeatureOf: a feature chain's last chaining feature.
+fn basic_referenced(f:k.Feature)->Sequence<k.Feature> =
+  Sequence(referenced_features(f).map(|g| match contents::<k.FeatureChaining>(g).last() {
+    Some(c) => c.chainingFeature,
+    None => g
+  }));
+
+// ReferenceUsage::namingFeature: the second parameter of a transition is
+// named after its trigger's payload parameter.
+fn transition_payload_parameter(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.ParameterMembership>(f) {
+    Some(m) => match container::<k.TransitionUsage>(m) {
+      Some(t) => match contents::<k.ParameterMembership>(t).at(1) {
+        Some(second) => if second == m { resolution.trigger_payload(t) } else { no_feature_list() },
+        None => no_feature_list()
+      },
+      None => no_feature_list()
+    },
+    None => no_feature_list()
+  };
+
+// --- Redefinitions ----------------------------------------------------------
+
+// FeatureAdapter.getRedefinedFeaturesWithComputed: the features of the owned
+// redefinitions, then the computed ones (not computed for a feature of an
+// invocation expression or constructor result that has owned
+// redefinitions).
+fn redefined_directly(f:k.Feature)->Sequence<k.Feature> {
+  let owned = Sequence(contents::<k.Redefinition>(f).map(|r| r.redefinedFeature));
+  if owned.notEmpty() && invocation_owned(f) { owned } else { owned.concat(computed_redefined(f)) }
+}
+
+fn invocation_owned(f:k.Feature)->Bool =
+  match ancestors::<k.Type>(f).first() {
+    Some(t) => oclIsKindOf::<k.InvocationExpression>(t) || constructor_result(t),
+    None => false
+  };
+
+// The Pilot's computed redefinitions, as the name resolution computes them:
+// a result parameter redefines the result parameter of each general of its
+// type; any other parameter of a behavior or step the parameter at its
+// position in each general; an end feature the end at its position in each
+// general (`redefinition_generals`, a feature chain read through its last
+// chaining feature); a transition's trigger and effect actions
+// `TransitionAction::accepter` and `effect`.
+fn computed_redefined(f:k.Feature)->Sequence<k.Feature> =
+  result_redefined(f)
+    .concat(positionally_redefined(f))
+    .concat(implied_ends(f))
+    .concat(transition_redefined(f))
+    .concat(objective_redefined(f));
+
+// SysML (RequirementUsageAdapter.getRelevantFeatures): a case's objective
+// redefines the objective of each case general (its own or inherited).
+fn objective_redefined(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.ObjectiveMembership>(f) {
+    Some(_) => match ancestors::<k.Type>(f).first() {
+      Some(t) => redefinition_generals(t).flatMap(|g| objective_of(basic_type(g), 0)),
+      None => no_feature_list()
+    },
+    None => no_feature_list()
+  };
+
+fn objective_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 || !(oclIsKindOf::<k.CaseDefinition>(t) || oclIsKindOf::<k.CaseUsage>(t)) { no_feature_list() } else {
+    let own = Sequence(contents::<k.ObjectiveMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+    if own.notEmpty() { own } else {
+      resolution.naming_generals(t).flatMap(|g| objective_of(basic_type(g), depth + 1))
+    }
+  };
+
+fn result_redefined(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.ReturnParameterMembership>(f) {
+    Some(_) => match ancestors::<k.Type>(f).first() {
+      Some(t) => redefinition_generals(t).flatMap(|g| result_parameter_of(basic_type(g), 0)),
+      None => no_feature_list()
+    },
+    None => no_feature_list()
+  };
+
+// The generals whose features a computed redefinition redefines
+// (FeatureAdapter.addRedefinitions over getGeneralTypes): the type's
+// original type, owned specializations' generals, binary library default
+// and library default unless one of those specializes it.
+fn redefinition_generals(t:k.Type)->Sequence<k.Type> {
+  let explicit = conjugation_originals(t).concat(explicit_generals(t))
+    .concat(resolution.binary_library(t).selectByKind::<k.Type>().reject(|g| g == t));
+  explicit.concat(library_general(t, explicit))
+}
+
+// A feature chain is read through its last chaining feature
+// (FeatureUtil.getBasicFeatureOf), as the Pilot types and features a chain.
+fn basic_type(g:k.Type)->k.Type =
+  match contents::<k.FeatureChaining>(g).last() {
+    Some(c) => basic_type(c.chainingFeature),
+    None => g
+  };
+
+fn result_parameter_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { no_feature_list() } else {
+    let own = Sequence(contents::<k.ReturnParameterMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+    if own.notEmpty() { own } else {
+      resolution.naming_generals(t).flatMap(|g| result_parameter_of(g, depth + 1))
+    }
+  };
+
+fn positionally_redefined(f:k.Feature)->Sequence<k.Feature> =
+  if is_parameter(f) {
+    match ancestors::<k.Type>(f).first() {
+      Some(t) => if behavior_or_step(t) { parameter_at_position(t, f) } else { no_feature_list() },
+      None => no_feature_list()
+    }
+  } else { no_feature_list() };
+
+fn behavior_or_step(t:k.Type)->Bool =
+  oclIsKindOf::<k.Behavior>(t) || oclIsKindOf::<k.Step>(t);
+
+// A parameter: a feature with a direction, or one a parameter membership
+// (not a return parameter membership) owns.
+fn is_parameter(f:k.Feature)->Bool =
+  match f.direction {
+    Some(_) => true,
+    None => match container::<k.ParameterMembership>(f) {
+      Some(m) => !oclIsKindOf::<k.ReturnParameterMembership>(m),
+      None => false
+    }
+  };
+
+fn owned_parameters(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureMembership>(t)
+    .reject(|m| oclIsKindOf::<k.ReturnParameterMembership>(m))
+    .flatMap(|m| contents::<k.Feature>(m))
+    .filter(|p| is_parameter(p)));
+
+fn feature_position(items:Sequence<k.Feature>, x:k.Feature, i:Int64)->Option<Int64> =
+  match items.at(i) {
+    Some(item) => if item == x { Some(i) } else { feature_position(items, x, i + 1) },
+    None => None
+  };
+
+fn parameter_at_position(t:k.Type, f:k.Feature)->Sequence<k.Feature> =
+  match feature_position(owned_parameters(t), f, 0) {
+    Some(i) => redefinition_generals(t).flatMap(|g| parameter_at(basic_type(g), i)),
+    None => no_feature_list()
+  };
+
+fn parameter_at(g:k.Type, i:Int64)->Sequence<k.Feature> =
+  if behavior_or_step(g) {
+    match parameters_of(g, 0).at(i) { Some(p) => Sequence([p]), None => no_feature_list() }
+  } else { no_feature_list() };
+
+// A behavior's or step's own parameters, followed by those of its first
+// general that has more (which its own redefine by position).
+fn parameters_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { no_feature_list() } else {
+    let own = owned_parameters(t);
+    own.concat(parameters_beyond(resolution.naming_generals(t), 0, own.size(), depth))
+  };
+
+fn parameters_beyond(generals:Sequence<k.Type>, i:Int64, n:Int64, depth:Int64)->Sequence<k.Feature> =
+  match generals.at(i) {
+    Some(g) => {
+      let ps = parameters_of(g, depth + 1);
+      if ps.size() > n { features_from(ps, n) } else { parameters_beyond(generals, i + 1, n, depth) }
+    },
+    None => no_feature_list()
+  };
+
+fn features_from(items:Sequence<k.Feature>, i:Int64)->Sequence<k.Feature> =
+  match items.at(i) {
+    Some(x) => Sequence([x]).concat(features_from(items, i + 1)),
+    None => no_feature_list()
+  };
+
+fn implied_ends(f:k.Feature)->Sequence<k.Feature> =
+  if is_end_feature(f) {
+    match ancestors::<k.Type>(f).first() {
+      Some(t) => match feature_position(owned_ends(t), f, 0) {
+        Some(i) => redefinition_generals(t).flatMap(|g| end_at(basic_type(g), i)),
+        None => no_feature_list()
+      },
+      None => no_feature_list()
+    }
+  } else { no_feature_list() };
+
+// An end feature: declared `end`, or owned through an end feature membership.
+fn is_end_feature(f:k.Feature)->Bool =
+  f.isEnd || match container::<k.EndFeatureMembership>(f) { Some(_) => true, None => false };
+
+fn owned_ends(t:k.Type)->Sequence<k.Feature> =
+  Sequence(owned_features(t).filter(|f| is_end_feature(f)));
+
+fn end_at(g:k.Type, i:Int64)->Sequence<k.Feature> =
+  match ends_of(g, 0).at(i) { Some(e) => Sequence([e]), None => no_feature_list() };
+
+// A type's own end features, or else those of its first general that has any.
+fn ends_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { no_feature_list() } else {
+    let own = owned_ends(t);
+    if own.notEmpty() { own } else {
+      match resolution.naming_generals(t).find(|g| ends_of(basic_type(g), depth + 1).notEmpty()) {
+        Some(g) => ends_of(basic_type(g), depth + 1),
+        None => no_feature_list()
+      }
+    }
+  };
+
+fn transition_redefined(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.TransitionFeatureMembership>(f) {
+    Some(m) => if m.kind == k.TransitionFeatureKind.trigger {
+      lib(f, "Actions::TransitionAction::accepter").selectByKind::<k.Feature>()
+    } else {
+      if m.kind == k.TransitionFeatureKind.effect && oclIsKindOf::<k.ActionUsage>(f) {
+        lib(f, "Actions::TransitionAction::effect").selectByKind::<k.Feature>()
+      } else { no_feature_list() }
+    },
+    None => no_feature_list()
+  };
+
+// FeatureAdapter.getAllRedefinedFeatures: the feature and every feature it
+// redefines, directly or through others.
+fn all_redefined(f:k.Feature)->Sequence<k.Feature> =
+  redefinition_closure(Sequence([f]), no_feature_list(), 0);
+
+fn redefinition_closure(frontier:Sequence<k.Feature>, seen:Sequence<k.Feature>, depth:Int64)->Sequence<k.Feature> =
+  if frontier.isEmpty() || depth > 32 { seen } else {
+    let known = seen.concat(frontier);
+    redefinition_closure(Sequence(frontier.flatMap(|g| redefined_directly(g)).distinct()
+      .reject(|g| known.contains(g))), known, depth + 1)
+  };
+
+// A library type by qualified name. The lookup starts from the loaded root
+// namespaces, the same for every element, so it is made from one root to
+// share its result.
+fn lib(e:k.Element, name:String)->Sequence<k.Type> =
+  match roots::<k.Namespace>(e).first() {
+    Some(r) => resolution.library(r, name).selectByKind::<k.Type>(),
+    None => no_types_list()
+  };
+
+fn no_types_list()->Sequence<k.Type> = [];
+
+// --- Inherited memberships --------------------------------------------------
+
+// Type::inheritedMembership as TypeAdapter computes it: the non-private
+// memberships of each general (owned public and protected memberships, the
+// memberships their public and protected imports import, and their own
+// inherited memberships), without duplicates, then without the memberships
+// of features that the type's owned features redefine (directly, or
+// through features they redefine) and of features that another inherited
+// membership's feature redefines (TypeAdapter.removeRedefinedFeatures).
+//
+// A type on a specialization cycle (outside the library) is computed along
+// the path without revisiting its types, as the Pilot's excludedTypes.
+fn inherited_memberships(t:k.Type)->Sequence<k.Membership> =
+  if cyclic_type(t) { guarded_inherited(t, Sequence([t])) } else {
+    without_redefined(t, Sequence(inheritance_generals(t)
+      .flatMap(|g| owned_non_private(g).concat(imported_non_private(g)).concat(inherited_memberships(g)))
+      .distinct()))
+  };
+
+fn guarded_inherited(t:k.Type, path:Sequence<k.Type>)->Sequence<k.Membership> =
+  without_redefined(t, Sequence(inheritance_generals(t).reject(|g| path.contains(g))
+    .flatMap(|g| owned_non_private(g).concat(imported_non_private(g))
+      .concat(if cyclic_type(g) { guarded_inherited(g, path.concat(Sequence([g]))) } else { inherited_memberships(g) }))
+    .distinct()));
+
+fn owned_non_private(g:k.Type)->Sequence<k.Membership> =
+  Sequence(contents::<k.Membership>(g).filter(|m| m.visibility != k.VisibilityKind.`private`));
+
+fn imported_non_private(g:k.Type)->Sequence<k.Membership> =
+  Sequence(contents::<k.Import>(g)
+    .filter(|i| i.visibility != k.VisibilityKind.`private`)
+    .flatMap(|i| import_memberships(i, Sequence([g]).selectByKind::<k.Namespace>())));
+
+// NamespaceUtil.importMembershipsFor, without recursive imports and filter
+// conditions: a membership import imports its membership, a namespace import
+// the visible memberships of its namespace (public owned memberships, those
+// of its public imports and, for a type, its public inherited memberships).
+fn import_memberships(i:k.Import, excluded:Sequence<k.Namespace>)->Sequence<k.Membership> =
+  match i {
+    mi: k.MembershipImport => Sequence([mi.importedMembership]),
+    ni: k.NamespaceImport => {
+      let ns = ni.importedNamespace;
+      if excluded.contains(ns) { no_membership_list() } else {
+        visible_memberships(ns, excluded.concat(Sequence([ns])))
+      }
+    },
+    _ => no_membership_list()
+  };
+
+fn visible_memberships(ns:k.Namespace, excluded:Sequence<k.Namespace>)->Sequence<k.Membership> =
+  Sequence(contents::<k.Membership>(ns).filter(|m| m.visibility == k.VisibilityKind.`public`))
+    .concat(Sequence(contents::<k.Import>(ns)
+      .filter(|i| i.visibility == k.VisibilityKind.`public`)
+      .flatMap(|i| import_memberships(i, excluded))))
+    .concat(match asType::<k.Type>(ns) {
+      Some(t) => Sequence(inherited_memberships(t).filter(|m| m.visibility == k.VisibilityKind.`public`)),
+      None => no_membership_list()
+    });
+
+fn no_membership_list()->Sequence<k.Membership> = [];
+
+fn without_redefined(t:k.Type, ms:Sequence<k.Membership>)->Sequence<k.Membership> {
+  let redefined = Sequence(owned_features(t).flatMap(|f| redefined_directly(f)));
+  let hidden = Sequence(ms.flatMap(|m| membership_features(m))
+    .flatMap(|f| all_redefined(f).excluding(f)));
+  if redefined.isEmpty() && hidden.isEmpty() { ms } else {
+    Sequence(ms.reject(|m| membership_features(m).exists(|f|
+      hidden.contains(f) || all_redefined(f).exists(|g| redefined.contains(g)))))
+  }
+}
+
+fn membership_features(m:k.Membership)->Sequence<k.Feature> =
+  member_elements(m).selectByKind::<k.Feature>();
+
+// TypeUtil.getGeneralTypesOf with the implicit generals that the Pilot adds:
+// for a conjugated type its original type and its owned specializations;
+// otherwise its owned specializations' generals (cross subsettings
+// included), its binary library default, its computed redefinitions and its
+// library defaults (`library_general`) unless one of those already
+// specializes them (TypeAdapter.removeUnnecessaryImplicitGeneralTypes); and
+// for a feature chain its last chaining feature. Semantic metadata base
+// types are not added.
+fn inheritance_generals(t:k.Type)->Sequence<k.Type> {
+  let original = conjugation_originals(t);
+  let explicit = explicit_generals(t);
+  let chained = last_chained(t);
+  if original.notEmpty() { original.concat(explicit).concat(chained) } else {
+    let computed = match asType::<k.Feature>(t) {
+      Some(f) => computed_redefined(f).selectByKind::<k.Type>(),
+      None => no_types_list()
+    };
+    let others = explicit
+      .concat(resolution.binary_library(t).selectByKind::<k.Type>().reject(|g| g == t))
+      .concat(computed);
+    others.concat(library_general(t, others)).concat(chained)
+  }
+}
+
+fn explicit_generals(t:k.Type)->Sequence<k.Type> =
+  Sequence(contents::<k.Specialization>(t).filter(|s| specific_is(s, t)).map(|s| general_of(s)));
+
+fn specific_is(s:k.Specialization, t:k.Type)->Bool =
+  match specific_of(s) { Some(x) => x == t, None => false };
+
+fn conjugation_originals(t:k.Type)->Sequence<k.Type> =
+  Sequence(contents::<k.Conjugation>(t).flatMap(|c| match c {
+    p: k.PortConjugation => ancestors::<k.PortDefinition>(p).selectByKind::<k.Type>().reject(|g| g == t),
+    _ => Sequence([c.originalType])
+  }));
+
+// The library defaults the Pilot adds as implicit generals of a type that is
+// not conjugated (TypeAdapter.addDefaultGeneralType and the adapters'
+// getDefaultSupertype), each kept unless one of `others` or another default
+// specializes it (specializesExcludingTarget: not through the type itself).
+fn library_general(t:k.Type, others:Sequence<k.Type>)->Sequence<k.Type> =
+  if conjugated(t) { no_types_list() } else {
+    let defaults = Sequence(default_names(t)
+      .flatMap(|n| match lib(t, n).reject(|d| d == t).first() {
+        Some(d) => Sequence([d]),
+        None => no_types_list()
+      }).distinct());
+    Sequence(defaults.filter(|d|
+      !others.exists(|g| g == d || specializes_excluding(g, d, t))
+        && !defaults.exists(|e| e != d && specializes_excluding(e, d, t))))
+  };
+
+// The qualified names of the defaults:
+// - a connector with two owned ends takes its metaclass's "binary" default
+//   (ConnectorAdapter.getDefaultSupertype);
+// - an occurrence usage takes its base default and, when typed by a data
+//   type, `Base::dataValues`, and when typed by a structure
+//   `Objects::objects` (OccurrenceUsageAdapter.addDefaultGeneralType);
+// - another feature whose base default is `Base::things` (or an attribute
+//   usage's `Base::dataValues`) takes the default of its owned types' kind
+//   (FeatureAdapter.getDefaultSupertype: objects for a structure,
+//   occurrences for a class, dataValues for a data type);
+// - any other type its metaclass's base default.
+// The composite variants (subobjects, suboccurrences, portions) and the more
+// specific implicit subsettings of the Pilot (subitems, subparts,
+// subactions, ownedPerformances, ...) are not added: the Pilot removes such a
+// default when another implicit general specializes it, which needs the
+// same implicit subsettings on every general (a composite part `:> p`
+// would otherwise inherit both `p::incomingTransferSort` and
+// `suboccurrences::incomingTransferSort`).
+fn default_names(t:k.Type)->Sequence<String> =
+  match t {
+    c: k.Connector => Sequence([connector_default(c)]),
+    u: k.OccurrenceUsage => Sequence([implicit.library_default(u)]).concat(occurrence_extras(u)),
+    f: k.Feature => {
+      let base = implicit.library_default(f);
+      if base == "Base::things" || base == "Base::dataValues" { Sequence([feature_kind_default(f, base)]) } else { Sequence([base]) }
+    },
+    _ => Sequence([implicit.library_default(t)])
+  };
+
+fn connector_default(c:k.Connector)->String =
+  if owned_ends(c).size() == 2 {
+    match c {
+      _: k.BindingConnector => "Links::selfLinks",
+      _: k.Succession => "Occurrences::happensBeforeLinks",
+      _: k.FlowUsage => implicit.library_default(c),
+      _: k.Flow => implicit.library_default(c),
+      _: k.AllocationUsage => "Allocations::allocations",
+      _: k.InterfaceUsage => "Interfaces::binaryInterfaces",
+      _: k.ConnectionUsage => "Connections::binaryConnections",
+      _ => "Links::binaryLinks"
+    }
+  } else { implicit.library_default(c) };
+
+fn owned_types(f:k.Feature)->Sequence<k.Type> =
+  Sequence(contents::<k.FeatureTyping>(f).filter(|x| specific_is(x, f)).map(|x| general_of(x)));
+
+fn typed_by_structure(f:k.Feature)->Bool = owned_types(f).exists(|x| oclIsKindOf::<k.Structure>(x));
+fn typed_by_class(f:k.Feature)->Bool = owned_types(f).exists(|x| oclIsKindOf::<k.Class>(x));
+fn typed_by_data_type(f:k.Feature)->Bool = owned_types(f).exists(|x| oclIsKindOf::<k.DataType>(x));
+
+fn feature_kind_default(f:k.Feature, base:String)->String =
+  if typed_by_structure(f) { "Objects::objects" } else {
+    if typed_by_class(f) { "Occurrences::occurrences" } else {
+      if typed_by_data_type(f) { "Base::dataValues" } else { base }
+    }
+  };
+
+fn occurrence_extras(u:k.OccurrenceUsage)->Sequence<String> {
+  let data = if typed_by_data_type(u) { Sequence(["Base::dataValues"]) } else { no_labels() };
+  let structure = if typed_by_structure(u) { Sequence(["Objects::objects"]) } else { no_labels() };
+  data.concat(structure)
+}
+
+// Whether `g` specializes `d` without passing through `t`: the closure of
+// `g` when it does not reach `t`, otherwise a walk that skips `t`.
+fn specializes_excluding(g:k.Type, d:k.Type, t:k.Type)->Bool {
+  let sup = supertypes_of(g);
+  if !sup.contains(d) { false } else {
+    if sup.contains(t) { walk_reaches(Sequence([g]), Sequence([t]), d, 0) } else { true }
+  }
+}
+
+fn walk_reaches(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, d:k.Type, depth:Int64)->Bool =
+  if frontier.contains(d) { true } else {
+    if frontier.isEmpty() || depth > 64 { false } else {
+      let known = seen.concat(frontier);
+      walk_reaches(Sequence(frontier.flatMap(|g| generals_of(g)).distinct()
+        .reject(|g| known.contains(g))), known, d, depth + 1)
+    }
+  };
+
+fn in_library(e:k.Element)->Bool = resource(e).split("sysml.library").size() > 1;
+
+// A type that its own generals reach again. Outside the library the walk
+// follows the generals outside the library; in the library, whose only
+// cycles are features specializing each other in one type
+// (`SelfLink::thisThing` and `sameThing`), the generals with the same owner.
+fn cyclic_type(t:k.Type)->Bool =
+  reaches_type(local_generals(t, in_library(t)), no_types_list(), t, in_library(t), 0);
+
+fn local_generals(t:k.Type, library:Bool)->Sequence<k.Type> =
+  if library {
+    Sequence(inheritance_generals(t).filter(|g| same_owner(g, t)))
+  } else {
+    Sequence(inheritance_generals(t).reject(|g| in_library(g)))
+  };
+
+fn same_owner(a:k.Type, b:k.Type)->Bool =
+  match ancestors::<k.Namespace>(a).first() {
+    Some(x) => match ancestors::<k.Namespace>(b).first() { Some(y) => x == y, None => false },
+    None => false
+  };
+
+fn reaches_type(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, t:k.Type, library:Bool, depth:Int64)->Bool =
+  if frontier.contains(t) { true } else {
+    if frontier.isEmpty() || depth > 32 { false } else {
+      let known = seen.concat(frontier);
+      reaches_type(Sequence(frontier.flatMap(|g| local_generals(g, library)).distinct()
+        .reject(|g| known.contains(g))), known, t, library, depth + 1)
+    }
+  };
+
+// --- Types of a feature (batch B3, KerML rules) ----------------------------
+
+// checkFeature, validateFeatureHasType_ (feature type); checkAssociation,
+// validateAssociationEndTypes (on the owned end feature); checkMetadataFeature,
+// validateMetadataFeatureMetadata and validateMetadataFeatureMetadataNotAbstract.
+fn feature_and_type_rules(f:k.Feature)->Sequence<Issue> =
+  feature_rules(f)
+    .concat(when(!has_some_type(f, 0),
+      error("validateFeatureHasType_", "Features must have at least one type", "type",
+        "KerML.checkFeature.INVALID_FEATURE_HAS_TYPE")))
+    .concat(association_end_types(f))
+    .concat(metadata_feature_types(f))
+    .concat(b4_feature_rules(f));
+
+// Whether FeatureUtil.getAllTypesOf is not empty: an owned typing, or, for a
+// conjugated feature, a type of its original feature; for any other feature
+// its library default (a feature typed by a library type) or a type of one
+// of its typing features.
+fn has_some_type(f:k.Feature, depth:Int64)->Bool =
+  if contents::<k.FeatureTyping>(f).notEmpty() { true } else {
+    if depth > 16 { false } else {
+      if conjugated(f) {
+        contents::<k.Conjugation>(f).exists(|c| match asType::<k.Feature>(c.originalType) {
+          Some(g) => g != f && has_some_type(g, depth + 1),
+          None => false
+        })
+      } else {
+        lib(f, implicit.library_default(f)).notEmpty()
+          || typing_features(f).exists(|g| g != f && has_some_type(g, depth + 1))
+      }
+    }
+  };
+
+fn association_end_types(f:k.Feature)->Sequence<Issue> =
+  if !f.isEnd { no_issues() } else {
+    match owning_type(f) {
+      Some(t) => when(oclIsKindOf::<k.Association>(t) && feature_types(f).size() != 1,
+        error("validateAssociationEndTypes", "An association end must have exactly one type", "",
+          "KerML.checkAssociation.INVALID_ASSOCIATION_END_TYPES")),
+      None => no_issues()
+    }
+  };
+
+fn metadata_feature_types(f:k.Feature)->Sequence<Issue> =
+  match f {
+    m: k.MetadataFeature => {
+      let types = feature_types(m);
+      when(types.filter(|t| oclIsKindOf::<k.Metaclass>(t)).size() != 1,
+          error("validateMetadataFeatureMetadata", "Must have exactly one metaclass", "",
+            "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_METACLASS"))
+        .concat(when(types.exists(|t| t.isAbstract),
+          error("validateMetadataFeatureMetadataNotAbstract", "Must have a concrete type", "",
+            "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_METACLASS_NOT_ABSTRACT")))
+    },
+    _ => no_issues()
+  };
+
+// Feature::type (FeatureAdapter.getAllTypes): the types of the owned
+// typings, then the types of the typing features (the original feature of a
+// conjugated feature; otherwise the subsetted features of the owned
+// subsettings other than cross subsettings, the computed redefinitions, the
+// library default unless redundant, and the last chaining feature), each
+// feature visited once along a path; then each type that another type
+// specializes is removed, from the last (removeRedundantTypes). Implicit
+// typings (expression results, variants) are not added.
+fn feature_types(f:k.Feature)->Sequence<k.Type> {
+  let types = Sequence(raw_types(f, no_feature_list()).distinct());
+  without_redundant(types, types.size() - 1)
+}
+
+fn raw_types(f:k.Feature, visited:Sequence<k.Feature>)->Sequence<k.Type> {
+  let seen = visited.concat(Sequence([f]));
+  let owned = Sequence(contents::<k.FeatureTyping>(f).filter(|x| specific_is(x, f)).map(|x| general_of(x)));
+  if conjugated(f) {
+    owned.concat(Sequence(contents::<k.Conjugation>(f).flatMap(|c| match asType::<k.Feature>(c.originalType) {
+      Some(g) => if seen.contains(g) { no_types_list() } else { raw_types(g, seen) },
+      None => no_types_list()
+    })))
+  } else {
+    owned.concat(Sequence(typing_features(f).reject(|g| seen.contains(g)).flatMap(|g| raw_types(g, seen))))
+  }
+}
+
+fn typing_features(f:k.Feature)->Sequence<k.Feature> {
+  let subsetted = Sequence(contents::<k.Subsetting>(f)
+    .filter(|s| specific_is(s, f) && !oclIsKindOf::<k.CrossSubsetting>(s))
+    .map(|s| subsetted_of(s)));
+  let computed = computed_redefined(f);
+  let fallback = library_general(f, explicit_generals(f).concat(computed.selectByKind::<k.Type>()))
+    .selectByKind::<k.Feature>();
+  let features = subsetted.concat(computed).concat(fallback);
+  features.concat(last_chained(f).selectByKind::<k.Feature>().reject(|g| features.contains(g)))
+}
+
+fn without_redundant(types:Sequence<k.Type>, i:Int64)->Sequence<k.Type> =
+  if i < 0 { types } else {
+    match types.at(i) {
+      Some(t) => if types.exists(|u| u != t && supertypes_of(u).contains(t)) {
+        without_redundant(Sequence(types.excluding(t)), i - 1)
+      } else { without_redundant(types, i - 1) },
+      None => types
+    }
+  };
+
+// --- Batch B4 (KerML): derived feature semantics ---------------------------
+
+// The rules of the bindings above that B4 extends. Each reads the Pilot's
+// derived properties through the helpers below; where Intersect does not
+// model a derived property the Pilot adds (implicit featuring types of
+// library elements, of expressions and of features owned other than through
+// a feature membership; implicit typings and bound-value subsettings), the
+// rule treats the property as satisfied, so a missed diagnostic is preferred
+// to a false one (docs/pilot-validation-rules.md, "B4 KerML status").
+
+fn warning(id:String, text:String, feature:String, rule:String)->Sequence<Issue> =
+  [issue_rule("warning", id, text, feature, rule)];
+
+fn no_redefinitions()->Sequence<k.Redefinition> = [];
+
+fn has_owning_type(f:k.Feature)->Bool =
+  match owning_type(f) { Some(_) => true, None => false };
+
+// checkType's extension: checkClassifier (default supertype, multiplicity
+// domain), checkExpression and checkFunction (result expressions inherited
+// only), checkConnector and checkBindingConnector (related features).
+fn type_rules(t:k.Type)->Sequence<Issue> =
+  type_at_most_one_conjugator(t)
+    .concat(classifier_rules(t))
+    .concat(inherited_result_expressions(t))
+    .concat(connector_rules(t))
+    .concat(association_related_types(t));
+
+// checkFeature's B4 rules on the feature itself, and the rules whose target
+// is a feature owned by the checked element (checkAssociation's and
+// checkConnector's third and later ends, checkFeature's owned cross feature).
+fn b4_feature_rules(f:k.Feature)->Sequence<Issue> =
+  feature_multiplicity_domain(f)
+    .concat(implicit_redefinition_direction(f))
+    .concat(feature_is_variable(f))
+    .concat(crossing_specialization(f))
+    .concat(binary_end_rules(f));
+
+fn redefinition_rules(r:k.Redefinition)->Sequence<Issue> =
+  redefinition_end_conformance(r)
+    .concat(direction_issues(r.redefiningFeature, r.redefinedFeature, "redefinedFeature",
+      "KerML.checkRedefinition.INVALID_REDEFINITION_DIRECTION_CONFORMANCE"))
+    .concat(redefinition_featuring(r));
+
+fn feature_value_rules(v:k.FeatureValue)->Sequence<Issue> =
+  feature_value_is_initial(v).concat(feature_value_overriding(v));
+
+fn result_expression_membership_rules(m:k.ResultExpressionMembership)->Sequence<Issue> =
+  result_expression_membership_owning_type(m).concat(owned_result_expression(m));
+
+fn cross_subsetting_rules(c:k.CrossSubsetting)->Sequence<Issue> =
+  feature_owned_cross_subsetting(c).concat(match owning_feature_of(c) {
+    Some(f) => cross_subsetting_ends(c, f).concat(
+      match contents::<k.CrossSubsetting>(f).first() {
+        Some(first) => if first == c { cross_feature_rules(c, f) } else { no_issues() },
+        None => no_issues()
+      }),
+    None => no_issues()
+  });
+
+// --- Featuring types ----------------------------------------------------------
+
+// Feature::featuringType as the Pilot derives it (Feature_featuringType):
+// the featuring types of the owned type featurings, the implicit ones
+// (FeatureAdapter.computeFeaturingType: the owning type, or for a variable
+// feature a feature redefining `Occurrences::Occurrence::snapshots` featured
+// by the owning type), and those of the first chaining feature. They are
+// split into real types (`featuring_reals`) and the owning types whose
+// snapshots feature is a featuring type (`featuring_snaps`).
+//
+// They are only taken as known (`featuring_known`) for a feature of the
+// loaded model (not of the library, whose features the Pilot transforms on
+// demand) that has an owning type, or that is owned by a namespace that is
+// not a type and is neither a connector (context featuring type) nor an
+// expression, or that is a feature chain owned by a relationship.
+fn explicit_featuring(f:k.Feature)->Sequence<k.Type> =
+  Sequence(contents::<k.TypeFeaturing>(f).filter(|x| x.featureOfType == f).map(|x| x.featuringType));
+
+fn first_chaining_of(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.FeatureChaining>(f).first() {
+    Some(c) => Sequence([c.chainingFeature]),
+    None => no_feature_list()
+  };
+
+fn chain_of(f:k.Feature)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureChaining>(f).map(|c| c.chainingFeature));
+
+fn basic_feature(f:k.Feature)->k.Feature =
+  match contents::<k.FeatureChaining>(f).last() {
+    Some(c) => c.chainingFeature,
+    None => f
+  };
+
+fn featuring_known(f:k.Feature, depth:Int64)->Bool =
+  depth <= 8 && own_featuring_known(f)
+    && first_chaining_of(f).forAll(|c| featuring_known(c, depth + 1));
+
+fn own_featuring_known(f:k.Feature)->Bool =
+  if in_library(f) { false } else {
+    if has_owning_type(f) { true } else {
+      if oclIsKindOf::<k.Connector>(f) || oclIsKindOf::<k.Expression>(f) { false } else {
+        match container::<k.Membership>(f) {
+          Some(m) => match container::<k.Namespace>(m) {
+            Some(ns) => !oclIsKindOf::<k.Type>(ns),
+            None => true
+          },
+          None => match container::<k.Relationship>(f) {
+            Some(_) => contents::<k.FeatureChaining>(f).notEmpty(),
+            None => true
+          }
+        }
+      }
+    }
+  };
+
+fn featuring_reals(f:k.Feature, depth:Int64)->Sequence<k.Type> =
+  if depth > 8 { no_types_list() } else {
+    let own = match owning_type(f) {
+      Some(t) => if variable(f) { no_types_list() } else { Sequence([t]) },
+      None => no_types_list()
+    };
+    Sequence(explicit_featuring(f).concat(own)
+      .concat(Sequence(first_chaining_of(f).flatMap(|c| featuring_reals(c, depth + 1)))).distinct())
+  };
+
+fn featuring_snaps(f:k.Feature, depth:Int64)->Sequence<k.Type> =
+  if depth > 8 { no_types_list() } else {
+    let own = match owning_type(f) {
+      Some(t) => if variable(f) { Sequence([t]) } else { no_types_list() },
+      None => no_types_list()
+    };
+    Sequence(own.concat(Sequence(first_chaining_of(f).flatMap(|c| featuring_snaps(c, depth + 1)))).distinct())
+  };
+
+fn has_featuring(f:k.Feature)->Bool =
+  featuring_reals(f, 0).notEmpty() || featuring_snaps(f, 0).notEmpty();
+
+// Feature::isFeaturedWithin(type) (Feature_isFeaturedWithin) for a real
+// type: every featuring type is compatible with it (TypeUtil.isCompatible),
+// or the feature (or its first chaining feature) is variable and the type
+// specializes its owning type. Unknown featuring types are featured within.
+fn featured_within(f:k.Feature, x:k.Type)->Bool =
+  if !featuring_known(f, 0) { true } else {
+    let reals = featuring_reals(f, 0);
+    let snaps = featuring_snaps(f, 0);
+    (reals.isEmpty() && snaps.isEmpty())
+      || (reals.forAll(|r| compatible(x, r)) && snaps.forAll(|s| real_snapshots_compatible(x)))
+      || (variable(f) && owner_specialized(x, f))
+      || first_chaining_of(f).exists(|c| variable(c) && owner_specialized(x, c))
+  };
+
+// The same for the snapshots feature of a type as the type.
+fn featured_within_snapshots(f:k.Feature, t:k.Type)->Bool =
+  if !featuring_known(f, 0) { true } else {
+    let reals = featuring_reals(f, 0);
+    let snaps = featuring_snaps(f, 0);
+    (reals.isEmpty() && snaps.isEmpty())
+      || (reals.forAll(|r| snapshots_compatible_real(f, r)) && snaps.forAll(|s| compatible(t, s)))
+      || (variable(f) && owner_in_snapshots(f))
+      || first_chaining_of(f).exists(|c| variable(c) && owner_in_snapshots(c))
+  };
+
+// isFeaturedWithin(null): every featuring type is `Base::Anything`.
+fn featured_within_nothing(f:k.Feature)->Bool =
+  if !featuring_known(f, 0) { true } else {
+    let anything = lib(f, "Base::Anything");
+    featuring_snaps(f, 0).isEmpty() && featuring_reals(f, 0).forAll(|r| anything.contains(r))
+  };
+
+fn owner_specialized(x:k.Type, f:k.Feature)->Bool =
+  match owning_type(f) { Some(t) => conforms(x, t), None => false };
+
+fn owner_in_snapshots(f:k.Feature)->Bool =
+  match owning_type(f) { Some(t) => snapshots_supertype(f, t), None => false };
+
+// Whether `r` is the library snapshots feature or one of its supertypes,
+// which the snapshots feature of a type (redefining it) specializes.
+fn snapshots_supertype(e:k.Element, r:k.Type)->Bool =
+  lib(e, "Occurrences::Occurrence::snapshots").exists(|s| s == r || supertypes_of(s).contains(r));
+
+// TypeUtil.isCompatible: `x` specializes `y`, or both are features without
+// owned features (the Pilot then compares their redefinitions and featuring
+// types; taken as compatible here).
+fn compatible(x:k.Type, y:k.Type)->Bool =
+  conforms(x, y) || (bare_feature(x) && bare_feature(y));
+
+fn real_snapshots_compatible(x:k.Type)->Bool = bare_feature(x);
+
+fn snapshots_compatible_real(e:k.Element, r:k.Type)->Bool =
+  snapshots_supertype(e, r) || bare_feature(r);
+
+fn bare_feature(x:k.Type)->Bool =
+  match asType::<k.Feature>(x) { Some(f) => owned_features(f).isEmpty(), None => false };
+
+// TypeUtil.specializes over the generals the name resolution reads, plus
+// conjugated types' originals and computed redefinitions. A type with
+// implicit generals that are not modelled conforms to anything: an
+// expression; a feature with a bound value, or a parameter, without owned
+// specializations (bound-value and payload subsettings); a type that it or
+// one of its supertypes has prefix metadata on (semantic metadata base
+// types).
+fn conforms(x:k.Type, y:k.Type)->Bool =
+  x == y || loosely_typed(x) || wide_supertypes(x).contains(y)
+    || wide_supertypes(x).exists(|t| has_metadata(t));
+
+fn loosely_typed(x:k.Type)->Bool =
+  match asType::<k.Feature>(x) {
+    Some(f) => oclIsKindOf::<k.Expression>(f)
+      || ((contents::<k.FeatureValue>(f).notEmpty() || is_parameter(f)) && explicit_generals(f).isEmpty()),
+    None => false
+  };
+
+fn has_metadata(t:k.Type)->Bool =
+  Sequence(contents::<k.OwningMembership>(t).flatMap(|m| contents::<k.MetadataFeature>(m))).notEmpty();
+
+fn wide_supertypes(t:k.Type)->Sequence<k.Type> = wide_closure(Sequence([t]), no_types(t), 0);
+
+fn wide_closure(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, depth:Int64)->Sequence<k.Type> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| wide_generals(g)).distinct()
+      .reject(|g| known.contains(g)));
+    wide_closure(next, known, depth + 1)
+  };
+
+fn wide_generals(t:k.Type)->Sequence<k.Type> =
+  generals_of(t).concat(conjugation_originals(t)).concat(match asType::<k.Feature>(t) {
+    Some(f) => computed_redefined(f).selectByKind::<k.Type>(),
+    None => no_types_list()
+  });
+
+// FeatureUtil.canAccess: with no featuring types, the subsetted feature is
+// featured within nothing; otherwise it is featured within one of the
+// featuring types or accessible from one that is a feature (a snapshots
+// feature is featured by its type).
+fn can_access(a:k.Feature, b:k.Feature)->Bool =
+  !featuring_known(a, 0) || access_from(a, b, 0);
+
+fn access_from(a:k.Feature, b:k.Feature, depth:Int64)->Bool =
+  if depth > 8 { true } else {
+    let reals = featuring_reals(a, 0);
+    let snaps = featuring_snaps(a, 0);
+    if reals.isEmpty() && snaps.isEmpty() { featured_within_nothing(b) } else {
+      reals.exists(|r| featured_within(b, r) || access_through(r, b, depth))
+        || snaps.exists(|t| featured_within_snapshots(b, t) || featured_within(b, t)
+          || access_through(t, b, depth))
+    }
+  };
+
+fn access_through(r:k.Type, b:k.Feature, depth:Int64)->Bool =
+  match asType::<k.Feature>(r) {
+    Some(g) => !featuring_known(g, 0) || access_from(g, b, depth + 1),
+    None => false
+  };
+
+// The effective featuring types of checkRedefinition (the owning type of a
+// variable feature, otherwise its featuring types).
+fn effective_featuring(a:k.Feature)->Sequence<k.Type> =
+  if variable(a) {
+    match owning_type(a) { Some(t) => Sequence([t]), None => no_types_list() }
+  } else {
+    if featuring_known(a, 0) { featuring_reals(a, 0) } else { no_types_list() }
+  };
+
+// checkSubsetting, validateSubsettingFeaturingTypes.
+fn subsetting_featuring(a:k.Feature, b:k.Feature)->Sequence<Issue> =
+  if featuring_known(b, 0) && has_featuring(b) && !can_access(a, b) {
+    error("validateSubsettingFeaturingTypes",
+      "Must be an accessible feature (use dot notation for nesting)", "subsettedFeature",
+      "KerML.checkSubsetting.INVALID_SUBSETTING_FEATURING_TYPES")
+  } else { no_issues() };
+
+// checkRedefinition, validateRedefinitionFeaturingTypes: the redefined
+// feature is not owned by the redefinition and both features have the same
+// effective featuring types. Skipped for feature chains and unknown
+// featuring types.
+fn redefinition_featuring(r:k.Redefinition)->Sequence<Issue> {
+  let a = r.redefiningFeature;
+  let b = r.redefinedFeature;
+  let owned = match container::<k.Redefinition>(b) { Some(x) => x == r, None => false };
+  if owned || first_chaining_of(a).notEmpty() || first_chaining_of(b).notEmpty()
+      || !featuring_known(a, 0) || !featuring_known(b, 0) || !owner_if_variable(a) || !owner_if_variable(b) {
+    no_issues()
+  } else {
+    let ea = effective_featuring(a);
+    let eb = effective_featuring(b);
+    if ea.forAll(|t| eb.contains(t)) && eb.forAll(|t| ea.contains(t)) {
+      if ea.isEmpty() {
+        error("validateRedefinitionFeaturingTypes", "A package-level feature cannot be redefined",
+          "redefinedFeature", "KerML.checkRedefinition.INVALID_REDEFINITION_FEATURING_TYPES")
+      } else {
+        error("validateRedefinitionFeaturingTypes",
+          "Featuring types of redefining feature and redefined feature cannot be the same",
+          "redefinedFeature", "KerML.checkRedefinition.INVALID_REDEFINITION_FEATURING_TYPES")
+      }
+    } else { no_issues() }
+  }
+}
+
+fn owner_if_variable(f:k.Feature)->Bool = !variable(f) || has_owning_type(f);
+
+// checkFeatureChaining, validateFeatureChainingFeatureConformance: a
+// chaining feature after the first is featured within the previous one.
+fn feature_chaining_conformance(c:k.FeatureChaining, t:k.Type)->Sequence<Issue> {
+  let chainings = Sequence(contents::<k.FeatureChaining>(t));
+  match chaining_index(chainings, c, 0) {
+    Some(i) => if i < 1 { no_issues() } else {
+      match chainings.at(i - 1) {
+        Some(previous) => when(!featured_within(c.chainingFeature, previous.chainingFeature),
+          error("validateFeatureChainingFeatureConformance", "Must be a valid feature", "chainingFeature",
+            "KerML.checkFeatureChaining.INVALID_FEATURE_CHAINING_FEATURE_CONFORMANCE")),
+        None => no_issues()
+      }
+    },
+    None => no_issues()
+  }
+}
+
+fn chaining_index(xs:Sequence<k.FeatureChaining>, c:k.FeatureChaining, i:Int64)->Option<Int64> =
+  match xs.at(i) {
+    Some(x) => if x == c { Some(i) } else { chaining_index(xs, c, i + 1) },
+    None => None
+  };
+
+// --- Directions ---------------------------------------------------------------
+
+// checkRedefinitionDirection: for each effective featuring type T of the
+// redefining feature, the redefined feature's direction relative to T
+// (Type::directionOf, flipped through each conjugation) is in or out and
+// the redefining direction differs, or is inout and the redefining feature
+// has none (so nothing is checked for an undirected redefined feature). A
+// flow end's feature takes its direction from its redefined feature
+// (FlowEndAdapter.addFlowFeatureDirection), so it is not checked. Library
+// features are not checked: the Pilot validates only the loaded resources,
+// and the walk is costly.
+fn direction_issues(a:k.Feature, b:k.Feature, feature:String, rule:String)->Sequence<Issue> =
+  if !has_direction(b) || in_library(a) || owned_by_flow_end(a) { no_issues() } else {
+    Sequence(effective_featuring(a).filter(|t| conflicting(a, b, direction_parity(t, b)))
+      .flatMap(|t| error("validateRedefinitionDirectionConformance",
+        "Redefining feature must have a compatible direction", feature, rule)))
+  };
+
+fn owned_by_flow_end(a:k.Feature)->Bool =
+  match owning_type(a) { Some(t) => oclIsKindOf::<k.FlowEnd>(t), None => false };
+
+// Parity 1: the redefined feature's owning type is reached without a
+// conjugation, 2: through an odd number of conjugations, 0: not reached (or
+// both ways).
+fn conflicting(a:k.Feature, b:k.Feature, parity:Int64)->Bool =
+  if parity == 1 { direction_conflict(a, b.direction) } else {
+    if parity == 2 { direction_conflict(a, flipped(b.direction)) } else { false }
+  };
+
+fn direction_conflict(a:k.Feature, d:Option<k.FeatureDirectionKind>)->Bool =
+  match d {
+    Some(x) => if x == k.FeatureDirectionKind.`inout` { !has_direction(a) } else { !direction_is(a, x) },
+    None => false
+  };
+
+fn flipped(d:Option<k.FeatureDirectionKind>)->Option<k.FeatureDirectionKind> =
+  match d {
+    Some(x) => if x == k.FeatureDirectionKind.`in` { Some(k.FeatureDirectionKind.`out`) } else {
+      if x == k.FeatureDirectionKind.`out` { Some(k.FeatureDirectionKind.`in`) } else { Some(x) }
+    },
+    None => None
+  };
+
+// Type::directionOf as a breadth-first walk from the featuring type to the
+// redefined feature's owning type, following a conjugated type's original
+// (flipping) and any other type's generals.
+fn direction_parity(t:k.Type, b:k.Feature)->Int64 =
+  match owning_type(b) {
+    Some(o) => parity_walk(Sequence([t]), no_types(t), no_types(t), no_types(t), o, 0),
+    None => 0
+  };
+
+fn parity_walk(even:Sequence<k.Type>, odd:Sequence<k.Type>, seen_even:Sequence<k.Type>,
+    seen_odd:Sequence<k.Type>, o:k.Type, depth:Int64)->Int64 =
+  if even.contains(o) { if odd.contains(o) { 0 } else { 1 } } else {
+    if odd.contains(o) { 2 } else {
+      if (even.isEmpty() && odd.isEmpty()) || depth > 32 { 0 } else {
+        let known_even = seen_even.concat(even);
+        let known_odd = seen_odd.concat(odd);
+        let next_even = Sequence(even.reject(|g| conjugated(g)).flatMap(|g| inheritance_generals(g))
+          .concat(odd.filter(|g| conjugated(g)).flatMap(|g| conjugation_originals(g)))
+          .distinct().reject(|g| known_even.contains(g)));
+        let next_odd = Sequence(odd.reject(|g| conjugated(g)).flatMap(|g| inheritance_generals(g))
+          .concat(even.filter(|g| conjugated(g)).flatMap(|g| conjugation_originals(g)))
+          .distinct().reject(|g| known_odd.contains(g)));
+        parity_walk(next_even, next_odd, known_even, known_odd, o, depth + 1)
+      }
+    }
+  };
+
+// checkFeature, validateRedefinitionDirectionConformance for the implicit
+// (computed) redefinitions, on the feature.
+fn implicit_redefinition_direction(f:k.Feature)->Sequence<Issue> =
+  if in_library(f) || (contents::<k.Redefinition>(f).notEmpty() && invocation_owned(f)) { no_issues() } else {
+    Sequence(computed_redefined(f).reject(|g| g == f).distinct()
+      .flatMap(|g| direction_issues(f, g, "",
+        "KerML.checkFeature.INVALID_REDEFINITION_DIRECTION_CONFORMANCE")))
+  };
+
+// --- Multiplicities -------------------------------------------------------------
+
+// Type::multiplicity: the first owned member that is a multiplicity.
+fn multiplicity_of(t:k.Type)->Sequence<k.Multiplicity> =
+  Sequence(contents::<k.Membership>(t).flatMap(|m| resolution.elements_of(m))).selectByKind::<k.Multiplicity>();
+
+// FeatureUtil.getMultiplicityRangeOf(feature.multiplicity): an owned
+// multiplicity range (`owned_range`), or for the empty multiplicity that the
+// SysML construction adds as a usage's default (sysml-construction.rcore,
+// `usage_multiplicity`, as UsageAdapter.addAdditionalMembers) the
+// `Base::exactlyOne` range it implicitly subsets (1..1; MultiplicityAdapter).
+// Library features are taken to have no default (the Pilot adds it when it
+// transforms them, which it does on demand). The default's bounds are
+// compared as the value 1 (the library is not looked up, so that the rules
+// read the same on the VM fallback).
+fn owned_range(f:k.Feature)->Sequence<k.MultiplicityRange> =
+  match multiplicity_of(f).first() {
+    Some(m) => Sequence([m]).selectByKind::<k.MultiplicityRange>(),
+    None => no_ranges()
+  };
+
+fn has_range(f:k.Feature)->Bool =
+  owned_range(f).notEmpty() || default_range(f);
+
+fn default_range(f:k.Feature)->Bool =
+  !standard_library(f) && match multiplicity_of(f).first() {
+    Some(m) => match m {
+      _: k.MultiplicityRange => false,
+      _ => m.ownedRelationship.isEmpty()
+    },
+    None => false
+  };
+
+fn no_ranges()->Sequence<k.MultiplicityRange> = [];
+
+fn no_expressions()->Sequence<k.Expression> = [];
+
+// The bound expressions: lower and upper with two, the upper alone with one.
+fn bounds_of(r:k.MultiplicityRange)->Sequence<k.Expression> =
+  Sequence(contents::<k.OwningMembership>(r).flatMap(|o| contents::<k.Expression>(o)));
+
+// The lower bound, or the upper bound when there is no lower bound.
+fn lower_or_upper(f:k.Feature)->Sequence<k.Expression> =
+  match owned_range(f).first() {
+    Some(r) => {
+      let bounds = bounds_of(r);
+      if bounds.size() >= 2 {
+        match bounds.first() { Some(x) => Sequence([x]), None => no_expressions() }
+      } else {
+        match bounds.last() { Some(x) => Sequence([x]), None => no_expressions() }
+      }
+    },
+    None => no_expressions()
+  };
+
+fn upper_of(f:k.Feature)->Sequence<k.Expression> =
+  match owned_range(f).first() {
+    Some(r) => match bounds_of(r).last() { Some(x) => Sequence([x]), None => no_expressions() },
+    None => no_expressions()
+  };
+
+// A bound is a literal integer (the default's are 1), or `*`.
+fn integer_bound(e:Sequence<k.Expression>, default:Bool)->Bool =
+  default || e.exists(|x| oclIsKindOf::<k.LiteralInteger>(x));
+
+fn infinite_bound(e:Sequence<k.Expression>, default:Bool)->Bool =
+  !default && e.exists(|x| oclIsKindOf::<k.LiteralInfinity>(x));
+
+fn positive_bound(e:Sequence<k.Expression>, default:Bool)->Bool =
+  default || e.selectByKind::<k.LiteralInteger>().exists(|x| x.value > 0);
+
+// Both bounds are literal integers and the first is smaller.
+fn bound_less(a:Sequence<k.Expression>, ad:Bool, b:Sequence<k.Expression>, bd:Bool)->Bool =
+  if ad {
+    !bd && b.selectByKind::<k.LiteralInteger>().exists(|y| y.value > 1)
+  } else {
+    if bd {
+      a.selectByKind::<k.LiteralInteger>().exists(|x| x.value < 1)
+    } else {
+      a.selectByKind::<k.LiteralInteger>().exists(|x|
+        b.selectByKind::<k.LiteralInteger>().exists(|y| x.value < y.value))
+    }
+  };
+
+// A library element: one in a standard library package (`resource` is not
+// available on the VM, the direct executor's fallback).
+fn standard_library(e:k.Element)->Bool =
+  ancestors::<k.LibraryPackage>(e).exists(|p| p.isStandard);
+
+// The multiplicity rules of checkSubsetting, in a binding of their own:
+// they read literal integer values (Int32), which the direct executor runs
+// since Int32 support (it ran on the VM before). Library subsettings are
+// skipped (the Pilot validates only the loaded resources).
+fn subsetting_multiplicity_rules(s:k.Subsetting)->Sequence<Issue> =
+  if standard_library(s) { no_issues() } else { match subsetting_of(s) {
+    Some(a) => subsetting_multiplicity(s, a, subsetted_of(s)),
+    None => no_issues()
+  } };
+
+// checkSubsetting: validateRedefinitionMultiplicityConformance and
+// validateSubsettingMultiplicityConformance (literal bounds only), when both
+// features have a multiplicity range, the ranges differ and both features
+// are ends or neither is.
+fn subsetting_multiplicity(s:k.Subsetting, a:k.Feature, b:k.Feature)->Sequence<Issue> =
+  if !has_range(a) || !has_range(b) || a.isEnd != b.isEnd { no_issues() } else {
+    let ad = owned_range(a).isEmpty();
+    let bd = owned_range(b).isEmpty();
+    if (ad && bd) || (!ad && !bd && a == b) { no_issues() } else {
+      let gl = lower_or_upper(a);
+      let gu = upper_of(a);
+      let sl = lower_or_upper(b);
+      let su = upper_of(b);
+      let lower = match s {
+        _: k.Redefinition => !a.isEnd && (bound_less(gl, ad, sl, bd)
+          || (infinite_bound(gl, ad) && integer_bound(sl, bd) && positive_bound(sl, bd))),
+        _ => false
+      };
+      let upper = (infinite_bound(gu, ad) && !infinite_bound(su, bd)) || bound_less(su, bd, gu, ad);
+      when(lower, warning("validateRedefinitionMultiplicityConformance",
+          "Redefining feature should not have smaller multiplicity lower bound", "redefiningFeature",
+          "KerML.checkSubsetting.INVALID_REDEFINITION_MULTIPLICITY_CONFORMANCE"))
+        .concat(when(upper, warning("validateSubsettingMultiplicityConformance",
+          "Subsetting/redefining feature should not have larger multiplicity upper bound", "subsettingFeature",
+          "KerML.checkSubsetting.INVALID_SUBSETTING_MULTIPLICITY_CONFORMANCE")))
+    }
+  };
+
+// checkClassifier, validateClassifierMultiplicityDomain, and checkFeature,
+// validateFeatureMultiplicityDomain: a multiplicity's featuring types are its
+// owned type featurings' types and, when owned by a feature, the feature's
+// featuring types (MultiplicityAdapter), so only owned type featurings make
+// them differ.
+fn feature_multiplicity_domain(f:k.Feature)->Sequence<Issue> =
+  match multiplicity_of(f).first() {
+    Some(m) => {
+      let explicit = explicit_featuring(m);
+      when(explicit.notEmpty() && featuring_known(f, 0)
+          && explicit.exists(|x| !featuring_reals(f, 0).contains(x)),
+        error("validateFeatureMultiplicityDomain", "Multiplicity must have same featuring types as it feature",
+          "multiplicity", "KerML.checkFeature.INVALID_FEATURE_MULTIPLICITY_DOMAIN"))
+    },
+    None => no_issues()
+  };
+
+fn classifier_rules(t:k.Type)->Sequence<Issue> =
+  match t {
+    c: k.Classifier => classifier_default_supertype(c).concat(match multiplicity_of(c).first() {
+      Some(m) => when(explicit_featuring(m).notEmpty(),
+        error("validateClassifierMultiplicityDomain", "Multiplicity must not have a featuring type",
+          "multiplicity", "KerML.checkClassifier.INVALID_CLASSIFIER_MULTIPLICITY_DOMAIN")),
+      None => no_issues()
+    }),
+    _ => no_issues()
+  };
+
+// checkClassifier, validateClassifierDefaultSupertype_, for conjugated
+// classifiers only: a conjugated type has no implicit general, and
+// specializes what its original type specializes; a conjugation cycle
+// specializes nothing (`classifier C ~ C;`). Specialization cycles of
+// unconjugated types are not checked.
+fn classifier_default_supertype(c:k.Classifier)->Sequence<Issue> =
+  if !conjugated(c) { no_issues() } else {
+    let name = implicit.library_default(c);
+    match lib(c, name).first() {
+      Some(d) => when(!conjugated_reaches(c, d, no_types(c), 0),
+        error("validateClassifierDefaultSupertype_", "Must directly or indirectly specialize " + name,
+          "ownedSubclassification", "KerML.checkClassifier.INVALID_CLASSIFIER_DEFAULT_SUPERTYPE")),
+      None => no_issues()
+    }
+  };
+
+fn conjugated_reaches(t:k.Type, d:k.Type, seen:Sequence<k.Type>, depth:Int64)->Bool =
+  if t == d || depth > 16 { true } else {
+    if conjugated(t) {
+      match conjugation_originals(t).first() {
+        Some(o) => if seen.contains(o) || o == t { false } else {
+          conjugated_reaches(o, d, seen.concat(Sequence([t])), depth + 1)
+        },
+        None => true
+      }
+    } else { supertypes_of(t).contains(d) }
+  };
+
+// --- Variables, feature values, result expressions ---------------------------
+
+// checkFeature, validateFeatureIsVariable: a variable feature (declared
+// `var`) whose owning type is missing or does not specialize
+// Occurrences::Occurrence. A SysML usage is variable only when its owning
+// type specializes Occurrence (Usage::mayTimeVary), so it never fires there.
+fn feature_is_variable(f:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.Usage => no_issues(),
+    _ => when(f.isVariable && match owning_type(f) {
+        Some(t) => !specializes(t, "Occurrences::Occurrence"),
+        None => true
+      },
+      error("validateFeatureIsVariable", "Must be owned by an occurrence type", "",
+        "KerML.checkFeature.INVALID_FEATURE_IS_VARIABLE"))
+  };
+
+// checkFeatureValue, validateFeatureValueOverriding: a feature the valued
+// feature redefines (directly or not, computed redefinitions included) has
+// another feature value that is not a default.
+fn feature_value_overriding(v:k.FeatureValue)->Sequence<Issue> =
+  match container::<k.Feature>(v) {
+    Some(f) => when(all_redefined(f).exists(|r| match contents::<k.FeatureValue>(r).first() {
+        Some(w) => w != v && !w.isDefault,
+        None => false
+      }),
+      error("validateFeatureValueOverriding", "Cannot override a binding feature value", "",
+        "KerML.checkFeatureValue.INVALID_FEATURE_VALUE_OVERRIDING")),
+    None => no_issues()
+  };
+
+// checkExpression and checkFunction, validateExpressionResultExpressionMembership:
+// more than one result expression membership owned by the type or its
+// supertypes (TypeUtil.getResultExpressionMembershipsOf), reported on the
+// first owned one, else on the type. Supertypes are read through owned
+// specializations, conjugations and chains (library defaults, which have no
+// result expression, and computed redefinitions are not followed).
+fn result_expression_total(t:k.Type)->Int64 =
+  Sequence(explicit_supertypes(t).flatMap(|g| contents::<k.ResultExpressionMembership>(g))).distinct().size();
+
+fn explicit_supertypes(t:k.Type)->Sequence<k.Type> = explicit_closure(Sequence([t]), no_types(t), 0);
+
+fn explicit_closure(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, depth:Int64)->Sequence<k.Type> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| explicit_generals(g)
+        .concat(conjugation_originals(g)).concat(last_chained(g))).distinct()
+      .reject(|g| known.contains(g)));
+    explicit_closure(next, known, depth + 1)
+  };
+
+// An expression or function with a supertype other than library defaults
+// (only those can have more than one result expression).
+fn result_expression_typed(t:k.Type)->Bool =
+  (oclIsKindOf::<k.Expression>(t) || oclIsKindOf::<k.Function>(t))
+    && (explicit_generals(t).notEmpty() || conjugated(t) || last_chained(t).notEmpty());
+
+fn owned_result_expression(m:k.ResultExpressionMembership)->Sequence<Issue> =
+  match owning_type_of(m) {
+    Some(t) => if !result_expression_typed(t) { no_issues() } else {
+      match contents::<k.ResultExpressionMembership>(t).first() {
+        Some(first) => when(first == m && result_expression_total(t) > 1,
+          error("validateExpressionResultExpressionMembership",
+            "Only one (owned or inherited) result expression is allowed", "ownedResultExpression",
+            expression_rule(t))),
+        None => no_issues()
+      }
+    },
+    None => no_issues()
+  };
+
+fn inherited_result_expressions(t:k.Type)->Sequence<Issue> =
+  if !result_expression_typed(t) || contents::<k.ResultExpressionMembership>(t).notEmpty() { no_issues() } else {
+    when(result_expression_total(t) > 1,
+      error("validateExpressionResultExpressionMembership",
+        "Only one (owned or inherited) result expression is allowed", "", expression_rule(t)))
+  };
+
+fn expression_rule(t:k.Type)->String =
+  if oclIsKindOf::<k.Function>(t) {
+    "KerML.checkFunction.INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP"
+  } else { "KerML.checkExpression.INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP" };
+
+// checkInvocationExpression, validateInvocationExpressionInstantiatedType,
+// only when there is no instantiated type (a package, as for
+// validateInstantiationExpressionInstantiatedType) or it is neither a
+// behavior nor a feature (a feature's types are not checked).
+fn invocation_instantiated_type(e:k.InstantiationExpression)->Sequence<Issue> =
+  match e {
+    _: k.OperatorExpression => no_issues(),
+    _: k.TriggerInvocationExpression => no_issues(),
+    _: k.InvocationExpression => {
+      let types = instantiated_type(e);
+      when(types.forAll(|t| !oclIsKindOf::<k.Behavior>(t) && !oclIsKindOf::<k.Feature>(t)),
+        error("validateInvocationExpressionInstantiatedType", "Must invoke a behavior or a behavioral feature", "",
+          "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_INSTANTIATED_TYPE"))
+    },
+    _ => no_issues()
+  };
+
+// --- Flow ends --------------------------------------------------------------------
+
+// checkFlowEnd: validateFlowEndSubsetting (the flow end subsets nothing other
+// than by redefinition: no owned subsetting other than a redefinition, and no
+// implicit subsetting of the feature owning its flow feature's redefined
+// feature, FlowEndAdapter.addFlowEndSubsetting) and
+// validateFlowEndImplicitSubsetting (it owns no subsetting at all and its
+// flow feature owns a redefinition).
+fn flow_end_subsetting(e:k.FlowEnd)->Sequence<Issue> {
+  let owned = Sequence(contents::<k.Subsetting>(e).filter(|s| specific_is(s, e)));
+  let subsetting = owned.reject(|s| oclIsKindOf::<k.Redefinition>(s));
+  let redefinitions = match owned_features(e).first() {
+    Some(x) => Sequence(contents::<k.Redefinition>(x)),
+    None => no_redefinitions()
+  };
+  let implicit = if owned.notEmpty() { false } else {
+    match redefinitions.first() {
+      Some(r) => match owning_type(r.redefinedFeature) {
+        Some(o) => oclIsKindOf::<k.Feature>(o),
+        None => false
+      },
+      None => false
+    }
+  };
+  if subsetting.isEmpty() && !implicit {
+    error("validateFlowEndSubsetting", "Cannot identify flow end (use dot notation)", "",
+      "KerML.checkFlowEnd.INVALID_FLOW_END_SUBSETTING")
+  } else {
+    when(owned.isEmpty() && redefinitions.notEmpty(),
+      warning("validateFlowEndImplicitSubsetting", "Flow ends should use dot notation", "",
+        "KerML.checkFlowEnd.INVALID_FLOW_END_IMPLICIT_SUBSETTING"))
+  }
+}
+
+// --- Cross features ---------------------------------------------------------------
+
+// FeatureUtil.getOwnedCrossFeatureOf: for an end feature with an owning
+// type, its first owned member feature that is not a multiplicity, metadata
+// feature or binding connector and is not owned through a feature membership
+// or feature value.
+fn owned_cross_feature(f:k.Feature)->Sequence<k.Feature> =
+  if !f.isEnd || !has_owning_type(f) { no_feature_list() } else {
+    match Sequence(contents::<k.OwningMembership>(f)
+        .reject(|m| oclIsKindOf::<k.FeatureMembership>(m) || oclIsKindOf::<k.FeatureValue>(m))
+        .flatMap(|m| contents::<k.Feature>(m))
+        .reject(|x| oclIsKindOf::<k.Multiplicity>(x) || oclIsKindOf::<k.MetadataFeature>(x)
+          || oclIsKindOf::<k.BindingConnector>(x))).first() {
+      Some(x) => Sequence([x]),
+      None => no_feature_list()
+    }
+  };
+
+// FeatureUtil.getCrossFeatureOf: the second chaining feature of the crossed
+// feature of the owned cross subsetting, else the owned cross feature (the
+// implicit cross subsetting chains the other end and it).
+fn cross_feature_of(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.CrossSubsetting>(f).first() {
+    Some(c) => match chain_of(c.crossedFeature).at(1) {
+      Some(x) => Sequence([x]),
+      None => no_feature_list()
+    },
+    None => owned_cross_feature(f)
+  };
+
+// checkFeature, validateFeatureCrossFeatureSpecialization and
+// validateFeatureCrossFeatureType, for a feature with an owned cross
+// subsetting (target the cross subsetting, feature crossedFeature). A
+// feature with only an owned cross feature, or whose cross feature is an
+// owned cross feature, specializes the redefined ends' cross features and
+// has their types implicitly, so it is not checked.
+fn cross_feature_rules(c:k.CrossSubsetting, f:k.Feature)->Sequence<Issue> =
+  match chain_of(c.crossedFeature).at(1) {
+    Some(cf) => if is_owned_cross_feature(cf) { no_issues() } else {
+      let redefined = redefined_directly(f);
+      let types = feature_types(f);
+      let cross_types = feature_types(cf);
+      when(redefined.flatMap(|r| cross_feature_of(r)).exists(|x| !conforms(cf, x)),
+          error("validateFeatureCrossFeatureSpecialization",
+            "Cross feature must specialized redefined-end cross features", "crossedFeature",
+            "KerML.checkFeature.INVALID_FEATURE_CROSS_FEATURE_SPECIALIZATION"))
+        .concat(when(!(types.forAll(|t| cross_types.contains(t)) && cross_types.forAll(|t| types.contains(t))),
+          error("validateFeatureCrossFeatureType", "Cross feature must have same type as feature", "crossedFeature",
+            "KerML.checkFeature.INVALID_FEATURE_CROSS_FEATURE_TYPE")))
+    },
+    None => no_issues()
+  };
+
+// A cross feature that is itself the owned cross feature of an end: it is
+// implicitly typed by its end's types and subsets the cross features of the
+// ends its end redefines (FeatureAdapter.addOwnedCrossFeatureSpecialization),
+// so the two rules above hold for it.
+fn is_owned_cross_feature(g:k.Feature)->Bool =
+  match container::<k.OwningMembership>(g) {
+    Some(m) => if oclIsKindOf::<k.FeatureMembership>(m) || oclIsKindOf::<k.FeatureValue>(m) { false } else {
+      match container::<k.Feature>(m) {
+        Some(f) => owned_cross_feature(f).contains(g),
+        None => false
+      }
+    },
+    None => false
+  };
+
+// checkFeature, checkFeatureCrossingSpecialization (on the owned cross
+// feature): its owner has an owned cross subsetting whose cross feature is
+// not the owned cross feature.
+fn crossing_specialization(g:k.Feature)->Sequence<Issue> =
+  match container::<k.OwningMembership>(g) {
+    Some(m) => if oclIsKindOf::<k.FeatureMembership>(m) || oclIsKindOf::<k.FeatureValue>(m) { no_issues() } else {
+      match container::<k.Feature>(m) {
+        Some(f) => if owned_cross_feature(f).contains(g) && contents::<k.CrossSubsetting>(f).notEmpty() {
+          when(!cross_feature_of(f).contains(g),
+            error("checkFeatureCrossingSpecialization", "Must be the cross feature", "",
+              "KerML.checkFeature.INVALID_FEATURE_CROSSING_SPECIALIZATION"))
+        } else { no_issues() },
+        None => no_issues()
+      }
+    },
+    None => no_issues()
+  };
+
+// checkCrossSubsetting: validateCrossSubsettingCrossedFeature (an end with
+// an owning type crosses a feature chain of two features, the first being
+// the other end when its owning type has two ends) and
+// validateCrossSubsettingCrossingFeature (the crossing feature is an end of
+// an owning type with at least two ends).
+fn cross_subsetting_ends(c:k.CrossSubsetting, f:k.Feature)->Sequence<Issue> =
+  match owning_type(f) {
+    Some(t) => {
+      let ends = all_ends(t, 0);
+      let chain = chain_of(c.crossedFeature);
+      let other = ends.reject(|e| e == f);
+      let wrong_first = match chain.first() {
+        Some(x) => match other.first() { Some(o) => x != o, None => true },
+        None => true
+      };
+      when(f.isEnd && (chain.size() != 2 || (ends.size() == 2 && wrong_first)),
+          error("validateCrossSubsettingCrossedFeature", "Cross subsetting must chain through an opposite end feature",
+            "crossedFeature", "KerML.checkCrossSubsetting.INVALID_CROSS_SUBSETTING_CROSSED_FEATURE"))
+        .concat(when(!f.isEnd || ends.size() < 2, crossing_feature_error()))
+    },
+    None => crossing_feature_error()
+  };
+
+fn crossing_feature_error()->Sequence<Issue> =
+  error("validateCrossSubsettingCrossingFeature", "Cross subsetting must be owned by one of two or more end features",
+    "", "KerML.checkCrossSubsetting.INVALID_CROSS_SUBSETTING_CROSSING_FEATURE");
+
+// Type::endFeature: the owned end features, then the ends beyond them of the
+// first general that has more (those the owned ends do not redefine).
+fn all_ends(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { no_feature_list() } else {
+    let own = Sequence(owned_features(t).filter(|x| x.isEnd));
+    own.concat(ends_beyond(resolution.naming_generals(t), 0, own.size(), depth))
+  };
+
+fn ends_beyond(generals:Sequence<k.Type>, i:Int64, n:Int64, depth:Int64)->Sequence<k.Feature> =
+  match generals.at(i) {
+    Some(g) => {
+      let es = all_ends(basic_type(g), depth + 1);
+      if es.size() > n { features_from(es, n) } else { ends_beyond(generals, i + 1, n, depth) }
+    },
+    None => no_feature_list()
+  };
+
+// --- Associations and connectors ----------------------------------------------------
+
+// checkAssociation, validateAssociationBinarySpecialization, and
+// checkConnector, validateConnectorBinarySpecialization: the third and later
+// owned ends of an association or connector with more than two owned ends
+// that conforms to Links::BinaryLink.
+fn binary_end_rules(f:k.Feature)->Sequence<Issue> =
+  if !f.isEnd { no_issues() } else {
+    match owning_type(f) {
+      Some(t) => if !(oclIsKindOf::<k.Association>(t) || oclIsKindOf::<k.Connector>(t)) { no_issues() } else {
+        let ends = Sequence(owned_features(t).filter(|x| x.isEnd));
+        match feature_position(ends, f, 0) {
+          Some(i) => when(i >= 2 && lib(t, "Links::BinaryLink").exists(|b| supertypes_of(t).contains(b)),
+            binary_end_error(t)),
+          None => no_issues()
+        }
+      },
+      None => no_issues()
+    }
+  };
+
+// checkAssociation, validateAssociationRelatedTypes: a non-abstract
+// association with fewer than two related types (the types of its end
+// features, inherited ends included). Every end has at least one type, so
+// this is an association without ends, or with one end of one type.
+fn association_related_types(t:k.Type)->Sequence<Issue> =
+  match t {
+    a: k.Association => if a.isAbstract { no_issues() } else {
+      let ends = all_ends(a, 0);
+      when(ends.isEmpty() || (ends.size() == 1 && ends.forAll(|e| feature_types(e).size() < 2)),
+        error("validateAssociationRelatedTypes", "Must have at least two related elements", "relatedElement",
+          "KerML.checkAssociation.INVALID_ASSOCIATION_RELATED_TYPES"))
+    },
+    _ => no_issues()
+  };
+
+fn binary_end_error(t:k.Type)->Sequence<Issue> =
+  if oclIsKindOf::<k.Association>(t) {
+    error("validateAssociationBinarySpecialization", "Cannot have more than two ends", "",
+      "KerML.checkAssociation.INVALID_ASSOCIATION_BINARY_SPECIALIZATION")
+  } else {
+    error("validateConnectorBinarySpecialization", "Cannot have more than two ends", "",
+      "KerML.checkConnector.INVALID_CONNECTOR_BINARY_SPECIALIZATION")
+  };
+
+// checkConnector, validateConnectorRelatedFeatures, and checkBindingConnector,
+// validateBindingConnectorIsBinary. The related features are the ends'
+// referenced features (owned reference subsettings); they are only counted
+// for a connector without explicit generals whose end features are its owned
+// ends: two owned ends (redefining a binary default's), or another number
+// for a connector whose default has no ends (not a flow or binding
+// connector). Successions are skipped (a succession usage's ends take their
+// references implicitly).
+fn connector_rules(t:k.Type)->Sequence<Issue> =
+  match t {
+    _: k.Succession => no_issues(),
+    _: k.SuccessionAsUsage => no_issues(),
+    c: k.Connector => if explicit_generals(c).notEmpty() { no_issues() } else {
+      let ends = Sequence(owned_features(c).filter(|x| x.isEnd));
+      let related = ends.filter(|e| contents::<k.ReferenceSubsetting>(e).notEmpty()).size();
+      let known = ends.size() == 2 || !binary_default_connector(c);
+      when(known && !c.isAbstract && related < 2,
+          error("validateConnectorRelatedFeatures", "Must have at least two related elements", "relatedElement",
+            "KerML.checkConnector.INVALID_CONNECTOR_RELATED_FEATURES"))
+        .concat(match c {
+          _: k.BindingConnector => when(ends.size() >= 2 && related != 2,
+            error("validateBindingConnectorIsBinary", "Binding connector must be binary", "",
+              "KerML.checkBindingConnector.INVALID_BINDING_CONNECTOR_IS_BINARY")),
+          _ => no_issues()
+        })
+    },
+    _ => no_issues()
+  };
+
+fn binary_default_connector(c:k.Connector)->Bool =
+  oclIsKindOf::<k.Flow>(c) || oclIsKindOf::<k.FlowUsage>(c) || oclIsKindOf::<k.BindingConnector>(c);

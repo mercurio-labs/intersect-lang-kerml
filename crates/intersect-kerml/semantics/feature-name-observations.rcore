@@ -1,0 +1,16 @@
+rcore 1;
+package intersect.kerml.nameObservations version "1";
+// Auxiliary checked observations; these are not replacement KerML objects.
+metamodel "urn:intersect:kerml:feature-name-observations" prefix n {
+  class FeatureObservation {
+    attr identity: String [1,1];
+    attr declaredName: String [0,1];
+    attr declaredShortName: String [0,1];
+    ref relationships: RelationshipObservation [0,*] nonunique;
+    ref computed: FeatureObservation [0,1];
+  }
+  class RelationshipObservation {
+    attr isRedefinition: Bool [1,1];
+    ref target: FeatureObservation [0,1];
+  }
+}

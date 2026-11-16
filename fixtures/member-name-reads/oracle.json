@@ -1,0 +1,59 @@
+{
+  "scope": "Independent eGet values only; raw graph/constructor/multiplicity/eIsSet are not certified by this getter slice.",
+  "raw": {
+    "path": "D:\\dev\\repos\\mercurio-labs\\intersect\\target\\pilot-minimal-package-oracle-v2\\attempt1\\observation.json",
+    "bytes": 191704,
+    "sha256": "4dc46f4eadde50c43ed1bf47a41f809c1ef6d586ccf4b7b2a98503de11f8b7ac"
+  },
+  "corrected_review": {
+    "path": "D:\\dev\\repos\\mercurio-labs\\intersect\\target\\pilot-minimal-package-oracle-v2\\review-v2\\manifest.json",
+    "bytes": 3278,
+    "sha256": "faec31707a0aa70f59a630937ab984e2812469c3cb6dd3e1c48d6e3df4b120b1"
+  },
+  "memberName": {
+    "json_pointer": "/parser_created_graph/1/actual_feature_observations/10",
+    "declaration_uri": "https://www.omg.org/spec/SysML/20250201#//Membership/memberName",
+    "name": "memberName",
+    "declaring_class_uri": "https://www.omg.org/spec/SysML/20250201#//Membership",
+    "feature_id": 26,
+    "type_uri": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+    "lower": 0,
+    "upper": 1,
+    "derived": false,
+    "volatile": false,
+    "transient": false,
+    "changeable": true,
+    "unsettable": false,
+    "ordered": false,
+    "unique": true,
+    "actual_setting_delegate_class": "org.eclipse.emf.ecore.impl.EStructuralFeatureImpl$InternalSettingDelegateSingleDataStatic",
+    "e_is_set_before_e_get": false,
+    "e_get_resolve_false": "P",
+    "e_get_resolve_true": "P",
+    "e_is_set_after_e_get": false,
+    "authored_feature_nodes": []
+  },
+  "ownedMemberName": {
+    "json_pointer": "/parser_created_graph/1/actual_feature_observations/11",
+    "declaration_uri": "https://www.omg.org/spec/SysML/20250201#//OwningMembership/ownedMemberName",
+    "name": "ownedMemberName",
+    "declaring_class_uri": "https://www.omg.org/spec/SysML/20250201#//OwningMembership",
+    "feature_id": 32,
+    "type_uri": "http://www.eclipse.org/emf/2002/Ecore#//EString",
+    "lower": 0,
+    "upper": 1,
+    "derived": true,
+    "volatile": true,
+    "transient": true,
+    "changeable": true,
+    "unsettable": false,
+    "ordered": false,
+    "unique": true,
+    "actual_setting_delegate_class": "org.omg.sysml.delegate.setting.OwningMembership_ownedMemberName_SettingDelegate",
+    "e_is_set_before_e_get": true,
+    "e_get_resolve_false": "P",
+    "e_get_resolve_true": "P",
+    "e_is_set_after_e_get": true,
+    "authored_feature_nodes": []
+  }
+}

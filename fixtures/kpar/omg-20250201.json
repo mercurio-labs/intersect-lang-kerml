@@ -1,0 +1,65 @@
+{
+  "description": "OMG-published KerML and SysML standard library archives (release 20250201) used to check intersect-kpar (archive_tests::omg_library_archives_read with INTERSECT_KPAR_OMG set to a folder holding them). Not redistributed here; download from the URLs.",
+  "retrieved": "2026-11-10",
+  "known_defects": [
+    "Systems-Library.kpar: .meta.json index entry 'AnalysisCases' names 'AnalysisCase.sysml'; the file is AnalysisCases.sysml",
+    "Requirement-Derivation-Domain-Library.kpar: index entry 'RequirementsDerivation' names 'RequirementsDerivation.sysml'; the file is RequirementDerivation.sysml",
+    "Analysis-Domain-Library.kpar uses .../KerML/20250201/Quantities-and-Units-Library.kpar; Geometry-Domain-Library.kpar uses .../SysML/20250201/Quantities-and-Units-Library.kpar; both mean the published SysML Quantities-and-Units-Domain-Library.kpar",
+    "Systems-Library.kpar: holds macOS metadata (.DS_Store, __MACOSX/)"
+  ],
+  "archives": [
+    {
+      "url": "https://www.omg.org/spec/KerML/20250201/Semantic-Library.kpar",
+      "document": "ptc/25-04-17",
+      "bytes": 33031,
+      "sha256": "6d9e311646a557cb08b64313cab6a7931109751b2ac7fbfcefad5c2216a6167b"
+    },
+    {
+      "url": "https://www.omg.org/spec/KerML/20250201/Data-Type-Library.kpar",
+      "document": "ptc/25-04-18",
+      "bytes": 4260,
+      "sha256": "957e4ff5c60f7fc5eedaf0b6d4f776856061c0aa7a424e260eeccb8d6ed7bfbd"
+    },
+    {
+      "url": "https://www.omg.org/spec/KerML/20250201/Function-Library.kpar",
+      "document": "ptc/25-04-19",
+      "bytes": 15929,
+      "sha256": "a8319da3ab1d8ffc0f390ea1aef29d85a00451655c41a9267ce396845c2b1c8d"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Systems-Library.kpar",
+      "bytes": 27577,
+      "sha256": "df7d8b2c6e08232ca7ce123a63148949c383fcbeaeba8d89c27ceece43793a1f"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Analysis-Domain-Library.kpar",
+      "bytes": 6035,
+      "sha256": "96f0230cd7091faa2d27345b7f7748e0249fb42cfbdc48265ce6e82d6ecc1b38"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Cause-and-Effect-Domain-Library.kpar",
+      "bytes": 3135,
+      "sha256": "c097c70232b8c9d38acbc92b402d8caa3b67f4d847dade0f29994164a4e25e94"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Geometry-Domain-Library.kpar",
+      "bytes": 7169,
+      "sha256": "9cc40d628dfe8717b79af74297a7115103e3469708a54221cac0e42344ed8427"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Metadata-Domain-Library.kpar",
+      "bytes": 4573,
+      "sha256": "5c51cd3b21b60c89742dbba0f59f25bdbc34224d05e32975d77bb93092458b9b"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Quantities-and-Units-Domain-Library.kpar",
+      "bytes": 154748,
+      "sha256": "81a6e7264a9f287e482ec5b35f8ef98725b81f393e0b2e82dae3599511c0adc7"
+    },
+    {
+      "url": "https://www.omg.org/spec/SysML/20250201/Requirement-Derivation-Domain-Library.kpar",
+      "bytes": 2650,
+      "sha256": "a136e72ac6afbd96ede220cfec77fd54c75242d577d3f5ab9e5278b25baee6e5"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+[package]
+autotests = false
+name = "intersect-kerml-web"
+description = "The Intersect browser host with the KerML draft methods: intersect-web's JSON/WASM host plus draft/kerml/*"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+intersect-model.workspace = true
+intersect-text.workspace = true
+intersect-kerml = { path = "../intersect-kerml" }
+# Core's host without its own wasm exports; this crate exports the same ABI.
+intersect-web.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[features]
+milestone-tests = []
+
+[[test]]
+name = "all"
+path = "tests/all.rs"

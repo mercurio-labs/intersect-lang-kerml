@@ -1,0 +1,5749 @@
+{
+ "source": {
+  "repository": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation",
+  "commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "files": [
+   "org.omg.kerml.xtext/src/org/omg/kerml/xtext/validation/KerMLValidator.xtend",
+   "org.omg.sysml.xtext/src/org/omg/sysml/xtext/validation/SysMLValidator.xtend"
+  ]
+ },
+ "check_methods": {
+  "KerML": 42,
+  "SysML": 71
+ },
+ "empty_check_methods": [
+  {
+   "language": "SysML",
+   "method": "checkOccurrenceDefinition",
+   "metaclass": "OccurrenceDefinition"
+  },
+  {
+   "language": "SysML",
+   "method": "checkDecisionNode",
+   "metaclass": "DecisionNode"
+  },
+  {
+   "language": "SysML",
+   "method": "checkForkNode",
+   "metaclass": "ForkNode"
+  },
+  {
+   "language": "SysML",
+   "method": "checkJoinNode",
+   "metaclass": "JoinNode"
+  },
+  {
+   "language": "SysML",
+   "method": "checkMergeNode",
+   "metaclass": "MergeNode"
+  }
+ ],
+ "batches": {
+  "B1": "KerML structure: owned relationships, flags and metaclass of resolved targets",
+  "B2": "SysML structure: memberships, owning types, variations, referential flags, reference subsettings",
+  "B3": "Effective typing: 'must be typed by' rules over all types of a feature (getAllTypesOf)",
+  "B4": "Derived feature semantics: featuring types, multiplicities, ends, cross features, redefinition/subsetting conformance, connectors, inherited parameters and memberships, library specialization",
+  "B5": "Names: namespace distinguishability (member names, alias names, inherited memberships)",
+  "B6": "Expression typing and evaluation: Boolean/Integer/Duration/Time results, model-level evaluability, cast and binding type conformance, implicit binding connectors"
+ },
+ "declared_codes_never_reported": [
+  {
+   "constant": "INVALID_ASSIGNMENT_ACTION_USAGE_ARGUMENTS",
+   "code": "validateAssignmentActionUsageArguments"
+  },
+  {
+   "constant": "INVALID_ASSOCIATION_STRUCTURE_INTERSECTION",
+   "code": "validateAssociationStructureIntersection"
+  },
+  {
+   "constant": "INVALID_BINDING_CONNECTOR_ARGUMENT_TYPE_CONFORMANCE",
+   "code": "validateBindingConnectorArgumentTypeConformance"
+  },
+  {
+   "constant": "INVALID_CONTROL_NODE_INCOMING_SUCCESSIONS",
+   "code": "validateControlNodeIncomingSuccessions"
+  },
+  {
+   "constant": "INVALID_CONTROL_NODE_OUTGOING_SUCCESSIONS",
+   "code": "validateControlNodeOutgoingSuccessions"
+  },
+  {
+   "constant": "INVALID_DECISION_NODE_INCOMING_SUCCESSIONS",
+   "code": "validateDecisionNodeIncomingSuccessions"
+  },
+  {
+   "constant": "INVALID_DECISION_NODE_OUTGOING_SUCCESSIONS",
+   "code": "validateDecisionNodeOutgoingSuccessions"
+  },
+  {
+   "constant": "INVALID_DEFINITION_VARIATION_IS_ABSTRACT",
+   "code": "validateDefinitionVariationIsAbstract"
+  },
+  {
+   "constant": "INVALID_EXPOSE_OWNING_NAMESPACE",
+   "code": "validateExposeOwningNamespace"
+  },
+  {
+   "constant": "INVALID_FEATURE_END_IS_CONSTANT",
+   "code": "validateFeatureEndIsConstant"
+  },
+  {
+   "constant": "INVALID_FORK_NODE_INCOMING_SUCCESSIONS",
+   "code": "validateForkNodeIncomingSuccessions"
+  },
+  {
+   "constant": "INVALID_FUNCTION_RESULT_EXPRESSION_MEMBERSHIP",
+   "code": "validateFunctionResultExpressionMembership"
+  },
+  {
+   "constant": "INVALID_ITEM_USAGE_TYPE",
+   "code": "validateItemUsageType_"
+  },
+  {
+   "constant": "INVALID_JOIN_NODE_OUTGOING_SUCCESSIONS",
+   "code": "validateJoinNodeOutgoingSuccessions"
+  },
+  {
+   "constant": "INVALID_MERGE_NODE_INCOMING_SUCCESSIONS",
+   "code": "validateMergeNodeIncomingSuccessions"
+  },
+  {
+   "constant": "INVALID_MERGE_NODE_OUTGOING_SUCCESSIONS",
+   "code": "validateMergeNodeOutgoingSuccessions"
+  },
+  {
+   "constant": "INVALID_OCCURRENCE_USAGE_INDIVIDUAL_DEFINITION",
+   "code": "validateOccurrenceUsageIndividualDefinition"
+  },
+  {
+   "constant": "INVALID_OCCURRENCE_USAGE_IS_PORTION",
+   "code": "validateOccurrenceUsageIsPortion"
+  },
+  {
+   "constant": "INVALID_OCCURRENCE_USAGE_PORTION_KIND",
+   "code": "validateOccurrenceUsageIsPortion"
+  },
+  {
+   "constant": "INVALID_PART_USAGE_PART_DEFINITION",
+   "code": "validatePartUsagePartDefinition"
+  },
+  {
+   "constant": "INVALID_PART_USAGE_TYPE",
+   "code": "validatePartUsageType_"
+  },
+  {
+   "constant": "INVALID_SEND_ACTION_USAGE_PAYLOAD_ARGUMENT",
+   "code": "validateSendActionUsagePayloadArgument"
+  },
+  {
+   "constant": "INVALID_STATE_DEFINITION_PARALLEL_SUBACTIONS",
+   "code": "validateStateDefinitionParallelSubactions"
+  },
+  {
+   "constant": "INVALID_STATE_USAGE_PARALLEL_SUBACTIONS",
+   "code": "validateStateUsageParallelSubactions"
+  },
+  {
+   "constant": "INVALID_SUBSETTING_PORTION_CONFORMANCE",
+   "code": "validateSubsettingPortionConformance"
+  },
+  {
+   "constant": "INVALID_USE_CASE_USAGE_REFERENCE",
+   "code": "validateUseCaseUsageReference"
+  }
+ ],
+ "rules": [
+  {
+   "id": "KerML.checkElement.INVALID_ELEMENT_IS_IMPLIED_INCLUDED",
+   "language": "KerML",
+   "method": "checkElement",
+   "metaclass": "Element",
+   "message_constants": [
+    "INVALID_ELEMENT_IS_IMPLIED_INCLUDED_MSG"
+   ],
+   "severity": "error",
+   "target": "the element",
+   "condition": "isImpliedIncluded is false but the element owns a relationship with isImplied = true",
+   "needs": [
+    "owned"
+   ],
+   "area": "Root",
+   "batch": "B1",
+   "notes": "Parsed models have no implied owned relationships; practically unreachable from text.",
+   "code_constant": "INVALID_ELEMENT_IS_IMPLIED_INCLUDED",
+   "code": "validateElementIsImpliedIncluded",
+   "code_is_message": false,
+   "messages": [
+    "Element cannot have implied relationships included"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkAnnotation.INVALID_ANNOTATION_ANNOTATING_ELEMENT",
+   "language": "KerML",
+   "method": "checkAnnotation",
+   "metaclass": "Annotation",
+   "message_constants": [
+    "INVALID_ANNOTATION_ANNOTATING_ELEMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the annotation",
+   "condition": "the annotation has neither, or both, an owned annotating element and an owning annotating element",
+   "needs": [
+    "owned"
+   ],
+   "area": "Root",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_ANNOTATION_ANNOTATING_ELEMENT",
+   "code": "validateAnnotationAnnotatingElement",
+   "code_is_message": false,
+   "messages": [
+    "Must either own or be owned by its annotating element"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkAnnotation.INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP",
+   "language": "KerML",
+   "method": "checkAnnotation",
+   "metaclass": "Annotation",
+   "message_constants": [
+    "INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP_MSG_1",
+    "INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP_MSG_2"
+   ],
+   "severity": "error",
+   "target": "the annotation",
+   "condition": "owned by its annotated element without owning its annotating element (msg 1), or owning its annotating element without being owned by the annotated element (msg 2)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Root",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_ANNOTATION_ANNOTATED_ELEMNT_OWNERSHIP",
+   "code": "validateAnnotationAnnotatedElementOwnership",
+   "code_is_message": false,
+   "messages": [
+    "Must own its annotating element",
+    "Must be owned by its annotated element"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkNamespace.INVALID_NAMESPACE_DISTINGUISHABILITY",
+   "language": "KerML",
+   "method": "checkNamespace",
+   "metaclass": "Namespace",
+   "message_constants": [
+    "INVALID_NAMESPACE_DISTINGUISHABILITY_MSG",
+    "INVALID_NAMESPACE_DISTINGUISHABILITY_MSG_0",
+    "INVALID_NAMESPACE_DISTINGUISHABILITY_MSG_1",
+    "INVALID_NAMESPACE_DISTINGUISHABILITY_MSG_2"
+   ],
+   "severity": "warning",
+   "target": "the owned member element (declaredName/declaredShortName) for owning memberships, the membership (memberName/memberShortName) for aliases, the namespace for two clashing inherited memberships",
+   "condition": "two owned memberships, an alias and an owned membership, two aliases, an owned and an inherited membership (types only), or two inherited memberships (types only) have the same name or short name but different member elements. Skipped for invocation, feature reference, literal and null expressions and binding connectors. The message gets \" '<name>' from <sorted owning namespace names>\" appended when the duplicates come from other namespaces",
+   "needs": [
+    "names",
+    "derived",
+    "implicit"
+   ],
+   "area": "Root",
+   "batch": "B5",
+   "notes": "The most frequent Pilot diagnostic (inherited 'self', 'start', 'done' ... through implicit library supertypes). Imported memberships are not checked.",
+   "code_constant": "INVALID_NAMESPACE_DISTINGUISHABILITY",
+   "code": "validateNamespaceDistinguishablity",
+   "code_is_message": false,
+   "messages": [
+    "Duplicate of other owned member name",
+    "Duplicate of owned member name",
+    "Duplicate of other alias name",
+    "Duplicate of inherited member name"
+   ],
+   "category": "name resolution",
+   "override": false
+  },
+  {
+   "id": "KerML.checkImport.INVALID_IMPORT_TOP_LEVEL_VISIBILITY",
+   "language": "KerML",
+   "method": "checkImport",
+   "metaclass": "Import",
+   "message_constants": [
+    "INVALID_IMPORT_TOP_LEVEL_VISIBILITY_MSG"
+   ],
+   "severity": "error",
+   "target": "the import",
+   "condition": "an import owned by a root namespace is not private",
+   "needs": [
+    "owned"
+   ],
+   "area": "Root",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_IMPORT_TOP_LEVEL_VISIBILITY",
+   "code": "validateImportTopLevelVisibility",
+   "code_is_message": false,
+   "messages": [
+    "Top level import must be private"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSpecialization.INVALID_SPECIALIZATION_SPECIFIC_NOT_CONJUGATED",
+   "language": "KerML",
+   "method": "checkSpecialization",
+   "metaclass": "Specialization",
+   "message_constants": [
+    "INVALID_SPECIALIZATION_SPECIFIC_NOT_CONJUGATED_MSG"
+   ],
+   "severity": "error",
+   "target": "the specialization, feature specific",
+   "condition": "the specific type is conjugated (owns a conjugator)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_SPECIALIZATION_SPECIFIC_NOT_CONJUGATED",
+   "code": "validateSpecializationSpecificNotConjugated",
+   "code_is_message": false,
+   "messages": [
+    "Conjugated type cannot be a specialized type"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_AT_MOST_ONE_CONJUGATOR",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_AT_MOST_ONE_CONJUGATOR_MSG"
+   ],
+   "severity": "error",
+   "target": "the type",
+   "condition": "the type owns more than one Conjugation",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_AT_MOST_ONE_CONJUGATOR",
+   "code": "validateTypeAtMostOneConjugator",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have more than one conjugator"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_OWNED_DIFFERENCING_NOT_ONE",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_OWNED_DIFFERENCING_NOT_ONE_MSG"
+   ],
+   "severity": "error",
+   "target": "the only owned differencing relationship",
+   "condition": "the type owns exactly one Differencing relationship",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_OWNED_DIFFERENCING_NOT_ONE",
+   "code": "validateOwnedDifferencingNotOne",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have only one differencing"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_DIFFERENCING_TYPES_NOT_SELF",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_DIFFERENCING_TYPES_NOT_SELF_MSG"
+   ],
+   "severity": "error",
+   "target": "the offending Differencing",
+   "condition": "an owned Differencing relationship targets the type itself",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_DIFFERENCING_TYPES_NOT_SELF",
+   "code": "validateTypeDifferencingTypesNotSelf",
+   "code_is_message": false,
+   "messages": [
+    "Type cannot difference with itself"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_OWNED_INTERSECTING_NOT_ONE",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_OWNED_INTERSECTING_NOT_ONE_MSG"
+   ],
+   "severity": "error",
+   "target": "the only owned intersecting relationship",
+   "condition": "the type owns exactly one Intersecting relationship",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_OWNED_INTERSECTING_NOT_ONE",
+   "code": "validateOwnedIntersectingNotOne",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have only one intersecting"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_INTERSECTING_TYPES_NOT_SELF",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_INTERSECTING_TYPES_NOT_SELF_MSG"
+   ],
+   "severity": "error",
+   "target": "the offending Intersecting",
+   "condition": "an owned Intersecting relationship targets the type itself",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_INTERSECTING_TYPES_NOT_SELF",
+   "code": "validateTypeIntersectingTypesNotSelf",
+   "code_is_message": false,
+   "messages": [
+    "Type cannot intersect with itself"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_OWNED_UNIONING_NOT_ONE",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_OWNED_UNIONING_NOT_ONE_MSG"
+   ],
+   "severity": "error",
+   "target": "the only owned unioning relationship",
+   "condition": "the type owns exactly one Unioning relationship",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_OWNED_UNIONING_NOT_ONE",
+   "code": "validateOwnedUnioningNotOne",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have only one unioning"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_UNIONING_TYPES_NOT_SELF",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_UNIONING_TYPES_NOT_SELF_MSG"
+   ],
+   "severity": "error",
+   "target": "the offending Unioning",
+   "condition": "an owned Unioning relationship targets the type itself",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_UNIONING_TYPES_NOT_SELF",
+   "code": "validateTypeUnioningTypesNotSelf",
+   "code_is_message": false,
+   "messages": [
+    "Type cannot union with itself"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkType.INVALID_TYPE_OWNED_MULTIPLICITY",
+   "language": "KerML",
+   "method": "checkType",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_TYPE_OWNED_MULTIPLICITY_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later memberships, feature memberElement",
+   "condition": "the type owns more than one membership whose member is a Multiplicity",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core types",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_TYPE_OWNED_MULTIPLICITY",
+   "code": "validateTypeOwnedMultiplicity",
+   "code_is_message": false,
+   "messages": [
+    "Only one multiplicity is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkClassifier.INVALID_CLASSIFIER_DEFAULT_SUPERTYPE",
+   "language": "KerML",
+   "method": "checkClassifier",
+   "metaclass": "Classifier",
+   "message_constants": [
+    "INVALID_CLASSIFIER_DEFAULT_SUPERTYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the classifier, feature ownedSubclassification",
+   "condition": "the classifier does not (transitively) specialize the library default supertype of its metaclass (ImplicitGeneralizationMap 'base', e.g. Class: Occurrences::Occurrence, DataType: Base::DataValue); {supertype} is that qualified name",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Core types",
+   "batch": "B4",
+   "notes": "Not in the spec as one constraint. Fires when an explicit specialization leads away from the default (no implicit default is added then).",
+   "code_constant": "INVALID_CLASSIFIER_DEFAULT_SUPERTYPE",
+   "code": "validateClassifierDefaultSupertype_",
+   "code_is_message": false,
+   "messages": [
+    "Must directly or indirectly specialize {supertype}"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkClassifier.INVALID_CLASSIFIER_MULTIPLICITY_DOMAIN",
+   "language": "KerML",
+   "method": "checkClassifier",
+   "metaclass": "Classifier",
+   "message_constants": [
+    "INVALID_CLASSIFIER_MULTIPLICITY_DOMAIN_MSG"
+   ],
+   "severity": "error",
+   "target": "the classifier, feature multiplicity",
+   "condition": "the classifier's multiplicity has featuring types",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core types",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CLASSIFIER_MULTIPLICITY_DOMAIN",
+   "code": "validateClassifierMultiplicityDomain",
+   "code_is_message": false,
+   "messages": [
+    "Multiplicity must not have a featuring type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkEndFeatureMembership.INVALID_END_FEATURE_MEMBERSHIP_IS_END",
+   "language": "KerML",
+   "method": "checkEndFeatureMembership",
+   "metaclass": "EndFeatureMembership",
+   "message_constants": [
+    "INVALID_END_FEATURE_MEMBERSHIP_IS_END_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned member feature",
+   "condition": "the owned member feature is not an end feature",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "Code spelled 'validateEndFeatureMembershpIsEnd'.",
+   "code_constant": "INVALID_END_FEATURE_MEMBERSHIP_IS_END",
+   "code": "validateEndFeatureMembershpIsEnd",
+   "code_is_message": false,
+   "messages": [
+    "Must be an end feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_HAS_TYPE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_HAS_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature, feature type",
+   "condition": "FeatureUtil.getAllTypesOf(feature) is empty (no own, inherited, implicit or chained type)",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Core features",
+   "batch": "B3",
+   "notes": "Not in the spec. Fires on library-less loads (28 times on Base, ScalarValues, Links alone).",
+   "code_constant": "INVALID_FEATURE_HAS_TYPE",
+   "code": "validateFeatureHasType_",
+   "code_is_message": false,
+   "messages": [
+    "Features must have at least one type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CHAINING_FEATURE_NOT_ONE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CHAINING_FEATURE_NOT_ONE_MSG"
+   ],
+   "severity": "error",
+   "target": "the only owned FeatureChaining",
+   "condition": "the feature owns exactly one FeatureChaining",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CHAINING_FEATURE_NOT_ONE",
+   "code": "validateFeatureChainingFeatureNotOne",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have only one chaining feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CHAINING_FEATURES_NOT_SELF",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CHAINING_FEATURES_NOT_SELF_MSG"
+   ],
+   "severity": "error",
+   "target": "the offending FeatureChaining",
+   "condition": "an owned FeatureChaining has the feature itself as chaining feature",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CHAINING_FEATURES_NOT_SELF",
+   "code": "validateFeatureChainingFeaturesNotSelf",
+   "code_is_message": false,
+   "messages": [
+    "Feature cannot have itself in a feature chain"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_OWNED_REFERENCE_SUBSETTING",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_OWNED_REFERENCE_SUBSETTING_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later ReferenceSubsettings",
+   "condition": "the feature owns more than one ReferenceSubsetting",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_OWNED_REFERENCE_SUBSETTING",
+   "code": "validateFeatureOwnedReferenceSubsetting",
+   "code_is_message": false,
+   "messages": [
+    "At most one reference subsetting is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_MULTIPLICITY_DOMAIN",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_MULTIPLICITY_DOMAIN_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature, feature multiplicity",
+   "condition": "the feature's multiplicity has a different set of featuring types than the feature",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_MULTIPLICITY_DOMAIN",
+   "code": "validateFeatureMultiplicityDomain",
+   "code_is_message": false,
+   "messages": [
+    "Multiplicity must have same featuring types as it feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_REDEFINITION_DIRECTION_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_REDEFINITION_DIRECTION_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "for an implicitly redefined feature: as checkRedefinition's direction rule",
+   "needs": [
+    "derived",
+    "implicit",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "Same code as the explicit Redefinition rule; here the target is the feature itself.",
+   "code_constant": "INVALID_REDEFINITION_DIRECTION_CONFORMANCE",
+   "code": "validateRedefinitionDirectionConformance",
+   "code_is_message": false,
+   "messages": [
+    "Redefining feature must have a compatible direction"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CROSS_FEATURE_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CROSS_FEATURE_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned cross feature, or the owned CrossSubsetting (feature crossedFeature)",
+   "condition": "the feature has a cross feature that does not specialize the cross feature of a feature it redefines (including computed redefinitions)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CROSS_FEATURE_SPECIALIZATION",
+   "code": "validateFeatureCrossFeatureSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cross feature must specialized redefined-end cross features"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CROSS_FEATURE_TYPE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CROSS_FEATURE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned cross feature, or the owned CrossSubsetting (feature crossedFeature)",
+   "condition": "the cross feature's types differ (as a set) from the feature's types",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CROSS_FEATURE_TYPE",
+   "code": "validateFeatureCrossFeatureType",
+   "code_is_message": false,
+   "messages": [
+    "Cross feature must have same type as feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_OWNED_CROSS_SUBSETTING",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_OWNED_CROSS_SUBSETTING_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later CrossSubsettings",
+   "condition": "the feature owns more than one CrossSubsetting",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_OWNED_CROSS_SUBSETTING",
+   "code": "validateFeatureOwnedCrossSubsetting",
+   "code_is_message": false,
+   "messages": [
+    "At most one cross subsetting is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_END_FEATURE_MULTIPLICITY",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_END_FEATURE_MULTIPLICITY_MSG"
+   ],
+   "severity": "warning",
+   "target": "the feature",
+   "condition": "an end feature none of whose multiplicities is a range with bounds exactly 1..1",
+   "needs": [
+    "derived",
+    "evaluation"
+   ],
+   "area": "Core features",
+   "batch": "B6",
+   "notes": "Bounds are compared through MultiplicityRange.hasBounds, which evaluates the bound expressions.",
+   "code_constant": "INVALID_FEATURE_END_FEATURE_MULTIPLICITY",
+   "code": "validateFeatureEndFeatureMultiplicity",
+   "code_is_message": false,
+   "messages": [
+    "End feature must have multiplicity 1"
+   ],
+   "category": "expression evaluation",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CROSSING_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CROSSING_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned cross feature",
+   "condition": "the feature owns a cross feature that is not its computed cross feature",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CROSSING_SPECIALIZATION",
+   "code": "checkFeatureCrossingSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Must be the cross feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_CONSTANT_IS_VARIABLE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_CONSTANT_IS_VARIABLE_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "isConstant and not isVariable",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CONSTANT_IS_VARIABLE",
+   "code": "validateFeatureConstantIsVariable",
+   "code_is_message": false,
+   "messages": [
+    "Only a variable feature can be constant"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_END_NO_DIRECTION",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_END_NO_DIRECTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "an end feature with a direction",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_END_NO_DIRECTION",
+   "code": "validateFeatureEndNoDirection",
+   "code_is_message": false,
+   "messages": [
+    "End feature cannot have direction"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_END_NOT_DERIVED_ABSTRACT_COMPOSITE_OR_PORTION",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_END_NOT_DERIVED_ABSTRACT_COMPOSITE_OR_PORTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "an end feature that is derived, abstract, composite or portion",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_END_NOT_DERIVED_ABSTRACT_COMPOSITE_OR_PORTION",
+   "code": "validateFeatureEndNotDerivedAbstractCompositeOrPortion",
+   "code_is_message": false,
+   "messages": [
+    "End feature cannot be derived, abstract, composite or portion"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_IS_VARIABLE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_IS_VARIABLE_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "a variable feature without an owning type, or whose owning type does not specialize Occurrences::Occurrence",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_IS_VARIABLE",
+   "code": "validateFeatureIsVariable",
+   "code_is_message": false,
+   "messages": [
+    "Must be owned by an occurrence type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeature.INVALID_FEATURE_PORTION_NOT_VARIABLE",
+   "language": "KerML",
+   "method": "checkFeature",
+   "metaclass": "Feature",
+   "message_constants": [
+    "INVALID_FEATURE_PORTION_NOT_VARIABLE_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature",
+   "condition": "isPortion and isVariable",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_PORTION_NOT_VARIABLE",
+   "code": "validateFeaturePortionNotVariable",
+   "code_is_message": false,
+   "messages": [
+    "A portion cannot be variable"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureChaining.INVALID_FEATURE_CHAINING_FEATURE_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkFeatureChaining",
+   "metaclass": "FeatureChaining",
+   "message_constants": [
+    "INVALID_FEATURE_CHAINING__FEATURE_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the FeatureChaining, feature chainingFeature",
+   "condition": "a chaining feature after the first is not featured within the previous chaining feature (isFeaturedWithin)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CHAINING_FEATURE_CONFORMANCE",
+   "code": "validateFeatureChainingFeatureConformance",
+   "code_is_message": false,
+   "messages": [
+    "Must be a valid feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkRedefinition.INVALID_REDEFINITION_DIRECTION_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkRedefinition",
+   "metaclass": "Redefinition",
+   "message_constants": [
+    "INVALID_REDEFINITION_DIRECTION_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the Redefinition, feature redefinedFeature",
+   "condition": "for some effective featuring type T of the redefining feature, the redefined feature's direction relative to T (directionOf, which accounts for conjugation) is in or out and the redefining direction differs, or is inout and the redefining feature has no direction",
+   "needs": [
+    "derived",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REDEFINITION_DIRECTION_CONFORMANCE",
+   "code": "validateRedefinitionDirectionConformance",
+   "code_is_message": false,
+   "messages": [
+    "Redefining feature must have a compatible direction"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkRedefinition.INVALID_REDEFINITION_FEATURING_TYPES",
+   "language": "KerML",
+   "method": "checkRedefinition",
+   "metaclass": "Redefinition",
+   "message_constants": [
+    "INVALID_REDEFINITION_FEATURING_TYPES_MSG_1",
+    "INVALID_REDEFINITION_FEATURING_TYPES_MSG_2"
+   ],
+   "severity": "error",
+   "target": "the Redefinition, feature redefinedFeature",
+   "condition": "the redefined feature is not owned by the redefinition and both features have the same set of effective featuring types (owning type for variable features, else featuringType); msg 1 when that set is empty (package level)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REDEFINITION_FEATURING_TYPES",
+   "code": "validateRedefinitionFeaturingTypes",
+   "code_is_message": false,
+   "messages": [
+    "A package-level feature cannot be redefined",
+    "Featuring types of redefining feature and redefined feature cannot be the same"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkRedefinition.INVALID_REDEFINITION_END_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkRedefinition",
+   "metaclass": "Redefinition",
+   "message_constants": [
+    "INVALID_REDEFINITION_END_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the Redefinition, feature redefinedFeature",
+   "condition": "the redefined feature is an end, the redefining one is not, and the redefining feature's owning type is an Association or Connector",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_REDEFINITION_END_CONFORMANCE",
+   "code": "validateRedefinitionEndConformance",
+   "code_is_message": false,
+   "messages": [
+    "Redefining feature must be an end feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSubsetting.INVALID_REDEFINITION_MULTIPLICITY_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkSubsetting",
+   "metaclass": "Subsetting",
+   "message_constants": [
+    "INVALID_REDEFINITION_MULTIPLICITY_CONFORMANCE_MSG"
+   ],
+   "severity": "warning",
+   "target": "the Subsetting, feature redefiningFeature",
+   "condition": "a Redefinition between non-end features whose multiplicity ranges differ: the redefining lower bound (or upper when no lower) is a smaller LiteralInteger, or * against a positive integer",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "Compares literal bounds only (LiteralInteger, LiteralInfinity); computed bounds are ignored. Multiplicities may be inherited.",
+   "code_constant": "INVALID_REDEFINITION_MULTIPLICITY_CONFORMANCE",
+   "code": "validateRedefinitionMultiplicityConformance",
+   "code_is_message": false,
+   "messages": [
+    "Redefining feature should not have smaller multiplicity lower bound"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSubsetting.INVALID_SUBSETTING_MULTIPLICITY_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkSubsetting",
+   "metaclass": "Subsetting",
+   "message_constants": [
+    "INVALID_SUBSETTING_MULTIPLICITY_CONFORMANCE_MSG"
+   ],
+   "severity": "warning",
+   "target": "the Subsetting, feature subsettingFeature",
+   "condition": "both features end or both not end, different multiplicity ranges, and the subsetting upper bound is * against a finite one, or a larger LiteralInteger",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "Literal bounds only, as above.",
+   "code_constant": "INVALID_SUBSETTING_MULTIPLICITY_CONFORMANCE",
+   "code": "validateSubsettingMultiplicityConformance",
+   "code_is_message": false,
+   "messages": [
+    "Subsetting/redefining feature should not have larger multiplicity upper bound"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSubsetting.INVALID_SUBSETTING_UNIQUENESS_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkSubsetting",
+   "metaclass": "Subsetting",
+   "message_constants": [
+    "INVALID_SUBSETTING_UNIQUENESS_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the Subsetting, feature subsettingFeature",
+   "condition": "the subsetted feature is unique and the subsetting feature is nonunique",
+   "needs": [
+    "owned"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_SUBSETTING_UNIQUENESS_CONFORMANCE",
+   "code": "validateSubsettingUniquenessConformance",
+   "code_is_message": false,
+   "messages": [
+    "Subsetting/redefining feature cannot be nonunique if subsetted/redefined feature is unique"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSubsetting.INVALID_SUBSETTING_CONSTANT_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkSubsetting",
+   "metaclass": "Subsetting",
+   "message_constants": [
+    "INVALID_SUBSETTING_CONSTANT_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the Subsetting, feature subsettedFeature",
+   "condition": "the subsetted feature is constant and the subsetting feature is variable but not constant",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Core features",
+   "batch": "B1",
+   "notes": "No null check on subsettedFeature: an unresolved target throws inside the Pilot's validator.",
+   "code_constant": "INVALID_SUBSETTING_CONSTANT_CONFORMANCE",
+   "code": "validateSubsettingConstantConformance",
+   "code_is_message": false,
+   "messages": [
+    "Subsetting/redefining feature must be constant if subsetted/redefined feature is constant"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSubsetting.INVALID_SUBSETTING_FEATURING_TYPES",
+   "language": "KerML",
+   "method": "checkSubsetting",
+   "metaclass": "Subsetting",
+   "message_constants": [
+    "INVALID_SUBSETTING_FEATURING_TYPES_MSG"
+   ],
+   "severity": "error",
+   "target": "the Subsetting, feature subsettedFeature",
+   "condition": "the subsetted feature has featuring types and is not accessible from the subsetting feature (FeatureUtil.canAccess: featured within one of its featuring types, recursively through featuring types that are features)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "Also covers Redefinition and ReferenceSubsetting.",
+   "code_constant": "INVALID_SUBSETTING_FEATURING_TYPES",
+   "code": "validateSubsettingFeaturingTypes",
+   "code_is_message": false,
+   "messages": [
+    "Must be an accessible feature (use dot notation for nesting)"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkCrossSubsetting.INVALID_CROSS_SUBSETTING_CROSSED_FEATURE",
+   "language": "KerML",
+   "method": "checkCrossSubsetting",
+   "metaclass": "CrossSubsetting",
+   "message_constants": [
+    "INVALID_CROSS_SUBSETTING_CROSSED_FEATURE_MSG"
+   ],
+   "severity": "error",
+   "target": "the CrossSubsetting, feature crossedFeature",
+   "condition": "the crossing feature is an end with an owning type, and the crossed feature is not a two-feature chain, or (two ends) its first chaining feature is not the other end",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CROSS_SUBSETTING_CROSSED_FEATURE",
+   "code": "validateCrossSubsettingCrossedFeature",
+   "code_is_message": false,
+   "messages": [
+    "Cross subsetting must chain through an opposite end feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkCrossSubsetting.INVALID_CROSS_SUBSETTING_CROSSING_FEATURE",
+   "language": "KerML",
+   "method": "checkCrossSubsetting",
+   "metaclass": "CrossSubsetting",
+   "message_constants": [
+    "INVALID_CROSS_SUBSETTING_CROSSING_FEATURE_MSG"
+   ],
+   "severity": "error",
+   "target": "the CrossSubsetting",
+   "condition": "the crossing feature is not an end, has no owning type, or its owning type has fewer than two end features",
+   "needs": [
+    "derived"
+   ],
+   "area": "Core features",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CROSS_SUBSETTING_CROSSING_FEATURE",
+   "code": "validateCrossSubsettingCrossingFeature",
+   "code_is_message": false,
+   "messages": [
+    "Cross subsetting must be owned by one of two or more end features"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkDataType.INVALID_DATA_TYPE_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkDataType",
+   "metaclass": "DataType",
+   "message_constants": [
+    "INVALID_DATA_TYPE_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "an owned specialization's general is a Class or an Association",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "SysML overrides the message (INVALID_ATTRIBUTE_DEFINITION_SPECIALIZATION_MSG), same code.",
+   "code_constant": "INVALID_DATA_TYPE_SPECIALIZATION",
+   "code": "validateDataTypeSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize class or association"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkClass.INVALID_CLASS_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkClass",
+   "metaclass": "Class",
+   "message_constants": [
+    "INVALID_CLASS_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "an owned specialization's general is a DataType, or an Association while the class is not one",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "SysML overrides the message (INVALID_ITEM_DEFINITION_SPECIALIZATION_MSG), same code.",
+   "code_constant": "INVALID_CLASS_SPECIALIZATION",
+   "code": "validateClassSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize data type or association"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkStructure.INVALID_STRUCTURE_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkStructure",
+   "metaclass": "Structure",
+   "message_constants": [
+    "INVALID_STRUCTURE_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "an owned specialization's general is a Behavior",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_STRUCTURE_SPECIALIZATION",
+   "code": "validateStructureSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize behavior"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkBehavior.INVALID_BEHAVIOR_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkBehavior",
+   "metaclass": "Behavior",
+   "message_constants": [
+    "INVALID_BEHAVIOR_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "an owned specialization's general is a Structure",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_BEHAVIOR_SPECIALIZATION",
+   "code": "validateBehaviorSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize structure"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkAssociation.INVALID_ASSOCIATION_BINARY_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkAssociation",
+   "metaclass": "Association",
+   "message_constants": [
+    "INVALID_ASSOCIATION_BINARY_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the third and later owned end features",
+   "condition": "more than two owned end features and the association conforms to Links::BinaryLink",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_ASSOCIATION_BINARY_SPECIALIZATION",
+   "code": "validateAssociationBinarySpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have more than two ends"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkAssociation.INVALID_ASSOCIATION_RELATED_TYPES",
+   "language": "KerML",
+   "method": "checkAssociation",
+   "metaclass": "Association",
+   "message_constants": [
+    "INVALID_ASSOCIATION_RELATED_TYPES_MSG"
+   ],
+   "severity": "error",
+   "target": "the association, feature relatedElement",
+   "condition": "a non-abstract association with fewer than two related types (types of its end features, inherited included)",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_ASSOCIATION_RELATED_TYPES",
+   "code": "validateAssociationRelatedTypes",
+   "code_is_message": false,
+   "messages": [
+    "Must have at least two related elements"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkAssociation.INVALID_ASSOCIATION_END_TYPES",
+   "language": "KerML",
+   "method": "checkAssociation",
+   "metaclass": "Association",
+   "message_constants": [
+    "INVALID_ASSOCIATION_END_TYPES_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned end feature",
+   "condition": "an owned end feature does not have exactly one type (Feature.type, inherited types included)",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ASSOCIATION_END_TYPES",
+   "code": "validateAssociationEndTypes",
+   "code_is_message": false,
+   "messages": [
+    "An association end must have exactly one type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkBindingConnector.INVALID_BINDING_CONNECTOR_IS_BINARY",
+   "language": "KerML",
+   "method": "checkBindingConnector",
+   "metaclass": "BindingConnector",
+   "message_constants": [
+    "INVALID_BINDING_CONNECTOR_IS_BINARY_MSG"
+   ],
+   "severity": "error",
+   "target": "the binding connector",
+   "condition": "the binding connector does not have exactly two related features",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_BINDING_CONNECTOR_IS_BINARY",
+   "code": "validateBindingConnectorIsBinary",
+   "code_is_message": false,
+   "messages": [
+    "Binding connector must be binary"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkBindingConnector.INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkBindingConnector",
+   "metaclass": "BindingConnector",
+   "message_constants": [
+    "INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE_MSG"
+   ],
+   "severity": "warning",
+   "target": "the binding connector (explicit), or the type owning an implicit one; feature endFeature",
+   "condition": "no type of one related feature conforms to a type of the other, except that a Boolean-valued expression result conforms to Performances::BooleanEvaluation",
+   "needs": [
+    "derived",
+    "implicit",
+    "library",
+    "typing"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B6",
+   "notes": "checkImplicitBindingConnectors(Type) applies the same check to implicit binding connectors (feature values, expression results ...) with at least two related features.",
+   "code_constant": "INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE",
+   "code": "validateBindingConnectorTypeConformance",
+   "code_is_message": false,
+   "messages": [
+    "Bound features should have conforming types"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConnector.INVALID_CONNECTOR_RELATED_FEATURES",
+   "language": "KerML",
+   "method": "checkConnector",
+   "metaclass": "Connector",
+   "message_constants": [
+    "INVALID_CONNECTOR_RELATED_FEATURES_MSG"
+   ],
+   "severity": "error",
+   "target": "the connector, feature relatedElement",
+   "condition": "a non-abstract connector with fewer than two related features",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CONNECTOR_RELATED_FEATURES",
+   "code": "validateConnectorRelatedFeatures",
+   "code_is_message": false,
+   "messages": [
+    "Must have at least two related elements"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConnector.INVALID_CONNECTOR_BINARY_SPECIALIZATION",
+   "language": "KerML",
+   "method": "checkConnector",
+   "metaclass": "Connector",
+   "message_constants": [
+    "INVALID_CONNECTOR_BINARY_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the connector when it owns at most two ends, else its third and later ends",
+   "condition": "more than two end features (inherited included) and the connector conforms to Links::BinaryLink",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CONNECTOR_BINARY_SPECIALIZATION",
+   "code": "validateConnectorBinarySpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot have more than two ends"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConnector.INVALID_CONNECTOR_TYPE_FEATURING",
+   "language": "KerML",
+   "method": "checkConnector",
+   "metaclass": "Connector",
+   "message_constants": [
+    "INVALID_CONNECTOR_TYPE_FEATURING_MSG"
+   ],
+   "severity": "error",
+   "target": "the connector end (explicit connector) or the feature reference expression (implicit binding)",
+   "condition": "a related feature is not featured within every featuring type of the connector (or within none, for a connector without featuring types); skipped when canAccess already fails (reported by validateSubsettingFeaturingTypes), for chain/reference expression results, and for flows owned by a feature without owning type",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B4",
+   "notes": "Also run from checkImplicitBindingConnectors for FeatureReferenceExpressions.",
+   "code_constant": "INVALID_CONNECTOR_TYPE_FEATURING",
+   "code": "validateConnectorTypeFeaturing",
+   "code_is_message": false,
+   "messages": [
+    "Must be an accessible feature (use dot notation for nesting)"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkImplicitBindingConnectors.INVALID_CONNECTOR_TYPE_FEATURING",
+   "language": "KerML",
+   "method": "checkImplicitBindingConnectors",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_CONNECTOR_TYPE_FEATURING_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature reference expression",
+   "condition": "for each implicit binding connector of a FeatureReferenceExpression (TypeUtil.forEachImplicitBindingConnectorOf): a related feature is not featured within the connector's featuring types plus the expression",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CONNECTOR_TYPE_FEATURING",
+   "code": "validateConnectorTypeFeaturing",
+   "code_is_message": false,
+   "messages": [
+    "Must be an accessible feature (use dot notation for nesting)"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkImplicitBindingConnectors.INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkImplicitBindingConnectors",
+   "metaclass": "Type",
+   "message_constants": [
+    "INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE_MSG"
+   ],
+   "severity": "warning",
+   "target": "the type owning the implicit binding connector, feature endFeature",
+   "condition": "for each implicit binding connector (feature values, expression results, ...) with at least two related features: the binding type conformance rule above",
+   "needs": [
+    "derived",
+    "implicit",
+    "library",
+    "typing"
+   ],
+   "area": "Kernel connectors",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_BINDING_CONNECTOR_TYPE_CONFORMANCE",
+   "code": "validateBindingConnectorTypeConformance",
+   "code_is_message": false,
+   "messages": [
+    "Bound features should have conforming types"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkParameterMembership.INVALID_PARAMETER_MEMBERSHIP_OWNING_TYPE",
+   "language": "KerML",
+   "method": "checkParameterMembership",
+   "metaclass": "ParameterMembership",
+   "message_constants": [
+    "INVALID_PARAMETER_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership, feature ownedMemberParameter",
+   "condition": "a (non-return) parameter membership whose owning type is not a Behavior, a Step, or a constructor expression's result",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_PARAMETER_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateParameterMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Parameter membership not allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkParameterMembership.INVALID_PARAMETER_MEMBERSHIP_DIRECTION",
+   "language": "KerML",
+   "method": "checkParameterMembership",
+   "metaclass": "ParameterMembership",
+   "message_constants": [
+    "INVALID_PARAMETER_MEMBERSHIP_DIRECTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the parameter",
+   "condition": "the parameter's direction differs from the membership's parameterDirection (in; out for return parameters); {direction} is that direction in lower case",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_PARAMETER_MEMBERSHIP_DIRECTION",
+   "code": "validateParameterMembershipDirection",
+   "code_is_message": false,
+   "messages": [
+    "Must have direction '{direction}'"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkExpression.INVALID_EXPRESSION_RESULT_PARAMETER_MEMBERSHIP",
+   "language": "KerML",
+   "method": "checkExpression",
+   "metaclass": "Expression",
+   "message_constants": [
+    "INVALID_EXPRESSION_RESULT_PARAMETER_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later return parameter memberships, feature ownedMemberParameter",
+   "condition": "the expression owns more than one ReturnParameterMembership",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_EXPRESSION_RESULT_PARAMETER_MEMBERSHIP",
+   "code": "validateExpressionResultParameterMembership",
+   "code_is_message": false,
+   "messages": [
+    "Only one return parameter is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkExpression.INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP",
+   "language": "KerML",
+   "method": "checkExpression",
+   "metaclass": "Expression",
+   "message_constants": [
+    "INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "an owned result expression membership (feature ownedResultExpression), else the expression",
+   "condition": "more than one result expression membership, owned or inherited from supertypes",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B4",
+   "notes": "checkFunction reports the same code for functions (the FUNCTION_RESULT_EXPRESSION constant is never used).",
+   "code_constant": "INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP",
+   "code": "validateExpressionResultExpressionMembership",
+   "code_is_message": false,
+   "messages": [
+    "Only one (owned or inherited) result expression is allowed"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFunction.INVALID_FUNCTION_RESULT_PARAMETER_MEMBERSHIP",
+   "language": "KerML",
+   "method": "checkFunction",
+   "metaclass": "Function",
+   "message_constants": [
+    "INVALID_FUNCTION_RESULT_PARAMETER_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later return parameter memberships, feature ownedMemberParameter",
+   "condition": "the function owns more than one ReturnParameterMembership",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FUNCTION_RESULT_PARAMETER_MEMBERSHIP",
+   "code": "validateFunctionResultParameterMembership",
+   "code_is_message": false,
+   "messages": [
+    "Only one return parameter is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFunction.INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP",
+   "language": "KerML",
+   "method": "checkFunction",
+   "metaclass": "Function",
+   "message_constants": [
+    "INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "an owned result expression membership, else the function",
+   "condition": "more than one result expression membership, owned or inherited",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B4",
+   "notes": "Reported with the Expression code and message.",
+   "code_constant": "INVALID_EXPRESSION_RESULT_EXPRESSION_MEMBERSHIP",
+   "code": "validateExpressionResultExpressionMembership",
+   "code_is_message": false,
+   "messages": [
+    "Only one (owned or inherited) result expression is allowed"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkReturnParameterMembership.INVALID_RETURN_PARAMETER_MEMBERSHIP_OWNING_TYPE",
+   "language": "KerML",
+   "method": "checkReturnParameterMembership",
+   "metaclass": "ReturnParameterMembership",
+   "message_constants": [
+    "INVALID_RETURN_PARAMETER_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership, feature ownedMemberParameter",
+   "condition": "the owning type is not a Function or an Expression",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_RETURN_PARAMETER_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateReturnParameterMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Return parameter membership not allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkResultExpressionMembership.INVALID_RESULT_EXPRESSION_MEMBERSHIP_OWNING_TYPE",
+   "language": "KerML",
+   "method": "checkResultExpressionMembership",
+   "metaclass": "ResultExpressionMembership",
+   "message_constants": [
+    "INVALID_RESULT_EXPRESSION_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership (the Pilot passes ParameterMembership.ownedMemberParameter, not a feature of this class)",
+   "condition": "the owning type is not a Function or an Expression",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel behaviors",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_RESULT_EXPRESSION_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateResultExpressionMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Result expression not allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkCollectExpression.INVALID_COLLECT_EXPRESSION_OPERATOR",
+   "language": "KerML",
+   "method": "checkCollectExpression",
+   "metaclass": "CollectExpression",
+   "message_constants": [
+    "INVALID_COLLECT_EXPRESSION_OPERATOR_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "operator is not 'collect'",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "The Pilot derives the operator; it holds by construction.",
+   "code_constant": "INVALID_COLLECT_EXPRESSION_OPERATOR",
+   "code": "validateCollectExpressionOperator",
+   "code_is_message": false,
+   "messages": [
+    "Operator must be 'collect'"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureChainExpression.INVALID_FEATURE_CHAIN_EXPRESSION_FEATURE_CONFORMANCE",
+   "language": "KerML",
+   "method": "checkFeatureChainExpression",
+   "metaclass": "FeatureChainExpression",
+   "message_constants": [
+    "INVALID_FEATURE_CHAIN_EXPRESSION_FEATURE_CONFORMANCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the second owned membership, feature memberElement",
+   "condition": "the target feature is not a Feature, or the relative namespace (the source's result) is a Type and the target is not featured within it",
+   "needs": [
+    "derived",
+    "names"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "The relative namespace is the scope the target name resolves in; the rule itself only uses resolved references.",
+   "code_constant": "INVALID_FEATURE_CHAIN_EXPRESSION_FEATURE_CONFORMANCE",
+   "code": "validateFeatureChainExpressionFeatureConformance",
+   "code_is_message": false,
+   "messages": [
+    "Must be a valid feature"
+   ],
+   "category": "name resolution",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureChainExpression.INVALID_FEATURE_CHAIN_EXPRESSION_OPERATOR",
+   "language": "KerML",
+   "method": "checkFeatureChainExpression",
+   "metaclass": "FeatureChainExpression",
+   "message_constants": [
+    "INVALID_FEATURE_CHAIN_EXPRESSION_OPERATOR_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "operator is not '.'",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_CHAIN_EXPRESSION_OPERATOR",
+   "code": "validateFeatureChainExpressionOperator",
+   "code_is_message": false,
+   "messages": [
+    "Operator must be '.'"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureReferenceExpression.INVALID_FEATURE_REFERENCE_EXPRESSION_REFERENT_IS_FEATURE",
+   "language": "KerML",
+   "method": "checkFeatureReferenceExpression",
+   "metaclass": "FeatureReferenceExpression",
+   "message_constants": [
+    "INVALID_FEATURE_REFERENCE_EXPRESSION_REFERENT_IS_FEATURE_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "the referent is not a Feature",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_REFERENCE_EXPRESSION_REFERENT_IS_FEATURE",
+   "code": "validateFeatureReferenceExpressionReferentIsFeature",
+   "code_is_message": false,
+   "messages": [
+    "Must be a valid feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureReferenceExpression.INVALID_FEATURE_REFERENCE_EXPRESSION_RESULT",
+   "language": "KerML",
+   "method": "checkFeatureReferenceExpression",
+   "metaclass": "FeatureReferenceExpression",
+   "message_constants": [
+    "INVALID_FEATURE_REFERENCE_EXPRESSION_RESULT"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "no owned result parameter",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "The message is the code ('validateFeatureReferenceExpressionResult'): the Pilot passes the code constant as message. The result is implicit (constructed).",
+   "code_constant": "INVALID_FEATURE_REFERENCE_EXPRESSION_RESULT",
+   "code": "validateFeatureReferenceExpressionResult",
+   "code_is_message": false,
+   "messages": [
+    "validateFeatureReferenceExpressionResult"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInstantiationExpression.INVALID_INSTANTIATION_EXPRESSION_INSTANTIATED_TYPE",
+   "language": "KerML",
+   "method": "checkInstantiationExpression",
+   "metaclass": "InstantiationExpression",
+   "message_constants": [
+    "INVALID_INSTANTIATION_EXPRESSION_INSTANTIATED_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "no instantiated type",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_INSTANTIATION_EXPRESSION_INSTANTIATED_TYPE",
+   "code": "validateInstantiationExpressionInstantiatedType",
+   "code_is_message": false,
+   "messages": [
+    "Must have an invoked/instantiated type"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInstantiationExpression.INVALID_INSTANTIATION_EXPRESSION_RESULT",
+   "language": "KerML",
+   "method": "checkInstantiationExpression",
+   "metaclass": "InstantiationExpression",
+   "message_constants": [
+    "INVALID_INSTANTIATION_EXPRESSION_RESULT"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "no owned result parameter",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "The message is the code, as above.",
+   "code_constant": "INVALID_INSTANTIATION_EXPRESSION_RESULT",
+   "code": "validateInstantiationExpressionResult",
+   "code_is_message": false,
+   "messages": [
+    "validateInstantiationExpressionResult"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConstructionExpression.INVALID_CONSTRUCTOR_EXPRESSION_RESULT_FEATURE_REDEFINITION",
+   "language": "KerML",
+   "method": "checkConstructionExpression",
+   "metaclass": "ConstructorExpression",
+   "message_constants": [
+    "INVALID_CONSTRUCTOR_EXPRESSION_RESULT_FEATURE_REDEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the result's feature",
+   "condition": "an input-directed feature of the result does not redefine exactly one public feature (inherited included) of the instantiated type",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CONSTRUCTOR_EXPRESSION_RESULT_FEATURE_REDEFINITION",
+   "code": "checkConstructorExpressionResultFeatureRedefinition",
+   "code_is_message": false,
+   "messages": [
+    "Must correspond to one feature of the instantiated type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConstructionExpression.INVALID_CONSTRUCTOR_EXPRESSION_NO_DUPLICATE_FEATURE_REDEFINITION",
+   "language": "KerML",
+   "method": "checkConstructionExpression",
+   "metaclass": "ConstructorExpression",
+   "message_constants": [
+    "INVALID_CONSTRUCTOR_EXPRESSION_NO_DUPLICATE_FEATURE_REDEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the result's feature",
+   "condition": "two input-directed result features redefine the same feature of the instantiated type",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CONSTRUCTOR_EXPRESSION_NO_DUPLICATE_FEATURE_REDEFINITION",
+   "code": "validateConstructorExpressionNoDuplicateFeatureRedefinition",
+   "code_is_message": false,
+   "messages": [
+    "Feature already bound"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkConstructionExpression.INVALID_CONSTRUCTOR_EXPRESSION_OWNED_FEATURES",
+   "language": "KerML",
+   "method": "checkConstructionExpression",
+   "metaclass": "ConstructorExpression",
+   "message_constants": [
+    "INVALID_CONSTRUCTOR_EXPRESSION_OWNED_FEATURES_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned feature",
+   "condition": "the constructor expression owns a feature other than its result",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_CONSTRUCTOR_EXPRESSION_OWNED_FEATURES",
+   "code": "validateConstructorExpressionOwnedFeatures",
+   "code_is_message": false,
+   "messages": [
+    "Owned feature not allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_INSTANTIATED_TYPE",
+   "language": "KerML",
+   "method": "checkInvocationExpression",
+   "metaclass": "InvocationExpression",
+   "message_constants": [
+    "INVALID_INVOCATION_EXPRESSION_INSTANTIATED_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "the instantiated type is neither a Behavior nor a Feature typed by exactly one Behavior",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "When it fires, the two parameter rules and the owned-feature rule below are skipped.",
+   "code_constant": "INVALID_INVOCATION_EXPRESSION_INSTANTIATED_TYPE",
+   "code": "validateInvocationExpressionInstantiatedType",
+   "code_is_message": false,
+   "messages": [
+    "Must invoke a behavior or a behavioral feature"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_OWNED_FEATURES",
+   "language": "KerML",
+   "method": "checkInvocationExpression",
+   "metaclass": "InvocationExpression",
+   "message_constants": [
+    "INVALID_INVOCATION_EXPRESSION_OWNED_FEATURES_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned feature",
+   "condition": "an owned feature other than the result whose direction is not in",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_INVOCATION_EXPRESSION_OWNED_FEATURES",
+   "code": "validateInvocationExpressionOwnedFeatures",
+   "code_is_message": false,
+   "messages": [
+    "Must be an in parameter"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_PARAMETER_REDEFINITION",
+   "language": "KerML",
+   "method": "checkInvocationExpression",
+   "metaclass": "InvocationExpression",
+   "message_constants": [
+    "INVALID_INVOCATION_EXPRESSION_PARAMETER_REDEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the argument feature",
+   "condition": "an input-directed owned feature does not redefine exactly one input parameter (inherited included) of the invoked type",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_INVOCATION_EXPRESSION_PARAMETER_REDEFINITION",
+   "code": "validateInvocationExpressionParameterRedefinition",
+   "code_is_message": false,
+   "messages": [
+    "Must correspond to one input parameter of the invoked type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkInvocationExpression.INVALID_INVOCATION_EXPRESSION_NO_DUPLICATE_PARAMETER_REDEFINITION",
+   "language": "KerML",
+   "method": "checkInvocationExpression",
+   "metaclass": "InvocationExpression",
+   "message_constants": [
+    "INVALID_INVOCATION_EXPRESSION_NO_DUPLICATE_PARAMETER_REDEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the argument feature",
+   "condition": "two input-directed owned features redefine the same input parameter",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_INVOCATION_EXPRESSION_NO_DUPLICATE_PARAMETER_REDEFINITION",
+   "code": "validateInvocationExpressionNoDuplicateParameterRedefinition",
+   "code_is_message": false,
+   "messages": [
+    "Parameter already bound"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkOperatorExpression.INVALID_OPERATOR_EXPRESSION_CAST_CONFORMANCE_TYPE",
+   "language": "KerML",
+   "method": "checkOperatorExpression",
+   "metaclass": "OperatorExpression",
+   "message_constants": [
+    "INVALID_OPERATOR_EXPRESSION_CAST_CONFORMANCE_MSG"
+   ],
+   "severity": "warning",
+   "target": "the expression",
+   "condition": "an 'as' cast whose argument result types and target types do not conform either way",
+   "needs": [
+    "derived",
+    "typing"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_OPERATOR_EXPRESSION_CAST_CONFORMANCE_TYPE",
+   "code": "validateOperatorExpressionCastConformance",
+   "code_is_message": false,
+   "messages": [
+    "Cast argument should have conforming types"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkOperatorExpression.INVALID_OPERATOR_EXPRESSION_BRACKET_OPERATOR",
+   "language": "KerML",
+   "method": "checkOperatorExpression",
+   "metaclass": "OperatorExpression",
+   "message_constants": [
+    "INVALID_OPERATOR_EXPRESSION_BRACKET_OPERATOR_MSG"
+   ],
+   "severity": "warning",
+   "target": "the expression",
+   "condition": "the operator is '[' (KerML only: the SysML override replaces this with the quantity check)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "Not in the spec.",
+   "code_constant": "INVALID_OPERATOR_EXPRESSION_BRACKET_OPERATOR",
+   "code": "validateOperatorExpressionBracketOperator_",
+   "code_is_message": false,
+   "messages": [
+    "Use #(...) for indexing"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkSelectExpression.INVALID_SELECT_EXPRESSION_OPERATOR",
+   "language": "KerML",
+   "method": "checkSelectExpression",
+   "metaclass": "SelectExpression",
+   "message_constants": [
+    "INVALID_SELECT_EXPRESSION_OPERATOR_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "operator is not 'select'",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_SELECT_EXPRESSION_OPERATOR",
+   "code": "validateSelectExpressionOperator",
+   "code_is_message": false,
+   "messages": [
+    "Operator must be 'select'"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkIndexExpression.INVALID_INDEX_EXPRESSION_OPERATOR",
+   "language": "KerML",
+   "method": "checkIndexExpression",
+   "metaclass": "IndexExpression",
+   "message_constants": [
+    "INVALID_INDEX_EXPRESSION_OPERATOR_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "operator is not '#'",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel expressions",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_INDEX_EXPRESSION_OPERATOR",
+   "code": "validateIndexExpressionOperator",
+   "code_is_message": false,
+   "messages": [
+    "Operator must be '#'"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlow.INVALID_FLOW_ITEM_FEATURE",
+   "language": "KerML",
+   "method": "checkFlow",
+   "metaclass": "Flow",
+   "message_constants": [
+    "INVALID_FLOW_ITEM_FEATURE_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later payload features",
+   "condition": "the flow owns more than one PayloadFeature",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel flows",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_ITEM_FEATURE",
+   "code": "validateFlowItemFeature",
+   "code_is_message": false,
+   "messages": [
+    "Only one item feature is allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlowEnd.INVALID_FLOW_END_IS_END",
+   "language": "KerML",
+   "method": "checkFlowEnd",
+   "metaclass": "FlowEnd",
+   "message_constants": [
+    "INVALID_FLOW_END_IS_END_MSG"
+   ],
+   "severity": "error",
+   "target": "the flow end",
+   "condition": "the flow end is not an end feature",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "Kernel flows",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_END_IS_END",
+   "code": "validateFlowEndIsEnd",
+   "code_is_message": false,
+   "messages": [
+    "Must be an end feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlowEnd.INVALID_FLOW_END_NESTED_FEATURE",
+   "language": "KerML",
+   "method": "checkFlowEnd",
+   "metaclass": "FlowEnd",
+   "message_constants": [
+    "INVALID_FLOW_END_NESTED_FEATURE_MSG"
+   ],
+   "severity": "error",
+   "target": "the flow end",
+   "condition": "the flow end does not own exactly one feature",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel flows",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_END_NESTED_FEATURE",
+   "code": "validateFlowEndNestedFeature",
+   "code_is_message": false,
+   "messages": [
+    "Flow end must have a nested input or output feature"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlowEnd.INVALID_FLOW_END_OWNING_TYPE",
+   "language": "KerML",
+   "method": "checkFlowEnd",
+   "metaclass": "FlowEnd",
+   "message_constants": [
+    "INVALID_FLOW_END_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the flow end",
+   "condition": "the owning type is not a Flow",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel flows",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_END_OWNING_TYPE",
+   "code": "validateFlowEndOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Flow end not allowed"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlowEnd.INVALID_FLOW_END_SUBSETTING",
+   "language": "KerML",
+   "method": "checkFlowEnd",
+   "metaclass": "FlowEnd",
+   "message_constants": [
+    "INVALID_FLOW_END_SUBSETTING_MSG"
+   ],
+   "severity": "error",
+   "target": "the flow end",
+   "condition": "the flow end subsets (other than by redefinition, implicit included) no feature",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel flows",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_END_SUBSETTING",
+   "code": "validateFlowEndSubsetting",
+   "code_is_message": false,
+   "messages": [
+    "Cannot identify flow end (use dot notation)"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFlowEnd.INVALID_FLOW_END_IMPLICIT_SUBSETTING",
+   "language": "KerML",
+   "method": "checkFlowEnd",
+   "metaclass": "FlowEnd",
+   "message_constants": [
+    "INVALID_FLOW_END_IMPLICIT_SUBSETTING_MSG"
+   ],
+   "severity": "warning",
+   "target": "the flow end",
+   "condition": "it subsets something but owns no Subsetting, and its first owned feature owns a Redefinition (the old 'end redefines' notation)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel flows",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_END_IMPLICIT_SUBSETTING",
+   "code": "validateFlowEndImplicitSubsetting",
+   "code_is_message": false,
+   "messages": [
+    "Flow ends should use dot notation"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureValue.INVALID_FEATURE_VALUE_OVERRIDING",
+   "language": "KerML",
+   "method": "checkFeatureValue",
+   "metaclass": "FeatureValue",
+   "message_constants": [
+    "INVALID_FEATURE_VALUE_OVERRIDING_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature value",
+   "condition": "a feature the valued feature (transitively) redefines has a different, non-default (binding) feature value",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "Kernel values",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FEATURE_VALUE_OVERRIDING",
+   "code": "validateFeatureValueOverriding",
+   "code_is_message": false,
+   "messages": [
+    "Cannot override a binding feature value"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkFeatureValue.INVALID_FEATURE_VALUE_IS_INITIAL",
+   "language": "KerML",
+   "method": "checkFeatureValue",
+   "metaclass": "FeatureValue",
+   "message_constants": [
+    "INVALID_FEATURE_VALUE_IS_INITIAL_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature value",
+   "condition": "an initial value (:=) on a feature that is not variable",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel values",
+   "batch": "B1",
+   "notes": "No null check on the feature.",
+   "code_constant": "INVALID_FEATURE_VALUE_IS_INITIAL",
+   "code": "validateFeatureValueIsInitial",
+   "code_is_message": false,
+   "messages": [
+    "Initialized feature must be variable"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMultiplicityRange.INVALID_MULTIPLICITY_RANGE_BOUND_RESULT_TYPES",
+   "language": "KerML",
+   "method": "checkMultiplicityRange",
+   "metaclass": "MultiplicityRange",
+   "message_constants": [
+    "INVALID_MULTIPLICITY_RANGE_BOUND_RESULT_TYPES_MSG"
+   ],
+   "severity": "error",
+   "target": "the bound expression",
+   "condition": "a model-level evaluable bound evaluates to no natural (valueOf = -2), or a non-evaluable bound is not Integer-typed (literal, result specializing ScalarValues::Integer, or an integer operator over Integer arguments)",
+   "needs": [
+    "evaluation",
+    "typing",
+    "library"
+   ],
+   "area": "Kernel values",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_MULTIPLICITY_RANGE_BOUND_RESULT_TYPES",
+   "code": "validateMultiplicityRangeResultTypes",
+   "code_is_message": false,
+   "messages": [
+    "Must have a Natural value"
+   ],
+   "category": "expression evaluation",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMultiplicityRange.INVALID_MULTIPLICITY_RANGE_BOUNDS",
+   "language": "KerML",
+   "method": "checkMultiplicityRange",
+   "metaclass": "MultiplicityRange",
+   "message_constants": [
+    "INVALID_MULTIPLICITY_RANGE_BOUNDS_MSG"
+   ],
+   "severity": "error",
+   "target": "the multiplicity range",
+   "condition": "the bound expressions are not the first one or two owned members (lower, upper)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel values",
+   "batch": "B1",
+   "notes": "",
+   "code_constant": "INVALID_MULTIPLICITY_RANGE_BOUNDS",
+   "code": "validateMultiplicityRangeBounds",
+   "code_is_message": false,
+   "messages": [
+    "Bound expressions must be first two owned members"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_METACLASS",
+   "language": "KerML",
+   "method": "checkMetadataFeature",
+   "metaclass": "MetadataFeature",
+   "message_constants": [
+    "INVALID_METADATA_FEATURE_METACLASS_MSG"
+   ],
+   "severity": "error",
+   "target": "the metadata feature",
+   "condition": "it does not have exactly one type that is a Metaclass",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B3",
+   "notes": "Code 'validateMetadataFeatureMetadata'.",
+   "code_constant": "INVALID_METADATA_FEATURE_METACLASS",
+   "code": "validateMetadataFeatureMetadata",
+   "code_is_message": false,
+   "messages": [
+    "Must have exactly one metaclass"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_METACLASS_NOT_ABSTRACT",
+   "language": "KerML",
+   "method": "checkMetadataFeature",
+   "metaclass": "MetadataFeature",
+   "message_constants": [
+    "INVALID_METADATA_FEATURE_METACLASS_NOT_ABSTRACT_MSG"
+   ],
+   "severity": "error",
+   "target": "the metadata feature",
+   "condition": "one of its types is abstract",
+   "needs": [
+    "derived"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_METADATA_FEATURE_METACLASS_NOT_ABSTRACT",
+   "code": "validateMetadataFeatureMetadataNotAbstract",
+   "code_is_message": false,
+   "messages": [
+    "Must have a concrete type"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_ANNOTATED_ELEMENT",
+   "language": "KerML",
+   "method": "checkMetadataFeature",
+   "metaclass": "MetadataFeature",
+   "message_constants": [
+    "INVALID_METADATA_FEATURE_ANNOTATED_ELEMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the metadata feature",
+   "condition": "the metaclass of an annotated element (from the KerML/SysML reflective library) does not specialize all types of any (non-abstract, if any) feature of the metadata feature subsetting Metaobjects::Metaobject::annotatedElement; {metaclass} is its declared name",
+   "needs": [
+    "derived",
+    "implicit",
+    "library"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_METADATA_FEATURE_ANNOTATED_ELEMENT",
+   "code": "validateMetadataFeatureAnnotatedElement",
+   "code_is_message": false,
+   "messages": [
+    "Cannot annotate {metaclass}"
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "KerML.checkMetadataFeature.INVALID_METADATA_FEATURE_BODY",
+   "language": "KerML",
+   "method": "checkMetadataFeature",
+   "metaclass": "MetadataFeature",
+   "message_constants": [
+    "INVALID_METADATA_FEATURE_BODY_MSG_1",
+    "INVALID_METADATA_FEATURE_BODY_MSG_2"
+   ],
+   "severity": "error",
+   "target": "the body feature (msg 1) or its FeatureValue, feature value (msg 2)",
+   "condition": "recursively for owned features of the metadata body: a feature that redefines no feature of a supertype of its owner (msg 1), or whose value is not model-level evaluable (msg 2)",
+   "needs": [
+    "derived",
+    "evaluation"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B6",
+   "notes": "Code 'invalidateMetadataFeatureBody'.",
+   "code_constant": "INVALID_METADATA_FEATURE_BODY",
+   "code": "invalidateMetadataFeatureBody",
+   "code_is_message": false,
+   "messages": [
+    "Must redefine an owning-type feature",
+    "Must be model-level evaluable"
+   ],
+   "category": "expression evaluation",
+   "override": false
+  },
+  {
+   "id": "KerML.checkElementFilterMembership.INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_MODEL_LEVEL_EVALUABLE",
+   "language": "KerML",
+   "method": "checkElementFilterMembership",
+   "metaclass": "ElementFilterMembership",
+   "message_constants": [
+    "INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_MODEL_LEVEL_EVALUABLE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership, feature condition",
+   "condition": "the filter condition is not model-level evaluable",
+   "needs": [
+    "evaluation"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_MODEL_LEVEL_EVALUABLE",
+   "code": "validateElementFilterMembershipIsModelLevelEvaluable",
+   "code_is_message": false,
+   "messages": [
+    "Must be model-level evaluable"
+   ],
+   "category": "expression evaluation",
+   "override": false
+  },
+  {
+   "id": "KerML.checkElementFilterMembership.INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_BOOLEAN",
+   "language": "KerML",
+   "method": "checkElementFilterMembership",
+   "metaclass": "ElementFilterMembership",
+   "message_constants": [
+    "INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_BOOLEAN_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership, feature condition",
+   "condition": "an evaluable condition that is not Boolean-typed (result specializing ScalarValues::Boolean, LiteralBoolean, or not/xor/&/| over Boolean arguments)",
+   "needs": [
+    "typing",
+    "library",
+    "evaluation"
+   ],
+   "area": "Kernel metadata",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_ELEMENT_FILTER_MEMBERSHIP_IS_BOOLEAN",
+   "code": "validateElementFilterMembershipIsBoolean",
+   "code_is_message": false,
+   "messages": [
+    "Must have a Boolean result"
+   ],
+   "category": "expression evaluation",
+   "override": false
+  },
+  {
+   "id": "KerML.checkLibraryPackage.INVALID_LIBRARY_PACKAGE_NOT_STANDARD",
+   "language": "KerML",
+   "method": "checkLibraryPackage",
+   "metaclass": "LibraryPackage",
+   "message_constants": [
+    "INVALID_LIBRARY_PACKAGE_NOT_STANDARD_MSG"
+   ],
+   "severity": "warning",
+   "target": "the package, feature isStandard",
+   "condition": "a standard library package in a resource that is not a library resource",
+   "needs": [
+    "owned",
+    "resource"
+   ],
+   "area": "Root",
+   "batch": "B1",
+   "notes": "Not formalized in the spec.",
+   "code_constant": "INVALID_LIBRARY_PACKAGE_NOT_STANDARD",
+   "code": "validateLibraryPackageNotStandard_",
+   "code_is_message": false,
+   "messages": [
+    "User library packages should not be marked as standard"
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkDefinition.INVALID_DEFINITION_VARIATION_MEMBERSHIP",
+   "language": "SysML",
+   "method": "checkDefinition",
+   "metaclass": "Definition",
+   "message_constants": [
+    "INVALID_DEFINITION_VARIATION_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature membership",
+   "condition": "a variation definition owns a FeatureMembership (owned usages must be variants)",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_DEFINITION_VARIATION_MEMBERSHIP",
+   "code": "validateDefinitionVariationMembership",
+   "code_is_message": false,
+   "messages": [
+    "An owned usage of a variation must be a variant."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkDefinition.INVALID_DEFINITION_VARIATION_SPECIALIZATION",
+   "language": "SysML",
+   "method": "checkDefinition",
+   "metaclass": "Definition",
+   "message_constants": [
+    "INVALID_DEFINITION_VARIATION_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "a variation definition specializes a variation",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_DEFINITION_VARIATION_SPECIALIZATION",
+   "code": "validateDefinitionVariationSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "A variation must not specialize another variation."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkReferenceUsage.INVALID_ATTRIBUTE_USAGE_IS_REFERENTIAL",
+   "language": "SysML",
+   "method": "checkReferenceUsage",
+   "metaclass": "ReferenceUsage",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_USAGE_IS_REFERENTIAL_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a reference usage that is not referential (isReference = not isComposite)",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "Reported with the attribute-usage code and message ('validateAttributeUsageIsReferential', 'An attribute usage must be referential.').",
+   "code_constant": "INVALID_ATTRIBUTE_USAGE_IS_REFERENTIAL",
+   "code": "validateAttributeUsageIsReferential",
+   "code_is_message": false,
+   "messages": [
+    "An attribute usage must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUsage.INVALID_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkUsage",
+   "metaclass": "Usage",
+   "message_constants": [
+    "INVALID_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature definition",
+   "condition": "for usages other than attribute and occurrence usages: a type (getAllTypesOf) is not a Classifier",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_USAGE_TYPE",
+   "code": "validateUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A usage must be typed by definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUsage.INVALID_USAGE_IS_REFERENTIAL",
+   "language": "SysML",
+   "method": "checkUsage",
+   "metaclass": "Usage",
+   "message_constants": [
+    "INVALID_USAGE_IS_REFERENTIAL_MSG_1",
+    "INVALID_USAGE_IS_REFERENTIAL_MSG_2",
+    "INVALID_USAGE_IS_REFERENTIAL_MSG_3"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a composite usage that is directed (msg 1), an end (msg 2), or has no featuring types (package level, msg 3)",
+   "needs": [
+    "derived",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_USAGE_IS_REFERENTIAL",
+   "code": "validateUsageIsReferential",
+   "code_is_message": false,
+   "messages": [
+    "A directed usage must be referential.",
+    "An end usage must be referential.",
+    "A package-level usage must be referential."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUsage.INVALID_USAGE_VARIATION_IS_ABSTRACT",
+   "language": "SysML",
+   "method": "checkUsage",
+   "metaclass": "Usage",
+   "message_constants": [
+    "INVALID_USAGE_VARIATION_IS_ABSTRACT_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a variation usage that is not abstract",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "The Pilot makes variations abstract by default.",
+   "code_constant": "INVALID_USAGE_VARIATION_IS_ABSTRACT",
+   "code": "validateUsageVariationIsAbstract",
+   "code_is_message": false,
+   "messages": [
+    "A variation must be abstract."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUsage.INVALID_USAGE_VARIATION_MEMBERSHIP",
+   "language": "SysML",
+   "method": "checkUsage",
+   "metaclass": "Usage",
+   "message_constants": [
+    "INVALID_USAGE_VARIATION_MEMBERSHIP_MSG"
+   ],
+   "severity": "error",
+   "target": "the feature membership",
+   "condition": "a variation usage owns a FeatureMembership other than a parameter or objective membership",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_USAGE_VARIATION_MEMBERSHIP",
+   "code": "validateUsageVariationMembership",
+   "code_is_message": false,
+   "messages": [
+    "An owned usage of a variation must be a variant."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUsage.INVALID_USAGE_VARIATION_SPECIALIZATION",
+   "language": "SysML",
+   "method": "checkUsage",
+   "metaclass": "Usage",
+   "message_constants": [
+    "INVALID_USAGE_VARIATION_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "a variation usage specializes a variation",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_USAGE_VARIATION_SPECIALIZATION",
+   "code": "validateUsageVariationSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "A variation must not specialize another variation."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkVariantMembership.INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE",
+   "language": "SysML",
+   "method": "checkVariantMembership",
+   "metaclass": "VariantMembership",
+   "message_constants": [
+    "INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning namespace is not a variation definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "Code spelled 'validateVariationMembershipOwningNamespace'.",
+   "code_constant": "INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE",
+   "code": "validateVariationMembershipOwningNamespace",
+   "code_is_message": false,
+   "messages": [
+    "A variant must be an owned member of a variation."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAttributeDefinition.INVALID_ATTRIBUTE_DEFINITION_FEATURES",
+   "language": "SysML",
+   "method": "checkAttributeDefinition",
+   "metaclass": "AttributeDefinition",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_DEFINITION_FEATURES_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned feature",
+   "condition": "an owned feature is composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ATTRIBUTE_DEFINITION_FEATURES",
+   "code": "validateAttributeDefinitionFeatures",
+   "code_is_message": false,
+   "messages": [
+    "Features of an attribute definition must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkAttributeUsage",
+   "metaclass": "AttributeUsage",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_USAGE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature attributeDefinition",
+   "condition": "a type is not a DataType",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ATTRIBUTE_USAGE_TYPE",
+   "code": "validateAttributeUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An attribute must be typed by attribute definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_ENUMERATION_TYPE",
+   "language": "SysML",
+   "method": "checkAttributeUsage",
+   "metaclass": "AttributeUsage",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_USAGE_ENUMERATION_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature attributeDefinition",
+   "condition": "a non-enumeration attribute usage with more than one type, one of them an EnumerationDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ATTRIBUTE_USAGE_ENUMERATION_TYPE",
+   "code": "validateAttributeUsageEnumerationType_",
+   "code_is_message": false,
+   "messages": [
+    "An enumeration attribute cannot have more than one type."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAttributeUsage.INVALID_REFERENCE_USAGE_IS_REFERENCE",
+   "language": "SysML",
+   "method": "checkAttributeUsage",
+   "metaclass": "AttributeUsage",
+   "message_constants": [
+    "INVALID_REFERENCE_USAGE_IS_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "the attribute usage is not referential",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "Reported with the reference-usage code ('validateReferenceUsageIsReference'); the codes of this and checkReferenceUsage are swapped.",
+   "code_constant": "INVALID_REFERENCE_USAGE_IS_REFERENCE",
+   "code": "validateReferenceUsageIsReference",
+   "code_is_message": false,
+   "messages": [
+    "An attribute usage must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_FEATURES",
+   "language": "SysML",
+   "method": "checkAttributeUsage",
+   "metaclass": "AttributeUsage",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_USAGE_FEATURES_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned feature",
+   "condition": "an owned feature is composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ATTRIBUTE_USAGE_FEATURES",
+   "code": "validateAttributeUsageFeatures",
+   "code_is_message": false,
+   "messages": [
+    "Features of an attribute usage must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkEnumerationDefinition.INVALID_ENUMERATION_DEFINITION_IS_VARIATION",
+   "language": "SysML",
+   "method": "checkEnumerationDefinition",
+   "metaclass": "EnumerationDefinition",
+   "message_constants": [
+    "INVALID_ENUMERATION_DEFINITION_IS_VARIATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the definition",
+   "condition": "isVariation is false",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "isVariation defaults to true in EnumerationDefinitionImpl; unreachable from text.",
+   "code_constant": "INVALID_ENUMERATION_DEFINITION_IS_VARIATION",
+   "code": "validateEnumerationDefinitionIsVariation",
+   "code_is_message": false,
+   "messages": [
+    "An enumeration definition must be a variation."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkEnumerationUsage.INVALID_ENUMERATION_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkEnumerationUsage",
+   "metaclass": "EnumerationUsage",
+   "message_constants": [
+    "INVALID_ENUMERATION_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature enumerationDefinition",
+   "condition": "not exactly one type, or that type is not an EnumerationDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ENUMERATION_USAGE_TYPE",
+   "code": "validateEnumerationUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An enumeration must be typed by one enumeration definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkEventOccurrenceUsage.INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE",
+   "language": "SysML",
+   "method": "checkEventOccurrenceUsage",
+   "metaclass": "EventOccurrenceUsage",
+   "message_constants": [
+    "INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE_MSG_0",
+    "INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE_MSG_1",
+    "INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE_MSG_2",
+    "INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE_MSG_3"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "the usage is composite; the message names the kind (event occurrence, exhibit state, include use case, perform action)",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE",
+   "code": "validateEventOccurrenceUsageIsReference",
+   "code_is_message": false,
+   "messages": [
+    "An event occurrence usage must be referential.",
+    "An exhibit state usage must be referential.",
+    "An include use case usage must be referential.",
+    "A perform action usage must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkEventOccurrenceUsage.INVALID_EVENT_OCCURRENCE_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkEventOccurrenceUsage",
+   "metaclass": "EventOccurrenceUsage",
+   "message_constants": [
+    "INVALID_EVENT_OCCURRENCE_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "(not perform action or include use case) the owned reference subsetting's referenced feature (last of a chain) is not an OccurrenceUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_EVENT_OCCURRENCE_USAGE_REFERENCE",
+   "code": "validateEventOccurrenceUsageReferent",
+   "code_is_message": false,
+   "messages": [
+    "Must reference an occurrence."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkOccurrenceUsage",
+   "metaclass": "OccurrenceUsage",
+   "message_constants": [
+    "INVALID_OCCURRENCE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature occurrenceDefinition",
+   "condition": "(not port, connection, metadata usages or steps) a type is not a Class",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_OCCURRENCE_USAGE_TYPE",
+   "code": "validateOccurrenceUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An occurrence, item or part must be typed by occurrence definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_INDIVIDUAL_DEFINITION_MSG",
+   "language": "SysML",
+   "method": "checkOccurrenceUsage",
+   "metaclass": "OccurrenceUsage",
+   "message_constants": [
+    "INVALID_OCCURRENCE_USAGE_INDIVIDUAL_DEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "more than one occurrence definition is an individual definition",
+   "needs": [
+    "derived"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "The code is the message text.",
+   "code_constant": "INVALID_OCCURRENCE_USAGE_INDIVIDUAL_DEFINITION_MSG",
+   "code": "At most one individual definition is allowed.",
+   "code_is_message": true,
+   "messages": [
+    "At most one individual definition is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_INDIVIDUAL_USAGE",
+   "language": "SysML",
+   "method": "checkOccurrenceUsage",
+   "metaclass": "OccurrenceUsage",
+   "message_constants": [
+    "INVALID_OCCURRENCE_USAGE_INDIVIDUAL_USAGE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature occurrenceDefinition",
+   "condition": "an individual usage that does not have exactly one individual definition",
+   "needs": [
+    "derived"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_OCCURRENCE_USAGE_INDIVIDUAL_USAGE",
+   "code": "validateOccurrenceUsageIndividualUsage",
+   "code_is_message": false,
+   "messages": [
+    "An individual must be typed by one individual definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_IS_PORTION_MSG",
+   "language": "SysML",
+   "method": "checkOccurrenceUsage",
+   "metaclass": "OccurrenceUsage",
+   "message_constants": [
+    "INVALID_OCCURRENCE_USAGE_IS_PORTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a portion kind without isPortion",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "The code is the message text.",
+   "code_constant": "INVALID_OCCURRENCE_USAGE_IS_PORTION_MSG",
+   "code": "Must be a portion.",
+   "code_is_message": true,
+   "messages": [
+    "Must be a portion."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_PORTION_KIND_MSG",
+   "language": "SysML",
+   "method": "checkOccurrenceUsage",
+   "metaclass": "OccurrenceUsage",
+   "message_constants": [
+    "INVALID_OCCURRENCE_USAGE_PORTION_KIND_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a portion kind on a usage whose owning type is not an occurrence definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML definitions and usages",
+   "batch": "B2",
+   "notes": "The code is the message text.",
+   "code_constant": "INVALID_OCCURRENCE_USAGE_PORTION_KIND_MSG",
+   "code": "Must be owned by an occurrence definition or usage.",
+   "code_is_message": true,
+   "messages": [
+    "Must be owned by an occurrence definition or usage."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkConjugatedPortDefinition.INVALID_CONJUGATED_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION",
+   "language": "SysML",
+   "method": "checkConjugatedPortDefinition",
+   "metaclass": "ConjugatedPortDefinition",
+   "message_constants": [
+    "INVALID_CONJUGATED_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the conjugated port definition",
+   "condition": "the conjugated port definition itself has a conjugated port definition",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_CONJUGATED_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION",
+   "code": "validateConjugatedPortDefinitionConjugatedPortDefinition",
+   "code_is_message": false,
+   "messages": [
+    "A conjugated port definition must not have a conjugated port definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkConjugatedPortDefinition.INVALID_CONJUGATED_PORT_DEFINITION_ORIGINAL_PORT_DEFINITION",
+   "language": "SysML",
+   "method": "checkConjugatedPortDefinition",
+   "metaclass": "ConjugatedPortDefinition",
+   "message_constants": [
+    "INVALID_CONJUGATED_PORT_DEFINITION_ORIGINAL_PORT_DEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the conjugated port definition",
+   "condition": "its port conjugator's original port definition is not its owning (original) port definition",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "Same code as the previous rule ('validateConjugatedPortDefinitionConjugatedPortDefinition').",
+   "code_constant": "INVALID_CONJUGATED_PORT_DEFINITION_ORIGINAL_PORT_DEFINITION",
+   "code": "validateConjugatedPortDefinitionConjugatedPortDefinition",
+   "code_is_message": false,
+   "messages": [
+    "A conjugated port definition must be owned by its original port definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPortDefinition.INVALID_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION",
+   "language": "SysML",
+   "method": "checkPortDefinition",
+   "metaclass": "PortDefinition",
+   "message_constants": [
+    "INVALID_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the port definition",
+   "condition": "a (non-conjugated) port definition does not own exactly one ConjugatedPortDefinition",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "The conjugated port definition is implicit (constructed), so this holds by construction.",
+   "code_constant": "INVALID_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION",
+   "code": "validatePortDefinitionConjugatedPortDefinition",
+   "code_is_message": false,
+   "messages": [
+    "A port definition must have a conjugated port definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPortDefinition.INVALID_PORT_DEFINITION_OWNED_USAGES_NOT_COMPOSITE",
+   "language": "SysML",
+   "method": "checkPortDefinition",
+   "metaclass": "PortDefinition",
+   "message_constants": [
+    "INVALID_PORT_DEFINITION_OWNED_USAGES_NOT_COMPOSITE_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned usage",
+   "condition": "an owned usage other than a port is composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_PORT_DEFINITION_OWNED_USAGES_NOT_COMPOSITE",
+   "code": "validatePortDefinitionOwnedUsagesNotComposite",
+   "code_is_message": false,
+   "messages": [
+    "Owned usages of a port definition (other than ports) must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPortUsage.INVALID_PORT_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkPortUsage",
+   "metaclass": "PortUsage",
+   "message_constants": [
+    "INVALID_PORT_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature portDefinition",
+   "condition": "a type is not a PortDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_PORT_USAGE_TYPE",
+   "code": "validatePortUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A port must be typed by port definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPortUsage.INVALID_PORT_USAGE_IS_REFERENCE",
+   "language": "SysML",
+   "method": "checkPortUsage",
+   "metaclass": "PortUsage",
+   "message_constants": [
+    "INVALID_PORT_USAGE_IS_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a composite port usage whose owning type is not a port definition or usage",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_PORT_USAGE_IS_REFERENCE",
+   "code": "validatePortUsageIsReference",
+   "code_is_message": false,
+   "messages": [
+    "A port usage must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPortUsage.INVALID_PORT_USAGE_NESTED_USAGES_NOT_COMPOSITE",
+   "language": "SysML",
+   "method": "checkPortUsage",
+   "metaclass": "PortUsage",
+   "message_constants": [
+    "INVALID_PORT_USAGE_NESTED_USAGES_NOT_COMPOSITE_MSG"
+   ],
+   "severity": "error",
+   "target": "the nested usage",
+   "condition": "a nested usage other than a port is composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_PORT_USAGE_NESTED_USAGES_NOT_COMPOSITE",
+   "code": "validatePortUsageNestedUsagesNotComposite",
+   "code_is_message": false,
+   "messages": [
+    "Nested usages in a port usage (other than ports) must be referential."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkConnectionUsage.INVALID_CONNECTION_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkConnectionUsage",
+   "metaclass": "ConnectionUsage",
+   "message_constants": [
+    "INVALID_CONNECTION_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature connectionDefinition",
+   "condition": "(not flow, interface, allocation usages) a type is not an Association",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_CONNECTION_USAGE_TYPE",
+   "code": "validateConnectionUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A connection must be typed by connection definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkFlowDefinition.INVALID_FLOW_DEFINITION_END",
+   "language": "SysML",
+   "method": "checkFlowDefinition",
+   "metaclass": "FlowDefinition",
+   "message_constants": [
+    "INVALID_FLOW_DEFINITION_END_MSG"
+   ],
+   "severity": "error",
+   "target": "the definition when it owns at most two ends, else the third and later ends",
+   "condition": "more than two end features (inherited included)",
+   "needs": [
+    "derived"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_DEFINITION_END",
+   "code": "validateFlowDefinitionConnectionEnds",
+   "code_is_message": false,
+   "messages": [
+    "A flow connection definition can have at most two ends."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkFlowUsage.INVALID_FLOW_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkFlowUsage",
+   "metaclass": "FlowUsage",
+   "message_constants": [
+    "INVALID_FLOW_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature flowDefinition",
+   "condition": "a type is not an Interaction",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_FLOW_USAGE_TYPE",
+   "code": "validateFlowUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A flow connection must be typed by flow connection definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkInterfaceDefinitionEnds.INVALID_INTERFACE_DEFINITION_END",
+   "language": "SysML",
+   "method": "checkInterfaceDefinitionEnds",
+   "metaclass": "InterfaceDefinition",
+   "message_constants": [
+    "INVALID_INTERFACE_DEFINITION_END_MSG"
+   ],
+   "severity": "error",
+   "target": "the end feature",
+   "condition": "an owned end feature is not a PortUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_INTERFACE_DEFINITION_END",
+   "code": "validateInterfaceDefinitionEnd_",
+   "code_is_message": false,
+   "messages": [
+    "An interface definition end must be a port."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkInterfaceUsageEnds.INVALID_INTERFACE_USAGE_END",
+   "language": "SysML",
+   "method": "checkInterfaceUsageEnds",
+   "metaclass": "InterfaceUsage",
+   "message_constants": [
+    "INVALID_INTERFACE_USAGE_END_MSG"
+   ],
+   "severity": "error",
+   "target": "the end feature",
+   "condition": "an owned end feature is not a PortUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML ports and connections",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_INTERFACE_USAGE_END",
+   "code": "validateInterfaceUsageEnd_",
+   "code_is_message": false,
+   "messages": [
+    "An interface end must be a port."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkInterfaceUsage.INVALID_INTERFACE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkInterfaceUsage",
+   "metaclass": "InterfaceUsage",
+   "message_constants": [
+    "INVALID_INTERFACE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature interfaceDefinition",
+   "condition": "a type is not an InterfaceDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_INTERFACE_USAGE_TYPE",
+   "code": "validateInterfaceUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An interface must be typed by interface definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAllocationUsage.INVALID_ALLOCATION_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkAllocationUsage",
+   "metaclass": "AllocationUsage",
+   "message_constants": [
+    "INVALID_ALLOCATION_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature allocationDefinition",
+   "condition": "a type is not an AllocationDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ALLOCATION_USAGE_TYPE",
+   "code": "validateAllocationUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An allocation must be typed by allocation definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAcceptActionUsage.INVALID_ACCEPT_ACTION_USAGE_PARAMETERS",
+   "language": "SysML",
+   "method": "checkAcceptActionUsage",
+   "metaclass": "AcceptActionUsage",
+   "message_constants": [
+    "INVALID_ACCEPT_ACTION_USAGE_PARAMETERS_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "no input parameters (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_ACCEPT_ACTION_USAGE_PARAMETERS",
+   "code": "validateAcceptActionUsageParameters",
+   "code_is_message": false,
+   "messages": [
+    "An accept action must have a payload parameter."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkActionUsage.INVALID_ACTION_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkActionUsage",
+   "metaclass": "ActionUsage",
+   "message_constants": [
+    "INVALID_ACTION_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature actionDefinition",
+   "condition": "(not state, calculation, flow usages) a type is not a Behavior",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ACTION_USAGE_TYPE",
+   "code": "validateActionUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An action must be typed by action definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAssignmentActionUsage.INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT",
+   "language": "SysML",
+   "method": "checkAssignmentActionUsage",
+   "metaclass": "AssignmentActionUsage",
+   "message_constants": [
+    "INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the second owned relationship",
+   "condition": "no owned non-feature membership whose member is a Feature (and not a metadata feature)",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT",
+   "code": "validateAssignmentActionUsageReferent",
+   "code_is_message": false,
+   "messages": [
+    "An assignment must have a referent."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAssignmentActionUsage.INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT_IS_TIME_VARYING",
+   "language": "SysML",
+   "method": "checkAssignmentActionUsage",
+   "metaclass": "AssignmentActionUsage",
+   "message_constants": [
+    "INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT_IS_TIME_VARYING_MSG"
+   ],
+   "severity": "error",
+   "target": "the second owned relationship",
+   "condition": "the resolved referent's target feature (last of a chain) is not variable",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT_IS_TIME_VARYING",
+   "code": "validateAssignmentActionUsageReferentIsTimeVarying",
+   "code_is_message": false,
+   "messages": [
+    "Referent must be time varying."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTriggerInvocationExpression.INVALID_TRIGGER_INVOCATION_EXPRESSION_AFTER_ARGUMENT",
+   "language": "SysML",
+   "method": "checkTriggerInvocationExpression",
+   "metaclass": "TriggerInvocationExpression",
+   "message_constants": [
+    "INVALID_TRIGGER_INVOCATION_EXPRESSION_AFTER_ARGUMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "kind 'after' and the argument is not a duration (a [unit] literal with an ISQBase::DurationUnit, a result specializing ISQBase::DurationValue, or a quantity operator over durations/times)",
+   "needs": [
+    "typing",
+    "library"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_TRIGGER_INVOCATION_EXPRESSION_AFTER_ARGUMENT",
+   "code": "validateTriggerInvocationActionAfterArgument",
+   "code_is_message": false,
+   "messages": [
+    "An after expression must be a DurationValue."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTriggerInvocationExpression.INVALID_TRIGGER_INVOCATION_EXPRESSION_AT_ARGUMENT",
+   "language": "SysML",
+   "method": "checkTriggerInvocationExpression",
+   "metaclass": "TriggerInvocationExpression",
+   "message_constants": [
+    "INVALID_TRIGGER_INVOCATION_EXPRESSION_AT_ARGUMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "kind 'at' and the argument is not a time instant (result specializing Time::TimeInstantValue, or a quantity operator over durations/times)",
+   "needs": [
+    "typing",
+    "library"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_TRIGGER_INVOCATION_EXPRESSION_AT_ARGUMENT",
+   "code": "validateTriggerInvocationActionAtArgument",
+   "code_is_message": false,
+   "messages": [
+    "An at expression must be a TimeInstantValue."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTriggerInvocationExpression.INVALID_TRIGGER_INVOCATION_EXPRESSION_WHEN_ARGUMENT",
+   "language": "SysML",
+   "method": "checkTriggerInvocationExpression",
+   "metaclass": "TriggerInvocationExpression",
+   "message_constants": [
+    "INVALID_TRIGGER_INVOCATION_EXPRESSION_WHEN_ARGUMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the expression",
+   "condition": "kind 'when' and the argument is not a Boolean expression (result specializing Performances::BooleanEvaluation, or a reference to a Boolean expression)",
+   "needs": [
+    "typing",
+    "library"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_TRIGGER_INVOCATION_EXPRESSION_WHEN_ARGUMENT",
+   "code": "validateTriggerInvocationActionWhenArgument",
+   "code_is_message": false,
+   "messages": [
+    "A when expression must be Boolean."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkControlNode.INVALID_CONTROL_NODE_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkControlNode",
+   "metaclass": "ControlNode",
+   "message_constants": [
+    "INVALID_CONTROL_NODE_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the node",
+   "condition": "the owning type is not an action usage or definition",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_CONTROL_NODE_OWNING_TYPE",
+   "code": "validateControlNodeOwningType",
+   "code_is_message": false,
+   "messages": [
+    "A control node must be owned by an action definition or usage."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkPerformActionUsage.INVALID_PERFORM_ACTION_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkPerformActionUsage",
+   "metaclass": "PerformActionUsage",
+   "message_constants": [
+    "INVALID_PERFORM_ACTION_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "(not exhibit state or include use case) the referenced feature (last of a chain) is not an ActionUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_PERFORM_ACTION_USAGE_REFERENCE",
+   "code": "validatePerformActionUsageReference",
+   "code_is_message": false,
+   "messages": [
+    "Must reference an action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkSendActionUsage.INVALID_SEND_ACTION_USAGE_RECEIVER",
+   "language": "SysML",
+   "method": "checkSendActionUsage",
+   "metaclass": "SendActionUsage",
+   "message_constants": [
+    "INVALID_SEND_ACTION_USAGE_RECEIVER_MSG"
+   ],
+   "severity": "warning",
+   "target": "the receiver argument",
+   "condition": "the receiver ('to') argument references a port usage directly or as the last feature of a chain",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_SEND_ACTION_USAGE_RECEIVER",
+   "code": "validateSendActionUsageReceiver_",
+   "code_is_message": false,
+   "messages": [
+    "Sending to a port should generally use \"via\" instead of \"to\"."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkSendActionUsage.INVALID_SEND_ACTION_USAGE_PAYLOAD_ARGUMENT_MSG",
+   "language": "SysML",
+   "method": "checkSendActionUsage",
+   "metaclass": "SendActionUsage",
+   "message_constants": [
+    "INVALID_SEND_ACTION_USAGE_PAYLOAD_ARGUMENT_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "a send action owned by a state subaction or transition feature membership without a payload argument",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "The code is the message text.",
+   "code_constant": "INVALID_SEND_ACTION_USAGE_PAYLOAD_ARGUMENT_MSG",
+   "code": "A send action must have a payload.",
+   "code_is_message": true,
+   "messages": [
+    "A send action must have a payload."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkForLoopActionUsage.INVALID_FOR_LOOP_ACTION_USAGE_LOOP_VARIABLE",
+   "language": "SysML",
+   "method": "checkForLoopActionUsage",
+   "metaclass": "ForLoopActionUsage",
+   "message_constants": [
+    "INVALID_FOR_LOOP_ACTION_USAGE_LOOP_VARIABLE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "the first owned feature is not a ReferenceUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_FOR_LOOP_ACTION_USAGE_LOOP_VARIABLE",
+   "code": "validateForLoopActionUsageLoopVariable",
+   "code_is_message": false,
+   "messages": [
+    "A for loop action must have a loop variable."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkForLoopActionUsage.INVALID_FOR_LOOP_ACTION_USAGE_PARAMETERS",
+   "language": "SysML",
+   "method": "checkForLoopActionUsage",
+   "metaclass": "ForLoopActionUsage",
+   "message_constants": [
+    "INVALID_FOR_LOOP_ACTION_USAGE_PARAMETERS_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "not exactly two input parameters (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_FOR_LOOP_ACTION_USAGE_PARAMETERS",
+   "code": "validateForLoopActionUsageParameters",
+   "code_is_message": false,
+   "messages": [
+    "A for loop action must have two parameters."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkIfActionUsage.INVALID_IF_ACTION_USAGE_PARAMETERS",
+   "language": "SysML",
+   "method": "checkIfActionUsage",
+   "metaclass": "IfActionUsage",
+   "message_constants": [
+    "INVALID_IF_ACTION_USAGE_PARAMETERS_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "fewer than two input parameters",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_IF_ACTION_USAGE_PARAMETERS",
+   "code": "validateIfActionUsageParameters",
+   "code_is_message": false,
+   "messages": [
+    "An if action must have at least two parameters."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkWhileLoopActionUsage.INVALID_WHILE_LOOP_ACTION_USAGE_PARAMETERS",
+   "language": "SysML",
+   "method": "checkWhileLoopActionUsage",
+   "metaclass": "WhileLoopActionUsage",
+   "message_constants": [
+    "INVALID_WHILE_LOOP_ACTION_USAGE_PARAMETERS_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage",
+   "condition": "fewer than two input parameters",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_WHILE_LOOP_ACTION_USAGE_PARAMETERS",
+   "code": "validateWhileLoopActionUsageParameters",
+   "code_is_message": false,
+   "messages": [
+    "A while loop action must have at least two parameters."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkExhibitStateUsage.INVALID_EXHIBIT_STATE_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkExhibitStateUsage",
+   "metaclass": "ExhibitStateUsage",
+   "message_constants": [
+    "INVALID_EXHIBIT_STATE_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "the referenced feature (last of a chain) is not a StateUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_EXHIBIT_STATE_USAGE_REFERENCE",
+   "code": "validateExhibitStateUsageReference",
+   "code_is_message": false,
+   "messages": [
+    "Must reference a state."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkStateDefinition.INVALID_STATE_DEFINITION_SUBACTION_KIND",
+   "language": "SysML",
+   "method": "checkStateDefinition",
+   "metaclass": "StateDefinition",
+   "message_constants": [
+    "INVALID_STATE_SUBACTION_KIND_ENTRY_MSG",
+    "INVALID_STATE_SUBACTION_KIND_DO_MSG",
+    "INVALID_STATE_SUBACTION_KIND_EXIT_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later owned subaction memberships of that kind",
+   "condition": "more than one owned entry, do or exit subaction membership",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_STATE_DEFINITION_SUBACTION_KIND",
+   "code": "validateStateDefinitionSubactionKind",
+   "code_is_message": false,
+   "messages": [
+    "A state may have at most one entry action.",
+    "A state may have at most one do action.",
+    "A state may have at most one exit action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkStateSubactionMembership.INVALID_STATE_SUBACTION_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkStateSubactionMembership",
+   "metaclass": "StateSubactionMembership",
+   "message_constants": [
+    "INVALID_STATE_SUBACTION_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a state usage or definition",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "Code spelled 'validateStateSubactionMembershioOwningType'.",
+   "code_constant": "INVALID_STATE_SUBACTION_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateStateSubactionMembershioOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only a state can have an entry, do or exit action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkStateUsage.INVALID_STATE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkStateUsage",
+   "metaclass": "StateUsage",
+   "message_constants": [
+    "INVALID_STATE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature stateDefinition",
+   "condition": "a type is not a Behavior",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_STATE_USAGE_TYPE",
+   "code": "validateStateUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A state must be typed by state definitions."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkStateUsage.INVALID_STATE_USAGE_SUBACTION_KIND",
+   "language": "SysML",
+   "method": "checkStateUsage",
+   "metaclass": "StateUsage",
+   "message_constants": [
+    "INVALID_STATE_SUBACTION_KIND_ENTRY_MSG",
+    "INVALID_STATE_SUBACTION_KIND_DO_MSG",
+    "INVALID_STATE_SUBACTION_KIND_EXIT_MSG"
+   ],
+   "severity": "error",
+   "target": "the second and later owned subaction memberships of that kind",
+   "condition": "more than one owned entry, do or exit subaction membership",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_STATE_USAGE_SUBACTION_KIND",
+   "code": "validateStateUsageSubactionKind",
+   "code_is_message": false,
+   "messages": [
+    "A state may have at most one entry action.",
+    "A state may have at most one do action.",
+    "A state may have at most one exit action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_EFFECT_ACTION",
+   "language": "SysML",
+   "method": "checkTransitionFeatureMembership",
+   "metaclass": "TransitionFeatureMembership",
+   "message_constants": [
+    "INVALID_TRANSITION_FEATURE_MEMBERSHIP_EFFECT_ACTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "an effect membership whose feature is not an ActionUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_FEATURE_MEMBERSHIP_EFFECT_ACTION",
+   "code": "validateTransitionFeatureMembershipEffectAction",
+   "code_is_message": false,
+   "messages": [
+    "Must be an action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_GUARD_EXPRESSION",
+   "language": "SysML",
+   "method": "checkTransitionFeatureMembership",
+   "metaclass": "TransitionFeatureMembership",
+   "message_constants": [
+    "INVALID_TRANSITION_FEATURE_MEMBERSHIP_GUARD_EXPRESSION_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "a guard membership whose feature is not a Boolean-typed expression (isBoolean)",
+   "needs": [
+    "typing",
+    "library"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B6",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_FEATURE_MEMBERSHIP_GUARD_EXPRESSION",
+   "code": "validateTransitionFeatureMembershipGuardExpression",
+   "code_is_message": false,
+   "messages": [
+    "Must be a Boolean expression."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_TRIGGER_ACTION",
+   "language": "SysML",
+   "method": "checkTransitionFeatureMembership",
+   "metaclass": "TransitionFeatureMembership",
+   "message_constants": [
+    "INVALID_TRANSITION_FEATURE_MEMBERSHIP_TRIGGER_ACTION_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "a trigger membership whose feature is not an AcceptActionUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_FEATURE_MEMBERSHIP_TRIGGER_ACTION",
+   "code": "validateTransitionFeatureMembershipTriggerAction",
+   "code_is_message": false,
+   "messages": [
+    "Must be an accept action."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkTransitionFeatureMembership",
+   "metaclass": "TransitionFeatureMembership",
+   "message_constants": [
+    "INVALID_TRANSITION_FEATURE_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a TransitionUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_FEATURE_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateTransitionFeatureMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Transition feature membership not allowed."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionUsage.INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG",
+   "language": "SysML",
+   "method": "checkTransitionUsage",
+   "metaclass": "TransitionUsage",
+   "message_constants": [
+    "INVALID_STATE_DEFINITION_PARALLEL_SUBACTIONS_MSG",
+    "INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG"
+   ],
+   "severity": "error",
+   "target": "the transition",
+   "condition": "the owning type is a parallel state definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "The code is the message text (both constants have the same text).",
+   "code_constant": "INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG",
+   "code": "A parallel state cannot have successions or transitions.",
+   "code_is_message": true,
+   "messages": [
+    "A parallel state cannot have successions or transitions.",
+    "A parallel state cannot have successions or transitions."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_PARAMETERS",
+   "language": "SysML",
+   "method": "checkTransitionUsage",
+   "metaclass": "TransitionUsage",
+   "message_constants": [
+    "INVALID_TRANSITION_USAGE_PARAMETERS_MSG_1",
+    "INVALID_TRANSITION_USAGE_PARAMETERS_MSG_2"
+   ],
+   "severity": "error",
+   "target": "the transition",
+   "condition": "no trigger and no input parameter (msg 1), or a trigger and fewer than two input parameters (msg 2)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_USAGE_PARAMETERS",
+   "code": "validateTransitionUsageParameters",
+   "code_is_message": false,
+   "messages": [
+    "Must have an input parameter.",
+    "Must have two input parameters."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_SUCCESSION",
+   "language": "SysML",
+   "method": "checkTransitionUsage",
+   "metaclass": "TransitionUsage",
+   "message_constants": [
+    "INVALID_TRANSITION_USAGE_SUCCESSION_MSG"
+   ],
+   "severity": "error",
+   "target": "the transition",
+   "condition": "no owned Succession member, or the first one targets a feature whose basic feature is not an ActionUsage",
+   "needs": [
+    "owned",
+    "implicit"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_USAGE_SUCCESSION",
+   "code": "validateTransitionUsageSuccession",
+   "code_is_message": false,
+   "messages": [
+    "A transition must own a succession to its target."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_TRIGGER_ACTIONS",
+   "language": "SysML",
+   "method": "checkTransitionUsage",
+   "metaclass": "TransitionUsage",
+   "message_constants": [
+    "INVALID_TRANSITION_USAGE_TRIGGER_ACTIONS_MSG"
+   ],
+   "severity": "error",
+   "target": "the trigger membership",
+   "condition": "a transition with a trigger whose source is not a StateUsage",
+   "needs": [
+    "derived"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_TRANSITION_USAGE_TRIGGER_ACTIONS",
+   "code": "validateTransitionUsageTriggerActions",
+   "code_is_message": false,
+   "messages": [
+    "A transition with an accepter must have a state as its source."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkSuccession.INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG",
+   "language": "SysML",
+   "method": "checkSuccession",
+   "metaclass": "Succession",
+   "message_constants": [
+    "INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG"
+   ],
+   "severity": "error",
+   "target": "the succession",
+   "condition": "the owning type is a parallel state definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML actions and states",
+   "batch": "B2",
+   "notes": "Same code as the transition variant.",
+   "code_constant": "INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG",
+   "code": "A parallel state cannot have successions or transitions.",
+   "code_is_message": true,
+   "messages": [
+    "A parallel state cannot have successions or transitions."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCalculationUsage.INVALID_CALCULATION_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkCalculationUsage",
+   "metaclass": "CalculationUsage",
+   "message_constants": [
+    "INVALID_CALCULATION_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature calculationDefinition",
+   "condition": "(not case usages) not exactly one type, or it is not a Function",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_CALCULATION_USAGE_TYPE",
+   "code": "validateCalculationUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A calculation must be typed by one calculation definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAssertConstraintUsage.INVALID_ASSERT_CONSTRAINT_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkAssertConstraintUsage",
+   "metaclass": "AssertConstraintUsage",
+   "message_constants": [
+    "INVALID_ASSERT_CONSTRAINT_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "the referenced feature (last of a chain) is not a ConstraintUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ASSERT_CONSTRAINT_USAGE_REFERENCE",
+   "code": "validateAssertConstraintUsageReference",
+   "code_is_message": false,
+   "messages": [
+    "Must reference a constraint."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkConstraintUsage.INVALID_CONSTRAINT_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkConstraintUsage",
+   "metaclass": "ConstraintUsage",
+   "message_constants": [
+    "INVALID_CONSTRAINT_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature constraintDefinition",
+   "condition": "(not requirement usages) not exactly one type, or it is not a Predicate",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "Code 'Invalid Constraint Usage - invalid type'.",
+   "code_constant": "INVALID_CONSTRAINT_USAGE_TYPE",
+   "code": "Invalid Constraint Usage - invalid type",
+   "code_is_message": false,
+   "messages": [
+    "A constraint must be typed by one constraint definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkActorMembership.INVALID_ACTOR_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkActorMembership",
+   "metaclass": "ActorMembership",
+   "message_constants": [
+    "INVALID_ACTOR_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a requirement or case definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_ACTOR_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateActorMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only requirements and cases can have actors."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkStakeholderMembership.INVALID_STAKEHOLDER_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkStakeholderMembership",
+   "metaclass": "StakeholderMembership",
+   "message_constants": [
+    "INVALID_STAKEHOLDER_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a requirement definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_STAKEHOLDER_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateStakeholderMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only requirements can have stakeholders."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkSubjectMembership.INVALID_SUBJECT_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkSubjectMembership",
+   "metaclass": "SubjectMembership",
+   "message_constants": [
+    "INVALID_SUBJECT_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a requirement or case definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_SUBJECT_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateSubjectMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only requirements and cases can have subjects."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkFramedConcernUsage.INVALID_FRAMED_CONCERN_MEMBERSHIP_CONSTRAINT_KIND",
+   "language": "SysML",
+   "method": "checkFramedConcernUsage",
+   "metaclass": "FramedConcernMembership",
+   "message_constants": [
+    "INVALID_FRAMED_CONCERN_MEMBERSHIP_CONSTRAINT_KIND_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "kind is not requirement",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "kind defaults to requirement; unreachable from text.",
+   "code_constant": "INVALID_FRAMED_CONCERN_MEMBERSHIP_CONSTRAINT_KIND",
+   "code": "validateFramedConcernMembershipConstraintKind",
+   "code_is_message": false,
+   "messages": [
+    "A framed concern must be a required constraint."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementConstraintMembership.INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_IS_COMPOSITE",
+   "language": "SysML",
+   "method": "checkRequirementConstraintMembership",
+   "metaclass": "RequirementConstraintMembership",
+   "message_constants": [
+    "INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_IS_COMPOSITE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owned constraint is not composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_IS_COMPOSITE",
+   "code": "validateRequirementConstraintMembershipIsComposite",
+   "code_is_message": false,
+   "messages": [
+    "A requirement constraint must be composite."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementConstraintMembership.INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkRequirementConstraintMembership",
+   "metaclass": "RequirementConstraintMembership",
+   "message_constants": [
+    "INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a requirement definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateRequirementConstraintMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only requirements can have assumed or required constraints."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementDefinition.INVALID_REQUIREMENT_DEFINITION_ONLY_ONE_SUBJECT",
+   "language": "SysML",
+   "method": "checkRequirementDefinition",
+   "metaclass": "RequirementDefinition",
+   "message_constants": [
+    "INVALID_REQUIREMENT_DEFINITION_ONLY_ONE_SUBJECT_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject memberships (all but the first when all are owned), else the type",
+   "condition": "more than one subject membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_DEFINITION_ONLY_ONE_SUBJECT",
+   "code": "validateRequirementDefinitionOnlyOneSubject",
+   "code_is_message": false,
+   "messages": [
+    "Only one subject is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementDefinition.INVALID_REQUIREMENT_DEFINITION_SUBJECT_PARAMETER_POSITION",
+   "language": "SysML",
+   "method": "checkRequirementDefinition",
+   "metaclass": "RequirementDefinition",
+   "message_constants": [
+    "INVALID_REQUIREMENT_DEFINITION_SUBJECT_PARAMETER_POSITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject parameter, else the type",
+   "condition": "no inputs, or the first input (inherited included) is not a subject parameter",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_DEFINITION_SUBJECT_PARAMETER_POSITION",
+   "code": "validateRequirementDefinitionSubjectParameterPosition",
+   "code_is_message": false,
+   "messages": [
+    "Subject must be first parameter."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_ONLY_ONE_SUBJECT",
+   "language": "SysML",
+   "method": "checkRequirementUsage",
+   "metaclass": "RequirementUsage",
+   "message_constants": [
+    "INVALID_REQUIREMENT_USAGE_ONLY_ONE_SUBJECT_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject memberships (all but the first when all are owned), else the type",
+   "condition": "more than one subject membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_USAGE_ONLY_ONE_SUBJECT",
+   "code": "validateRequirementUsageOnlyOneSubject",
+   "code_is_message": false,
+   "messages": [
+    "Only one subject is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_SUBJECT_PARAMETER_POSITION",
+   "language": "SysML",
+   "method": "checkRequirementUsage",
+   "metaclass": "RequirementUsage",
+   "message_constants": [
+    "INVALID_REQUIREMENT_USAGE_SUBJECT_PARAMETER_POSITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject parameter, else the type",
+   "condition": "no inputs, or the first input (inherited included) is not a subject parameter",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_USAGE_SUBJECT_PARAMETER_POSITION",
+   "code": "validateRequirementUsageSubjectParameterPosition",
+   "code_is_message": false,
+   "messages": [
+    "Subject must be first parameter."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_ONLY_ONE_OBJECTIVE",
+   "language": "SysML",
+   "method": "checkCaseDefinition",
+   "metaclass": "CaseDefinition",
+   "message_constants": [
+    "INVALID_CASE_DEFINITION_ONLY_ONE_OBJECTIVE_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned objective memberships (all but the first when all are owned), else the type",
+   "condition": "more than one objective membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_DEFINITION_ONLY_ONE_OBJECTIVE",
+   "code": "validateCaseDefinitionOnlyOneObjective",
+   "code_is_message": false,
+   "messages": [
+    "Only one objective is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_ONLY_ONE_SUBJECT",
+   "language": "SysML",
+   "method": "checkCaseDefinition",
+   "metaclass": "CaseDefinition",
+   "message_constants": [
+    "INVALID_CASE_DEFINITION_ONLY_ONE_SUBJECT_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject memberships (all but the first when all are owned), else the type",
+   "condition": "more than one subject membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_DEFINITION_ONLY_ONE_SUBJECT",
+   "code": "validateCaseDefinitionOnlyOneSubject",
+   "code_is_message": false,
+   "messages": [
+    "Only one subject is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_SUBJECT_PARAMETER_POSITION",
+   "language": "SysML",
+   "method": "checkCaseDefinition",
+   "metaclass": "CaseDefinition",
+   "message_constants": [
+    "INVALID_CASE_DEFINITION_SUBJECT_PARAMETER_POSITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject parameter, else the type",
+   "condition": "no inputs, or the first input (inherited included) is not a subject parameter",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_DEFINITION_SUBJECT_PARAMETER_POSITION",
+   "code": "validateCaseDefinitionSubjectParameterPosition",
+   "code_is_message": false,
+   "messages": [
+    "Subject must be first parameter."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseUsage.INVALID_CASE_USAGE_ONLY_ONE_OBJECTIVE",
+   "language": "SysML",
+   "method": "checkCaseUsage",
+   "metaclass": "CaseUsage",
+   "message_constants": [
+    "INVALID_CASE_USAGE_ONLY_ONE_OBJECTIVE_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned objective memberships (all but the first when all are owned), else the type",
+   "condition": "more than one objective membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_USAGE_ONLY_ONE_OBJECTIVE",
+   "code": "validateCaseUsageOnlyOneObjective",
+   "code_is_message": false,
+   "messages": [
+    "Only one objective is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseUsage.INVALID_CASE_USAGE_ONLY_ONE_SUBJECT",
+   "language": "SysML",
+   "method": "checkCaseUsage",
+   "metaclass": "CaseUsage",
+   "message_constants": [
+    "INVALID_CASE_USAGE_ONLY_ONE_SUBJECT_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject memberships (all but the first when all are owned), else the type",
+   "condition": "more than one subject membership among all feature memberships (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_USAGE_ONLY_ONE_SUBJECT",
+   "code": "validateCaseUsageOnlyOneSubject",
+   "code_is_message": false,
+   "messages": [
+    "Only one subject is allowed."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseUsage.INVALID_CASE_USAGE_SUBJECT_PARAMETER_POSITION",
+   "language": "SysML",
+   "method": "checkCaseUsage",
+   "metaclass": "CaseUsage",
+   "message_constants": [
+    "INVALID_CASE_USAGE_SUBJECT_PARAMETER_POSITION_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned subject parameter, else the type",
+   "condition": "no inputs, or the first input (inherited included) is not a subject parameter",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_CASE_USAGE_SUBJECT_PARAMETER_POSITION",
+   "code": "validateCaseUsageSubjectParameterPosition",
+   "code_is_message": false,
+   "messages": [
+    "Subject must be first parameter."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkRequirementUsage",
+   "metaclass": "RequirementUsage",
+   "message_constants": [
+    "INVALID_REQUIREMENT_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature requirementDefinition",
+   "condition": "not exactly one type, or it is not a RequirementDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_USAGE_TYPE",
+   "code": "validateRequirementUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A requirement must be typed by one requirement definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkCaseUsage.INVALID_CASE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkCaseUsage",
+   "metaclass": "CaseUsage",
+   "message_constants": [
+    "INVALID_CASE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature caseDefinition",
+   "condition": "(not analysis, verification or use case usages) not exactly one type, or it is not a CaseDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_CASE_USAGE_TYPE",
+   "code": "validateCaseUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A case must be typed by one case definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkSatisfyRequirementUsage.INVALID_SATISFY_REQUIREMENT_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkSatisfyRequirementUsage",
+   "metaclass": "SatisfyRequirementUsage",
+   "message_constants": [
+    "INVALID_SATISFY_REQUIREMENT_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "the referenced feature (last of a chain) is not a RequirementUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_SATISFY_REQUIREMENT_USAGE_REFERENCE",
+   "code": "validateSatisfyRequirementUsageReference",
+   "code_is_message": false,
+   "messages": [
+    "Must reference a requirement."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkObjectiveMembership.INVALID_OBJECTIVE_MEMBERSHIP_IS_COMPOSITE",
+   "language": "SysML",
+   "method": "checkObjectiveMembership",
+   "metaclass": "ObjectiveMembership",
+   "message_constants": [
+    "INVALID_OBJECTIVE_MEMBERSHIP_IS_COMPOSITE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owned objective requirement is not composite",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_OBJECTIVE_MEMBERSHIP_IS_COMPOSITE",
+   "code": "validateObjectiveMembershipIsComposite",
+   "code_is_message": false,
+   "messages": [
+    "An objective must be composite."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkObjectiveMembership.INVALID_OBJECTIVE_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkObjectiveMembership",
+   "metaclass": "ObjectiveMembership",
+   "message_constants": [
+    "INVALID_OBJECTIVE_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a case definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_OBJECTIVE_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateObjectiveMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only cases can have objectives."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkAnalysisCaseUsage.INVALID_ANALYSIS_CASE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkAnalysisCaseUsage",
+   "metaclass": "AnalysisCaseUsage",
+   "message_constants": [
+    "INVALID_ANALYSIS_CASE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature analysisCaseDefinition",
+   "condition": "not exactly one type, or it is not an AnalysisCaseDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_ANALYSIS_CASE_USAGE_TYPE",
+   "code": "validateAnalysisCaseUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "An analysis case must be typed by one analysis case definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementVerificationMembership.INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_KIND",
+   "language": "SysML",
+   "method": "checkRequirementVerificationMembership",
+   "metaclass": "RequirementVerificationMembership",
+   "message_constants": [
+    "INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_KIND_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "kind is not requirement",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_KIND",
+   "code": "validateRequirementVerificationMembershipKind",
+   "code_is_message": false,
+   "messages": [
+    "A requirement verification must be a required constraint."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRequirementVerificationMembership.INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkRequirementVerificationMembership",
+   "metaclass": "RequirementVerificationMembership",
+   "message_constants": [
+    "INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not an objective requirement of a verification case definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateRequirementVerificationMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "A requirement verification must be in the objective of a verification case."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkVerificationCaseUsage.INVALID_VERIFICATION_CASE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkVerificationCaseUsage",
+   "metaclass": "VerificationCaseUsage",
+   "message_constants": [
+    "INVALID_VERIFICATION_CASE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature verificationCaseDefinition",
+   "condition": "not exactly one type, or it is not a VerificationCaseDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_VERIFICATION_CASE_USAGE_TYPE",
+   "code": "validateVerificationCaseUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A verification case must be typed by one verification case definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkIncludeUseCaseUsage.INVALID_INCLUDE_USE_CASE_USAGE_REFERENCE",
+   "language": "SysML",
+   "method": "checkIncludeUseCaseUsage",
+   "metaclass": "IncludeUseCaseUsage",
+   "message_constants": [
+    "INVALID_INCLUDE_USE_CASE_USAGE_REFERENCE_MSG"
+   ],
+   "severity": "error",
+   "target": "the ReferenceSubsetting",
+   "condition": "the referenced feature (last of a chain) is not a UseCaseUsage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML requirements and cases",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_INCLUDE_USE_CASE_USAGE_REFERENCE",
+   "code": "validateIncludeUseCaseUsageReference",
+   "code_is_message": false,
+   "messages": [
+    "Must reference a use case."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkUseCaseUsage.INVALID_USE_CASE_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkUseCaseUsage",
+   "metaclass": "UseCaseUsage",
+   "message_constants": [
+    "INVALID_USE_CASE_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature useCaseDefinition",
+   "condition": "not exactly one type, or it is not a UseCaseDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_USE_CASE_USAGE_TYPE",
+   "code": "validateUseCaseUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A use case must be typed by one use case definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkExpose.INVALID_EXPOSE_IS_IMPORT_ALL",
+   "language": "SysML",
+   "method": "checkExpose",
+   "metaclass": "Expose",
+   "message_constants": [
+    "INVALID_EXPOSE_IS_IMPORT_ALL_MSG"
+   ],
+   "severity": "error",
+   "target": "the expose",
+   "condition": "isImportAll is false",
+   "needs": [
+    "owned",
+    "defaults"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B2",
+   "notes": "The Pilot sets isImportAll on every expose; unreachable from text.",
+   "code_constant": "INVALID_EXPOSE_IS_IMPORT_ALL",
+   "code": "validateExposeIsImportAll",
+   "code_is_message": false,
+   "messages": [
+    "An expose must import all."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkExpose.INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE",
+   "language": "SysML",
+   "method": "checkExpose",
+   "metaclass": "Expose",
+   "message_constants": [
+    "INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE_MSG"
+   ],
+   "severity": "error",
+   "target": "the expose",
+   "condition": "the importing namespace is not a ViewUsage (validateExposeOwningNamespace)",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B2",
+   "notes": "Reported with the variant-membership code and message ('validateVariationMembershipOwningNamespace', 'A variant must be an owned member of a variation.'); the EXPOSE_OWNING_NAMESPACE constants are never used.",
+   "code_constant": "INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE",
+   "code": "validateVariationMembershipOwningNamespace",
+   "code_is_message": false,
+   "messages": [
+    "A variant must be an owned member of a variation."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkRenderingUsage.INVALID_RENDERING_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkRenderingUsage",
+   "metaclass": "RenderingUsage",
+   "message_constants": [
+    "INVALID_RENDERING_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature renderingDefinition",
+   "condition": "not exactly one type, or it is not a RenderingDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_RENDERING_USAGE_TYPE",
+   "code": "validateRenderingUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A rendering must be typed by one rendering definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkViewDefinition.INVALID_VIEW_DEFINITION_ONLY_ONE_VIEW_RENDERING",
+   "language": "SysML",
+   "method": "checkViewDefinition",
+   "metaclass": "ViewDefinition",
+   "message_constants": [
+    "INVALID_VIEW_DEFINITION_ONLY_ONE_VIEW_RENDERING_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned view rendering memberships (all but the first when all are owned), else the type",
+   "condition": "more than one view rendering membership (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B4",
+   "notes": "Code spelled 'validateViewDefinitionOnlyOnvViewRendering'.",
+   "code_constant": "INVALID_VIEW_DEFINITION_ONLY_ONE_VIEW_RENDERING",
+   "code": "validateViewDefinitionOnlyOnvViewRendering",
+   "code_is_message": false,
+   "messages": [
+    "A view definition may have at most one view rendering."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkViewRenderingMembership.INVALID_VIEW_RENDERING_MEMBERSHIP_OWNING_TYPE",
+   "language": "SysML",
+   "method": "checkViewRenderingMembership",
+   "metaclass": "ViewRenderingMembership",
+   "message_constants": [
+    "INVALID_VIEW_RENDERING_MEMBERSHIP_OWNING_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the membership",
+   "condition": "the owning type is not a view definition or usage",
+   "needs": [
+    "owned"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B2",
+   "notes": "",
+   "code_constant": "INVALID_VIEW_RENDERING_MEMBERSHIP_OWNING_TYPE",
+   "code": "validateViewRenderingMembershipOwningType",
+   "code_is_message": false,
+   "messages": [
+    "Only views can have view renderings."
+   ],
+   "category": "purely structural",
+   "override": false
+  },
+  {
+   "id": "SysML.checkViewpointUsage.INVALID_VIEWPOINT_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkViewpointUsage",
+   "metaclass": "ViewpointUsage",
+   "message_constants": [
+    "INVALID_VIEWPOINT_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature viewpointDefinition",
+   "condition": "not exactly one type, or it is not a ViewpointDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_VIEWPOINT_USAGE_TYPE",
+   "code": "validateViewpointUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A viewpoint must be typed by one viewpoint definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkViewUsage.INVALID_VIEW_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkViewUsage",
+   "metaclass": "ViewUsage",
+   "message_constants": [
+    "INVALID_VIEW_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature viewDefinition",
+   "condition": "not exactly one type, or it is not a ViewDefinition",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_VIEW_USAGE_TYPE",
+   "code": "validateViewUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A view must be typed by one view definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkViewUsage.INVALID_VIEW_USAGE_ONLY_ONE_RENDERING",
+   "language": "SysML",
+   "method": "checkViewUsage",
+   "metaclass": "ViewUsage",
+   "message_constants": [
+    "INVALID_VIEW_USAGE_ONLY_ONE_RENDERING_MSG"
+   ],
+   "severity": "error",
+   "target": "the owned view rendering memberships, else the type",
+   "condition": "more than one view rendering membership (inherited included)",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B4",
+   "notes": "",
+   "code_constant": "INVALID_VIEW_USAGE_ONLY_ONE_RENDERING",
+   "code": "validateViewUsageOnlyOneRendering",
+   "code_is_message": false,
+   "messages": [
+    "A view may have at most one view rendering."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkMetadataUsage.INVALID_METADATA_USAGE_TYPE",
+   "language": "SysML",
+   "method": "checkMetadataUsage",
+   "metaclass": "MetadataUsage",
+   "message_constants": [
+    "INVALID_METADATA_USAGE_TYPE_MSG"
+   ],
+   "severity": "error",
+   "target": "the usage, feature metadataDefinition",
+   "condition": "not exactly one type, or it is not a Metaclass",
+   "needs": [
+    "derived",
+    "implicit"
+   ],
+   "area": "SysML typing",
+   "batch": "B3",
+   "notes": "",
+   "code_constant": "INVALID_METADATA_USAGE_TYPE",
+   "code": "validateMetadataUsageType_",
+   "code_is_message": false,
+   "messages": [
+    "A metadata usage must be typed by one metadata definition."
+   ],
+   "category": "derived properties",
+   "override": false
+  },
+  {
+   "id": "SysML.checkDataType.INVALID_ATTRIBUTE_DEFINITION_SPECIALIZATION",
+   "language": "SysML",
+   "method": "checkDataType",
+   "metaclass": "DataType",
+   "message_constants": [
+    "INVALID_ATTRIBUTE_DEFINITION_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "as KerML checkDataType (override with a SysML message)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "Override: SysML resources report this instead of the KerML message; code 'validateDataTypeSpecialization'.",
+   "code_constant": "INVALID_ATTRIBUTE_DEFINITION_SPECIALIZATION",
+   "code": "validateDataTypeSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize item definition"
+   ],
+   "category": "purely structural",
+   "override": true
+  },
+  {
+   "id": "SysML.checkClass.INVALID_ITEM_DEFINITION_SPECIALIZATION",
+   "language": "SysML",
+   "method": "checkClass",
+   "metaclass": "Class",
+   "message_constants": [
+    "INVALID_ITEM_DEFINITION_SPECIALIZATION_MSG"
+   ],
+   "severity": "error",
+   "target": "the Specialization, feature general",
+   "condition": "as KerML checkClass (override with a SysML message)",
+   "needs": [
+    "owned"
+   ],
+   "area": "Kernel classifiers",
+   "batch": "B1",
+   "notes": "Override: code 'validateClassSpecialization'.",
+   "code_constant": "INVALID_ITEM_DEFINITION_SPECIALIZATION",
+   "code": "validateClassSpecialization",
+   "code_is_message": false,
+   "messages": [
+    "Cannot specialize attribute definition"
+   ],
+   "category": "purely structural",
+   "override": true
+  },
+  {
+   "id": "SysML.checkOperatorExpression.INVALID_OPERATOR_EXPRESSION_QUANTITY",
+   "language": "SysML",
+   "method": "checkOperatorExpression",
+   "metaclass": "OperatorExpression",
+   "message_constants": [
+    "INVALID_OPERATOR_EXPRESSION_QUANTITY_MSG"
+   ],
+   "severity": "warning",
+   "target": "the second ([unit]) argument",
+   "condition": "a '[' operator whose second argument's result does not conform to MeasurementReferences::TensorMeasurementReference (directly, or through an operator expression whose argument conforms)",
+   "needs": [
+    "typing",
+    "library"
+   ],
+   "area": "SysML views and metadata",
+   "batch": "B6",
+   "notes": "Override: other operators fall back to KerML checkOperatorExpression (cast warning); the KerML '[' warning is never reported for SysML.",
+   "code_constant": "INVALID_OPERATOR_EXPRESSION_QUANTITY",
+   "code": "validateOperatorExpressionQuantity",
+   "code_is_message": false,
+   "messages": [
+    "Should be a measurement reference (unit)."
+   ],
+   "category": "derived properties",
+   "override": true
+  }
+ ]
+}

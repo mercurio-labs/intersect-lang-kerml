@@ -1,0 +1,10 @@
+[package]
+name = "intersect-pinned-kerml-qualification"
+version = "0.1.0"
+edition = "2024"
+[dependencies]
+intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "6ba0a1cfacfc6e0f28314bd38bc025e53bf12acf" }
+intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "3a9f0f4effb124cdf364cc4aec6f8ae9e1078089" }
+intersect-kerml = { path = "../../../../../crates/intersect-kerml" }
+serde_json = "=1.0.151"
+[workspace]

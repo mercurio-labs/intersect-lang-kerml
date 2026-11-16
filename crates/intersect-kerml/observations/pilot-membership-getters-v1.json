@@ -1,0 +1,388 @@
+{
+  "version": 1,
+  "upstream_commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "scope": "source observations; Java not executed; no model-validation or ResourceSet qualification",
+  "algorithm": "first ownedRelatedElement, then source nominal kind filter; no first matching scan",
+  "families": [
+    {
+      "actual": "OwningMembership",
+      "direct_parent": "Membership",
+      "nominal_terminal_kind": "Element",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement"
+      ],
+      "terminal_delegate_owner": "OwningMembership"
+    },
+    {
+      "actual": "FeatureMembership",
+      "direct_parent": "OwningMembership",
+      "nominal_terminal_kind": "Feature",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature"
+      ],
+      "terminal_delegate_owner": "FeatureMembership"
+    },
+    {
+      "actual": "EndFeatureMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "Feature",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature"
+      ],
+      "terminal_delegate_owner": "FeatureMembership"
+    },
+    {
+      "actual": "ParameterMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "Feature",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedMemberParameter"
+      ],
+      "terminal_delegate_owner": "ParameterMembership"
+    },
+    {
+      "actual": "ReturnParameterMembership",
+      "direct_parent": "ParameterMembership",
+      "nominal_terminal_kind": "Feature",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedMemberParameter"
+      ],
+      "terminal_delegate_owner": "ParameterMembership"
+    },
+    {
+      "actual": "ElementFilterMembership",
+      "direct_parent": "OwningMembership",
+      "nominal_terminal_kind": "Expression",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "condition"
+      ],
+      "terminal_delegate_owner": "ElementFilterMembership"
+    },
+    {
+      "actual": "FeatureValue",
+      "direct_parent": "OwningMembership",
+      "nominal_terminal_kind": "Expression",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "value"
+      ],
+      "terminal_delegate_owner": "FeatureValue"
+    },
+    {
+      "actual": "ResultExpressionMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "Expression",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedResultExpression"
+      ],
+      "terminal_delegate_owner": "ResultExpressionMembership"
+    },
+    {
+      "actual": "ActorMembership",
+      "direct_parent": "ParameterMembership",
+      "nominal_terminal_kind": "PartUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedMemberParameter",
+        "ownedActorParameter"
+      ],
+      "terminal_delegate_owner": "ActorMembership"
+    },
+    {
+      "actual": "StakeholderMembership",
+      "direct_parent": "ParameterMembership",
+      "nominal_terminal_kind": "PartUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedMemberParameter",
+        "ownedStakeholderParameter"
+      ],
+      "terminal_delegate_owner": "StakeholderMembership"
+    },
+    {
+      "actual": "SubjectMembership",
+      "direct_parent": "ParameterMembership",
+      "nominal_terminal_kind": "Usage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedMemberParameter",
+        "ownedSubjectParameter"
+      ],
+      "terminal_delegate_owner": "SubjectMembership"
+    },
+    {
+      "actual": "VariantMembership",
+      "direct_parent": "OwningMembership",
+      "nominal_terminal_kind": "Usage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedVariantUsage"
+      ],
+      "terminal_delegate_owner": "VariantMembership"
+    },
+    {
+      "actual": "ObjectiveMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "RequirementUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedObjectiveRequirement"
+      ],
+      "terminal_delegate_owner": "ObjectiveMembership"
+    },
+    {
+      "actual": "RequirementConstraintMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "ConstraintUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedConstraint"
+      ],
+      "terminal_delegate_owner": "RequirementConstraintMembership"
+    },
+    {
+      "actual": "RequirementVerificationMembership",
+      "direct_parent": "RequirementConstraintMembership",
+      "nominal_terminal_kind": "RequirementUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedConstraint",
+        "ownedRequirement"
+      ],
+      "terminal_delegate_owner": "RequirementVerificationMembership"
+    },
+    {
+      "actual": "FramedConcernMembership",
+      "direct_parent": "RequirementConstraintMembership",
+      "nominal_terminal_kind": "ConcernUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedConstraint",
+        "ownedConcern"
+      ],
+      "terminal_delegate_owner": "FramedConcernMembership"
+    },
+    {
+      "actual": "StateSubactionMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "ActionUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "action"
+      ],
+      "terminal_delegate_owner": "StateSubactionMembership"
+    },
+    {
+      "actual": "TransitionFeatureMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "Step",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "transitionFeature"
+      ],
+      "terminal_delegate_owner": "TransitionFeatureMembership"
+    },
+    {
+      "actual": "ViewRenderingMembership",
+      "direct_parent": "FeatureMembership",
+      "nominal_terminal_kind": "RenderingUsage",
+      "getter_chain": [
+        "memberElement",
+        "ownedMemberElement",
+        "ownedMemberFeature",
+        "ownedRendering"
+      ],
+      "terminal_delegate_owner": "ViewRenderingMembership"
+    }
+  ],
+  "source_files": {
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ActorMembership_ownedActorParameter_SettingDelegate.java": {
+      "sha256": "bc542427403cd471173585d5721874757d914c5500491d6c54bba856ab6ce258",
+      "bytes": 1518
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/BasicDerivedObjectSettingDelegate.java": {
+      "sha256": "d82c8515f8dec9af4e93cbe1983f38d1f384fec3e51718edce10dc0fea3ea368",
+      "bytes": 1674
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ElementFilterMembership_condition_SettingDelegate.java": {
+      "sha256": "2ccd0e4cb7caf545b922b5b7b8e01e9ac6ac3f178e3703275050b46556000b8c",
+      "bytes": 1515
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/FeatureMembership_ownedMemberFeature_SettingDelegate.java": {
+      "sha256": "ab2185d1d2c90ad412b94d5153116a8fd7cf2df69e1be942f0af7a88b1bd3d17",
+      "bytes": 1512
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/FeatureValue_value_SettingDelegate.java": {
+      "sha256": "fa82d67df3f7ec3f9a4043b7a5e233f0cee825beaf5806d1f747b1f78cb441b9",
+      "bytes": 1485
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/FramedConcernMembership_ownedConcern_SettingDelegate.java": {
+      "sha256": "974cc39a031ce55860a3f8425464faf95eb6eb657488e2ee67e158e1e647cfc1",
+      "bytes": 1539
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ObjectiveMembership_ownedObjectiveRequirement_SettingDelegate.java": {
+      "sha256": "31b4e56fc043bda53dd00227a73e76eed9bec7c62be1ea2a63bbf9ef8a0c03e4",
+      "bytes": 1558
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/OwningMembership_ownedMemberElement_SettingDelegate.java": {
+      "sha256": "15eaca3c4bf7a376fc5bd65c1ad70ae6638131c32b7cebd1619a7aed84ffe9e2",
+      "bytes": 2306
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ParameterMembership_ownedMemberParameter_SettingDelegate.java": {
+      "sha256": "d553f36b0c444e54cfa502a75d5e0d17b9171046d1374755cdf97e29d464ab02",
+      "bytes": 1310
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/RequirementConstraintMembership_ownedConstraint_SettingDelegate.java": {
+      "sha256": "764e686a4825f995b719681f6203f687834c31ea13720d91786c32fb772f9455",
+      "bytes": 1559
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/RequirementVerificationMembership_ownedRequirement_SettingDelegate.java": {
+      "sha256": "58bc06037dc11edb0f04e9ea6e933274d8bcef06fdaae5b6dc838e088a19c56e",
+      "bytes": 1579
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ResultExpressionMembership_ownedResultExpression_SettingDelegate.java": {
+      "sha256": "7c04c9484a6ffa6b208e8b90f89d24e96ec92681e13cdebf9226c5363ebec675",
+      "bytes": 1546
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/StakeholderMembership_ownedStakeholderParameter_SettingDelegate.java": {
+      "sha256": "7b16e2630bb16893ff7243e77401236f9598560d43bdc261a88261419506bede",
+      "bytes": 1542
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/StateSubactionMembership_action_SettingDelegate.java": {
+      "sha256": "30416a6996fc01fc41112362af2e42a967d4124b739ad1f7c2188de532cf6445",
+      "bytes": 1515
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/SubjectMembership_ownedSubjectParameter_SettingDelegate.java": {
+      "sha256": "3343e99ede8bf21b77f0735176880e50672b41ef0b00f90eb8e84077248e2862",
+      "bytes": 1514
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/TransitionFeatureMembership_transitionFeature_SettingDelegate.java": {
+      "sha256": "97ecbb1e42dbad4351d9eb623ca3c5941f7afac804d35a3623ce4866adccf8cf",
+      "bytes": 1522
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/VariantMembership_ownedVariantUsage_SettingDelegate.java": {
+      "sha256": "24a1685b9a1befc4a3c487b47d14058eaf2caadef0ce158991dada1e654b18d6",
+      "bytes": 1504
+    },
+    "org.omg.sysml.logic/src/main/java/org/omg/sysml/delegate/setting/ViewRenderingMembership_ownedRendering_SettingDelegate.java": {
+      "sha256": "815aed92384b529743a316e0a34c1caeab1f3c26fd8575e722c632234a7453a0",
+      "bytes": 1538
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ActorMembershipImpl.java": {
+      "sha256": "8c1a8579d19efdc8d2285ec0ebfbc7e69ce4508d764a6b4e66e7355dee5e2c3b",
+      "bytes": 4997
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ElementFilterMembershipImpl.java": {
+      "sha256": "8e28e4e42019f2350bea12cd5f33347e25154299811f3aaa2166eda6d41fa220",
+      "bytes": 4791
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/EndFeatureMembershipImpl.java": {
+      "sha256": "6bf825b761e35ff1a3302533561628485e1de1a8f63cc6a46311c0f1885e151e",
+      "bytes": 833
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/FeatureMembershipImpl.java": {
+      "sha256": "f1bb133d5c1faad194949958e1ecfc158375e6525f16beb6e8061578cd6f4296",
+      "bytes": 7888
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/FeatureValueImpl.java": {
+      "sha256": "5ed11275b3ec720eaf6dbd5bb7bac3230ffe2bbdafca707612db2416e56a3c05",
+      "bytes": 9949
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/FramedConcernMembershipImpl.java": {
+      "sha256": "6707885319fadceb5256aa31cde7e87b7d8fd30233d7de0a67d3b79c64619372",
+      "bytes": 8202
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ObjectiveMembershipImpl.java": {
+      "sha256": "4d69bf05940d097e31394cb0905c494e1e3436a68c4322f28ca30dd8b82e5e94",
+      "bytes": 5280
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/OwningMembershipImpl.java": {
+      "sha256": "2363e766d50b9f7d87822c975427eea9dd778c962b713bd00c59f424e7f190fc",
+      "bytes": 14106
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ParameterMembershipImpl.java": {
+      "sha256": "a13af7228a6386dc24df434ce1279bf1c4a1730dd3d5ea028702bc02b25dfb45",
+      "bytes": 6238
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/RequirementConstraintMembershipImpl.java": {
+      "sha256": "7b42e75ef82e9e3bd1062b4f9b5b55911828811b565d753fb3e46e3a8b397e1d",
+      "bytes": 9354
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/RequirementVerificationMembershipImpl.java": {
+      "sha256": "f7c4004fe9969609f951ab33ee3c512dfcef5d4586d0c69b2f211dd3697d0e5e",
+      "bytes": 8670
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ResultExpressionMembershipImpl.java": {
+      "sha256": "658e962749f385cab34156556b5daf0734067840736a2ee6189aa83b01770a64",
+      "bytes": 5204
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ReturnParameterMembershipImpl.java": {
+      "sha256": "1263df9ff61b6a25a78d1419523fd958a463f302a2c9fa9469c1db6bc65b0e9e",
+      "bytes": 870
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/StakeholderMembershipImpl.java": {
+      "sha256": "aff84989dc0d9226c4ff0bed01a2785e4d5365fe608a339ea36a8b65cef55a0f",
+      "bytes": 5255
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/StateSubactionMembershipImpl.java": {
+      "sha256": "2c7bd75a67a66919f8be63e15353e54d0cce500575afd945bd257efdc399947a",
+      "bytes": 6797
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/SubjectMembershipImpl.java": {
+      "sha256": "e9259d2a6c2453d4f04d228e6907cc9ab0992b85b7d711267a5a6a4690ffd393",
+      "bytes": 5039
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/TransitionFeatureMembershipImpl.java": {
+      "sha256": "3f30cd388687e220c6365d57bb326ea7132dc0e73d824a5c633beb951d1a5573",
+      "bytes": 7131
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/VariantMembershipImpl.java": {
+      "sha256": "9806f0a3aec74cf825a962e4c70752114c2f2eb70467736e5ab95bf9a2abac15",
+      "bytes": 4898
+    },
+    "org.omg.sysml.model/src/main/java/org/omg/sysml/lang/sysml/impl/ViewRenderingMembershipImpl.java": {
+      "sha256": "013190a6695d076e5c1a77cb46e1a94ea0f611dcff0816921158407bdcb02f37",
+      "bytes": 6978
+    },
+    "org.omg.sysml/model/SysML.ecore": {
+      "sha256": "22719934c65588180fc19658f8a7c891cb209458e4027bf90ddf005c80ddc17f",
+      "bytes": 629610
+    }
+  }
+}

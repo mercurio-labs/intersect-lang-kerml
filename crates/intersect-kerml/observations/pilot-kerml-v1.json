@@ -1,0 +1,495 @@
+{
+  "schema": "intersect.kerml.pilot-observations.v1",
+  "pilot_commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "status": "source_grounded_expectations_not_native_results",
+  "sources": {
+    "types": {
+      "path": "kerml/src/examples/Simple Tests/Types.kerml",
+      "bytes": 999,
+      "sha256": "842b5b8053eb80142e8e90e58d7cd5ac5df9dc1c3699ab7dff4e79f6c69198a7",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/kerml/src/examples/Simple%20Tests/Types.kerml"
+    },
+    "expressions": {
+      "path": "kerml/src/examples/Simple Tests/Expressions.kerml",
+      "bytes": 1883,
+      "sha256": "bde514f7236c6206848574ca416688c1ee34b6e12d2dc522db166b8977f8b041",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/kerml/src/examples/Simple%20Tests/Expressions.kerml"
+    }
+  },
+  "identity_policy": "Observation IDs are stable labels; capture actual graph object IDs in receipts and compare resolved target identities. Never invent or freeze runtime UUIDs.",
+  "whole_example_zero_diagnostics_asserted": false,
+  "java_execution": "not_run",
+  "observations": [
+    {
+      "id": "T01",
+      "source": "types",
+      "anchor": {
+        "text": "abstract type A specializes Base::Anything;",
+        "utf8_start": 18,
+        "utf8_end": 61
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "Types::A",
+          "class": "Type",
+          "stored": {
+            "isAbstract": true
+          }
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::A",
+          "relationship": "Specialization",
+          "reference": "general",
+          "target": "Base::Anything",
+          "target_source": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml"
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "source": "types",
+      "anchor": {
+        "text": "type all x specializes A, Base::things;",
+        "utf8_start": 64,
+        "utf8_end": 103
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "Types::x",
+          "class": "Type",
+          "stored": {
+            "isSufficient": true
+          }
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::x",
+          "relationship": "Specialization",
+          "reference": "general",
+          "targets": [
+            "Types::A",
+            "Base::things"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T03",
+      "source": "types",
+      "anchor": {
+        "text": "protected feature f : P::Sub;",
+        "utf8_start": 319,
+        "utf8_end": 348
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "Types::Super::f",
+          "class": "Feature",
+          "owning_membership_visibility": "protected"
+        },
+        {
+          "phase": "construction",
+          "object": "Types::Super::P",
+          "class": "Package",
+          "owning_membership_visibility": "private"
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::Super::f",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "Types::Super::P::Sub"
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::Super::P::Sub",
+          "relationship": "Specialization",
+          "reference": "general",
+          "target": "Types::Super"
+        }
+      ]
+    },
+    {
+      "id": "T04",
+      "source": "types",
+      "anchor": {
+        "text": "specialization Gen subtype A specializes B;",
+        "utf8_start": 389,
+        "utf8_end": 432
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "object": "Types::Gen",
+          "class": "Specialization",
+          "references": {
+            "specific": "Types::A",
+            "general": "Types::B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "T05",
+      "source": "types",
+      "anchor": {
+        "text": "conjugation c1 conjugate Conjugate1 conjugates Original;",
+        "utf8_start": 648,
+        "utf8_end": 704
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "object": "Types::c1",
+          "class": "Conjugation",
+          "references": {
+            "conjugatedType": "Types::Conjugate1",
+            "originalType": "Types::Original"
+          }
+        },
+        {
+          "phase": "linking",
+          "object": "Types::c2",
+          "class": "Conjugation",
+          "references": {
+            "conjugatedType": "Types::Conjugate2",
+            "originalType": "Types::Original"
+          }
+        }
+      ]
+    },
+    {
+      "id": "T06",
+      "source": "types",
+      "anchor": {
+        "text": "type D :> Base::Anything unions A, B;",
+        "utf8_start": 870,
+        "utf8_end": 907
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "owner": "Types::D",
+          "relationship": "Unioning",
+          "reference": "unioningType",
+          "targets": [
+            "Types::A",
+            "Types::B"
+          ]
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::E",
+          "relationship": "Intersecting",
+          "reference": "intersectingType",
+          "targets": [
+            "Types::A",
+            "Types::B"
+          ]
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::F",
+          "relationship": "Differencing",
+          "reference": "differencingType",
+          "targets": [
+            "Types::A",
+            "Types::B"
+          ]
+        },
+        {
+          "phase": "linking",
+          "owner": "Types::C",
+          "relationship": "Disjoining",
+          "reference": "disjoiningType",
+          "target": "Types::A"
+        }
+      ]
+    },
+    {
+      "id": "E01",
+      "source": "expressions",
+      "anchor": {
+        "text": "private import BaseFunctions::ToString;",
+        "utf8_start": 61,
+        "utf8_end": 100
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "Expressions",
+          "class": "MembershipImport",
+          "stored_visibility": "private"
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions",
+          "reference": "importedMembership",
+          "target_member_element": "BaseFunctions::ToString",
+          "target_class": "Function"
+        }
+      ]
+    },
+    {
+      "id": "E02",
+      "source": "expressions",
+      "anchor": {
+        "text": "aa : Boolean;",
+        "utf8_start": 158,
+        "utf8_end": 171
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "owner": "Expressions::a",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ScalarValues::Integer",
+          "target_source": "sysml.library/Kernel Libraries/Kernel Data Type Library/ScalarValues.kerml"
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::aa",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ScalarValues::Boolean",
+          "target_source": "sysml.library/Kernel Libraries/Kernel Data Type Library/ScalarValues.kerml"
+        }
+      ]
+    },
+    {
+      "id": "E03",
+      "source": "expressions",
+      "anchor": {
+        "text": "x = ToString(a * a + 3 == 4);",
+        "utf8_start": 174,
+        "utf8_end": 203
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "Expressions::x",
+          "value_class": "InvocationExpression"
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::x",
+          "relationship": "Membership",
+          "reference": "memberElement",
+          "target": "BaseFunctions::ToString"
+        },
+        {
+          "phase": "declared_signature",
+          "function": "BaseFunctions::ToString",
+          "return_type": "ScalarValues::String",
+          "does_not_assert": "x evaluates or has a concrete value"
+        }
+      ]
+    },
+    {
+      "id": "E04",
+      "source": "expressions",
+      "anchor": {
+        "text": "y = NumericalFunctions::'+'(1,2);",
+        "utf8_start": 206,
+        "utf8_end": 239
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "owner": "Expressions::y",
+          "relationship": "Membership",
+          "reference": "memberElement",
+          "target": "NumericalFunctions::'+'"
+        },
+        {
+          "phase": "declared_signature",
+          "function": "NumericalFunctions::'+'",
+          "return_type": "ScalarValues::NumericalValue",
+          "does_not_assert": "operator syntax chooses this explicit-invocation function"
+        }
+      ]
+    },
+    {
+      "id": "E05",
+      "source": "expressions",
+      "anchor": {
+        "text": "c1 = x.{in xx; xx + 1};",
+        "utf8_start": 455,
+        "utf8_end": 478
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "Expressions::c1",
+          "value_class": "CollectExpression",
+          "stored": {
+            "operator": "collect"
+          }
+        },
+        {
+          "phase": "construction",
+          "owner": "Expressions::d1",
+          "value_class": "SelectExpression",
+          "stored": {
+            "operator": "select"
+          }
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::c",
+          "relationship": "Membership",
+          "reference": "memberElement",
+          "target": "ControlFunctions::collect"
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::d",
+          "relationship": "Membership",
+          "reference": "memberElement",
+          "target": "ControlFunctions::select"
+        }
+      ]
+    },
+    {
+      "id": "E06",
+      "source": "expressions",
+      "anchor": {
+        "text": "var count : ScalarValues::Integer := 0;",
+        "utf8_start": 1599,
+        "utf8_end": 1638
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "Expressions::C::count",
+          "class": "Feature",
+          "stored": {
+            "isVariable": true
+          },
+          "value_relationship": "FeatureValue",
+          "value_stored": {
+            "isInitial": true
+          },
+          "value_class": "LiteralInteger",
+          "literal_value": 0
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::C::count",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ScalarValues::Integer"
+        }
+      ]
+    },
+    {
+      "id": "E07",
+      "source": "expressions",
+      "anchor": {
+        "text": "feature count : ScalarValues::Integer =  c#(1).count;",
+        "utf8_start": 1775,
+        "utf8_end": 1828
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "Expressions::L::count",
+          "value_class": "FeatureChainExpression",
+          "stored": {
+            "operator": "."
+          },
+          "operand_class": "IndexExpression",
+          "operand_stored": {
+            "operator": "#"
+          }
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::L::count",
+          "target": "Expressions::C::count",
+          "requires": "expression-relative member scope and index operand typing; no index evaluation asserted"
+        }
+      ]
+    },
+    {
+      "id": "E08",
+      "source": "expressions",
+      "anchor": {
+        "text": "feature l = new L();",
+        "utf8_start": 1838,
+        "utf8_end": 1858
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "Expressions::l",
+          "value_class": "ConstructorExpression"
+        },
+        {
+          "phase": "linking",
+          "owner": "Expressions::l",
+          "relationship": "Membership",
+          "reference": "memberElement",
+          "target": "Expressions::L"
+        },
+        {
+          "phase": "deferred_evaluation",
+          "does_not_assert": "a runtime instance is created merely by source model construction"
+        }
+      ]
+    }
+  ],
+  "diagnostic_review_candidates": [
+    {
+      "source": "expressions",
+      "objects": [
+        "Expressions::grp",
+        "Expressions::b"
+      ],
+      "reason": "x is valued by ToString, while these expressions reuse x in arithmetic/comparison. Exact diagnostics require actual type/validation providers; intentional-negative status is not established."
+    },
+    {
+      "source": "expressions",
+      "objects": [
+        "Expressions::z",
+        "Expressions::zz",
+        "Expressions::xx",
+        "Expressions::TotalMass"
+      ],
+      "reason": "Cyclic/recursive value paths and unset inputs prevent a blanket concrete-evaluation expectation; recursion alone is not classified as a language error."
+    }
+  ],
+  "upstream_context": [
+    {
+      "path": "org.omg.kerml.xpect.tests/src/org/omg/kerml/xpect/tests/parsing/ParsingTests_Expressions.kerml.xt",
+      "observation": "Near-copy carries XPECT noErrors, but changes import visibility and C.count typing. It is not an exact-file diagnostic baseline."
+    },
+    {
+      "path": "org.omg.sysml.logic/src/test/java/org/omg/sysml/logic/ExpressionUtilTest.java",
+      "observation": "getArgumentOfReturnsValuedRedefinitionsForBothInstantiationKinds and incomplete-instantiation control establish argument derivation prerequisites, not numeric results for this example."
+    },
+    {
+      "path": "org.omg.kerml.xpect.tests/src/org/omg/kerml/xpect/tests/testsuite/MemberNameTests_NamedMemberFromConjugation.kerml.xt",
+      "observation": "Explicit linkedName assertions bind B::f to original A.f through conjugation, supporting identity-preserving conjugation expectations."
+    }
+  ]
+}

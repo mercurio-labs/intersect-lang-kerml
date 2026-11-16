@@ -1,0 +1,8 @@
+rcore 1;
+package intersect.kerml.membershipLabel version "1";
+
+// OwningMembership label projection after the exact declared dependency has
+// been read. Related target selection and null admission use checked read edges.
+fn membership_label(selected_label: Option<String>) -> Option<String> {
+    selected_label
+}

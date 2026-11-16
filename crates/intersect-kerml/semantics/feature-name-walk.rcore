@@ -1,0 +1,44 @@
+rcore 1;
+package intersect.kerml.featureNameWalk version "1";
+import model "urn:intersect:kerml:feature-name-observations" as n;
+import package intersect.kerml.featureNaming version "1" as names;
+
+fn effective_label(feature:n.FeatureObservation, short:Bool) -> Result<Option<String>,String> =
+  label(feature, short, []);
+
+fn label(feature:n.FeatureObservation, short:Bool, seen:Sequence<String>) -> Result<Option<String>,String> {
+  let name = feature.declaredName;
+  let short_name = feature.declaredShortName;
+  if names.has_declared_label(name, short_name) {
+    Ok(names.declared_label(name, short_name, short))
+  } else {
+    if size(seen) >= 64 {
+      Err("Feature naming chain depth exceeded")
+    } else {
+      let identity = feature.identity;
+      if contains(seen, identity) { Ok(None) } else {
+        let visited = concat(seen, [identity]);
+        let target = match first_authored(feature.relationships, 0) {
+          Some(target) => Some(target),
+          None => feature.computed
+        };
+        match target {
+          None => Ok(None),
+          Some(target) => if contains(visited, target.identity) {
+            Ok(None)
+          } else { label(target, short, visited) }
+        }
+      }
+    }
+  }
+}
+fn first_authored(relationships:Sequence<n.RelationshipObservation>, index:Int64) -> Option<n.FeatureObservation> =
+  match at(relationships, index) {
+    None => None,
+    Some(relationship) => if relationship.isRedefinition {
+      match relationship.target {
+        Some(target) => Some(target),
+        None => first_authored(relationships, index + 1)
+      }
+    } else { first_authored(relationships, index + 1) }
+  };

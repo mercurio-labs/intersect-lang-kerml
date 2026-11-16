@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin==1.13.3"]
+build-backend = "maturin"
+
+[project]
+name = "intersect-kerml"
+version = "0.1.0"
+description = "Native KerML and SysML project loading, inspection and source authoring"
+requires-python = ">=3.11"
+license = "MIT AND EPL-2.0"
+
+[tool.maturin]
+manifest-path = "../crates/intersect-kerml-python/Cargo.toml"
+python-source = "."
+module-name = "intersect_kerml._native"
+include = ["intersect_kerml/**/*.py", "intersect_kerml/**/*.pyi", "intersect_kerml/py.typed", "intersect_kerml/resources/*", "intersect_kerml/bindings.json"]

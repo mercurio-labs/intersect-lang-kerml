@@ -1,0 +1,328 @@
+rcore 1;
+package intersect.sysml.construction version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+import package intersect.kerml.implicitGeneralizations version "1" as implicit;
+import package intersect.kerml.nameResolution version "1" as resolution;
+
+// SysML values the textual notation leaves implicit, layered on the KerML
+// construction defaults (kerml-construction.rcore). Each rule follows the
+// Pilot's SysML parser post-processors (org.omg.sysml.xtext.postprocessing)
+// and adapters (org.omg.sysml.adapter), which the SysML metamodel
+// constraints (SysML.ecore.rcore) state as `isReference = not isComposite`,
+// `isVariation implies isAbstract` and `EnumerationDefinition: isVariation`.
+// A default fills a feature only when the parsed model leaves it unassigned:
+// `ref` assigns isComposite = false through the isReference setting.
+
+bind default k.PortConjugation.originalPortDefinition = original_port_definition;
+bind default k.Feature.isComposite = usage_composite;
+bind default k.Feature.isConstant = constant_end;
+bind default k.Type.isAbstract = variation_abstract;
+bind default k.Definition.isVariation = enumeration_variation;
+bind default k.Element.declaredName = payload_name;
+bind default k.Feature.isPortion = portion_usage;
+
+// A usage declared with a portion kind (`timeslice part B1;`, `snapshot ...`)
+// is a portion, as the Pilot sets isPortion with portionKind (the metamodel
+// constraint `portionKind <> null implies isPortion`).
+// Any other feature stays not a portion: an empty result would leave the
+// required attribute without a value.
+fn portion_usage(f:k.Feature)->Sequence<Bool> =
+  match f {
+    u: k.OccurrenceUsage => match u.portionKind {
+      Some(_) => Sequence([true]),
+      None => Sequence([false])
+    },
+    _ => Sequence([false])
+  };
+
+// Every port definition owns an implicit conjugated port definition `~P`
+// (the grammar's ConjugatedPortDefinitionMember), which owns an empty
+// PortConjugation. Its original port definition is the port definition that
+// owns the conjugated one; its conjugated type, the owning conjugated port
+// definition, comes from the KerML Conjugation default.
+fn original_port_definition(r:k.PortConjugation)->Sequence<k.PortDefinition> =
+  match r.owningRelatedElement {
+    Some(c) => match ancestors::<k.PortDefinition>(c).first() {
+      Some(p) => Sequence([p]),
+      None => []
+    },
+    None => []
+  };
+
+// UsageParserPostProcessor: a usage that declares neither `ref` nor a
+// composite keyword is composite unless its metaclass is referential
+// (AttributeUsage, BindingConnectorAsUsage, EventOccurrenceUsage,
+// ExhibitStateUsage, IncludeUseCaseUsage, PerformActionUsage,
+// ReferenceUsage, SuccessionAsUsage, and their specializations). Any usage
+// that is directed (parameters get their direction from their membership
+// first), an end, without an expected featuring type, or featured by an
+// attribute definition or usage is referential; so is a port usage not
+// featured by a port definition or usage (PortUsageParserPostProcessor).
+// Other features keep the metamodel default.
+fn usage_composite(f:k.Feature)->Sequence<Bool> =
+  match f {
+    u: k.Usage => Sequence([composite_kind(u) && !referential(u)]),
+    _ => Sequence([false])
+  };
+
+fn composite_kind(u:k.Usage)->Bool =
+  match u {
+    _: k.AttributeUsage => false,
+    _: k.BindingConnectorAsUsage => false,
+    _: k.EventOccurrenceUsage => false,
+    _: k.ExhibitStateUsage => false,
+    _: k.IncludeUseCaseUsage => false,
+    _: k.PerformActionUsage => false,
+    _: k.ReferenceUsage => false,
+    _: k.SuccessionAsUsage => false,
+    _ => true
+  };
+
+fn referential(u:k.Usage)->Bool =
+  if directed(u) || end_usage(u) { true } else {
+    match featuring_type(u) {
+      Some(t) => attribute_type(t) || foreign_port(u, t),
+      None => true
+    }
+  };
+
+fn directed(u:k.Usage)->Bool =
+  match u.direction {
+    Some(_) => true,
+    None => match container::<k.ParameterMembership>(u) { Some(_) => true, None => false }
+  };
+
+fn attribute_type(t:k.Type)->Bool =
+  match t {
+    _: k.AttributeDefinition => true,
+    _: k.AttributeUsage => true,
+    _ => false
+  };
+
+fn foreign_port(u:k.Usage, t:k.Type)->Bool =
+  match u {
+    _: k.PortUsage => match t {
+      _: k.PortDefinition => false,
+      _: k.PortUsage => false,
+      _ => true
+    },
+    _ => false
+  };
+
+// The Pilot's UsageUtil.getExpectedFeaturingTypeOf: the type owning the
+// usage's feature membership, or, for a variant of a variation usage, that
+// usage's expected featuring type. Containment reads only.
+fn featuring_type(u:k.Usage)->Option<k.Type> =
+  match container::<k.FeatureMembership>(u) {
+    Some(m) => container::<k.Type>(m),
+    None => match container::<k.Element>(u) {
+      Some(m) => match container::<k.Usage>(m) {
+        Some(v) => if v.isVariation { featuring_type(v) } else { None },
+        None => None
+      },
+      None => None
+    }
+  };
+
+// The owning type of a feature owned through a feature membership.
+fn owning_type(f:k.Feature)->Option<k.Type> =
+  match container::<k.FeatureMembership>(f) {
+    Some(m) => container::<k.Type>(m),
+    None => None
+  };
+
+// An end feature: declared `end`, or owned through an EndFeatureMembership
+// (the KerML default sets isEnd on those after this rule reads it).
+fn end_usage(u:k.Usage)->Bool =
+  u.isEnd || match container::<k.EndFeatureMembership>(u) { Some(_) => true, None => false };
+
+// UsageAdapter.doTransform: an end usage that may vary in time is constant.
+// It may vary in time (Usage::mayTimeVary) when its owning type specializes
+// Occurrences::Occurrence and it is not a portion, not a self link or happens
+// link, and not a composite action.
+fn constant_end(f:k.Feature)->Sequence<Bool> =
+  match f {
+    u: k.Usage => Sequence([end_usage(u) && may_time_vary(u)]),
+    _ => Sequence([false])
+  };
+
+fn may_time_vary(u:k.Usage)->Bool =
+  match owning_type(u) {
+    Some(t) => if u.isPortion || !specializes(t, "Occurrences::Occurrence") { false } else {
+      let own = supertypes_of(u);
+      !(reaches(own, u, "Links::SelfLink")
+        || reaches(own, u, "Occurrences::HappensLink")
+        || (u.isComposite && reaches(own, u, "Actions::Action")))
+    },
+    None => false
+  };
+
+fn specializes(t:k.Type, name:String)->Bool = reaches(supertypes_of(t), t, name);
+
+fn reaches(types:Sequence<k.Type>, r:k.Type, name:String)->Bool =
+  resolution.library(r, name).selectByKind::<k.Type>()
+    .exists(|target| types.exists(|g| g == target));
+
+// The type and everything it specializes: its own generals, its metaclass's
+// library default (the Pilot's implicit generalization, which the metamodel's
+// `specializesFromLibrary` constraints require even with explicit generals:
+// `connection : MatesWith` is still one of `Connections::connections`), a
+// binary association's binary default, and a feature chain's last chaining
+// feature.
+fn supertypes_of(t:k.Type)->Sequence<k.Type> = closure(Sequence([t]), no_types(t), 0);
+
+fn closure(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, depth:Int64)->Sequence<k.Type> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| generals_of(g)).distinct()
+      .reject(|g| known.contains(g)));
+    closure(next, known, depth + 1)
+  };
+
+fn generals_of(t:k.Type)->Sequence<k.Type> =
+  resolution.naming_generals(t)
+    .concat(resolution.library(t, implicit.library_default(t)).selectByKind::<k.Type>()
+      .reject(|g| g == t))
+    .concat(resolution.binary_library(t).selectByKind::<k.Type>())
+    .concat(last_chained(t));
+
+fn last_chained(t:k.Type)->Sequence<k.Type> =
+  match contents::<k.FeatureChaining>(t).last() {
+    Some(c) => Sequence([c.chainingFeature]).selectByKind::<k.Type>(),
+    None => []
+  };
+
+fn no_types(t:k.Type)->Sequence<k.Type> = [];
+
+// DefinitionParserPostProcessor and UsageParserPostProcessor: a variation is
+// abstract. An enumeration definition is a variation
+// (EnumerationDefinitionImpl initializes isVariation to true).
+fn variation_abstract(t:k.Type)->Sequence<Bool> =
+  match t {
+    _: k.EnumerationDefinition => Sequence([true]),
+    d: k.Definition => Sequence([d.isVariation]),
+    f: k.FlowUsage => Sequence([f.isVariation || abstract_message(f)]),
+    u: k.Usage => Sequence([u.isVariation]),
+    _ => Sequence([false])
+  };
+
+// FlowUsageAdapter.makeMessageAbstract: a message (a flow usage that owns no
+// flow end; `message : F from p to p` names message events, not ends) that
+// relates fewer than two features is abstract.
+fn abstract_message(f:k.FlowUsage)->Bool =
+  Sequence(contents::<k.FeatureMembership>(f).flatMap(|m| contents::<k.Feature>(m))
+    .selectByKind::<k.FlowEnd>()).isEmpty()
+  && Sequence(contents::<k.EndFeatureMembership>(f)).size() < 2;
+
+fn enumeration_variation(d:k.Definition)->Sequence<Bool> =
+  match d {
+    _: k.EnumerationDefinition => Sequence([true]),
+    _ => Sequence([false])
+  };
+
+// ReferenceUsageAdapter: a transition's payload parameter (its second
+// parameter) is declared with the name of its accepter's payload parameter,
+// so `transition t first s accept p : T then d;` has a member `p`. Name
+// resolution derives the same name (`transition_payload`) while linking,
+// before this default is stored.
+fn payload_name(e:k.Element)->Sequence<String> =
+  match e {
+    u: k.ReferenceUsage => match container::<k.ParameterMembership>(u) {
+      Some(m) => match container::<k.TransitionUsage>(m) {
+        Some(t) => match contents::<k.ParameterMembership>(t).at(1) {
+          Some(second) => if second == m { accepter_payload_name(t) } else { [] },
+          None => []
+        },
+        None => []
+      },
+      None => []
+    },
+    _ => []
+  };
+
+fn accepter_payload_name(t:k.TransitionUsage)->Sequence<String> =
+  match resolution.trigger_payload(t).first() {
+    Some(p) => match p.declaredName { Some(n) => Sequence([n]), None => [] },
+    None => []
+  };
+
+// Implicit elements, as the Pilot adds them (addAdditionalMembers).
+//
+// UsageAdapter and TypeUtil.addMultiplicityTo: a usage without an owned
+// multiplicity gets an empty Multiplicity in an OwningMembership when it is
+// an end, or, for attribute, item (other than connection) and port usages,
+// when it has an owning type
+// and none of its owned subsettings (including redefinitions and reference
+// subsettings) targets a feature that itself has an owning type. A target
+// written as a feature chain is the chain's last chaining feature
+// (FeatureUtil.getBasicFeatureOf).
+bind implicit k.Usage.ownedRelationship = usage_multiplicity;
+// TransitionUsageAdapter: a transition with a succession and no transition
+// link feature (an owned feature membership that is neither a parameter nor
+// a transition feature membership) owns an implicit ReferenceUsage for it.
+bind implicit k.TransitionUsage.ownedRelationship = transition_link;
+
+fn usage_multiplicity(u:k.Usage)->Sequence<k.Relationship> =
+  if owns_multiplicity(u) || !adds_multiplicity(u) { no_relationships(u) } else {
+    Sequence([multiplicity_membership(u)])
+  };
+
+fn owns_multiplicity(u:k.Usage)->Bool =
+  contents::<k.OwningMembership>(u).exists(|m| contents::<k.Multiplicity>(m).notEmpty());
+
+fn adds_multiplicity(u:k.Usage)->Bool =
+  if end_usage(u) { true } else {
+    match u {
+      _: k.AttributeUsage => default_multiplicity(u),
+      _: k.ConnectionUsage => false,
+      _: k.ItemUsage => default_multiplicity(u),
+      _: k.PortUsage => default_multiplicity(u),
+      _ => false
+    }
+  };
+
+fn default_multiplicity(u:k.Usage)->Bool =
+  match owning_type(u) {
+    Some(_) => !contents::<k.Subsetting>(u)
+      .exists(|s| subsetted_basic(s).exists(|f| owned_by_type(f))),
+    None => false
+  };
+
+fn owned_by_type(f:k.Feature)->Bool =
+  match owning_type(f) { Some(_) => true, None => false };
+
+fn subsetted_basic(s:k.Subsetting)->Sequence<k.Feature> =
+  match contents::<k.Feature>(s).last() {
+    Some(chain) => match contents::<k.FeatureChaining>(chain).last() {
+      Some(c) => Sequence([c.chainingFeature]),
+      None => Sequence([chain])
+    },
+    None => match s {
+      r: k.Redefinition => Sequence([r.redefinedFeature]),
+      x: k.ReferenceSubsetting => Sequence([x.referencedFeature]),
+      _ => Sequence([s.subsettedFeature])
+    }
+  };
+
+fn multiplicity_membership(u:k.Usage)->k.Relationship =
+  new k.OwningMembership { ownedRelatedElement: [new k.Multiplicity { }] };
+
+fn transition_link(t:k.TransitionUsage)->Sequence<k.Relationship> =
+  if has_succession(t) && !has_link(t) { Sequence([link_membership(t)]) } else {
+    no_relationships(t)
+  };
+
+fn has_succession(t:k.TransitionUsage)->Bool =
+  contents::<k.OwningMembership>(t).exists(|m| contents::<k.Succession>(m).notEmpty());
+
+fn has_link(t:k.TransitionUsage)->Bool =
+  contents::<k.FeatureMembership>(t).exists(|m| match m {
+    _: k.TransitionFeatureMembership => false,
+    _: k.ParameterMembership => false,
+    _ => true
+  });
+
+fn link_membership(t:k.TransitionUsage)->k.Relationship =
+  new k.FeatureMembership { ownedRelatedElement: [new k.ReferenceUsage { }] };
+
+fn no_relationships(e:k.Element)->Sequence<k.Relationship> = [];

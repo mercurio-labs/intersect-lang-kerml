@@ -1,0 +1,96 @@
+[
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::sin",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 sine may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::cos",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 cosine may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::tan",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 tangent may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::cot",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust reciprocal tangent may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::arcsin",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 arcsine may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::arccos",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 arccosine may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::arctan",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust f64 arctangent may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::deg",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust degree conversion may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "extended",
+    "function": "TrigFunctions::rad",
+    "max_real_ulp": 1,
+    "reason": "Plan M4.2: Java Math and Rust radian conversion may differ by one finite ulp; other differences remain failures."
+  },
+  {
+    "mode": "model_level",
+    "sites": [
+      [
+        "kerml/src/examples/Simple Tests/Expressions.kerml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+      ]
+    ],
+    "exception_messages": {
+      "pilot": "java.lang.StackOverflowError",
+      "intersect": "evaluation depth limit exceeded: 256"
+    },
+    "reason": "Plan M1.2/M4.1 require bounded recursion. These recursive corpus sites exhaust the native depth limit instead of the Pilot JVM stack. Only these exact exception messages are allowed; changed values, evaluability, other errors or missing sites still fail."
+  },
+  {
+    "mode": "extended",
+    "sites": [
+      [
+        "kerml/src/examples/Simple Tests/Expressions.kerml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+      ],
+      [
+        "kerml/src/examples/Mass Roll-up Example/MassRollup_1.kerml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+      ],
+      [
+        "kerml/src/examples/Mass Roll-up Example/MassRollup_2.kerml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+      ],
+      [
+        "sysml/src/examples/Mass Roll-up Example/MassRollup.sysml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+      ]
+    ],
+    "exception_messages": {
+      "pilot": "java.lang.StackOverflowError",
+      "intersect": "evaluation depth limit exceeded: 256"
+    },
+    "reason": "Plan M1.2/M4.1 require bounded recursion. These recursive corpus sites exhaust the native depth limit instead of the Pilot JVM stack. Only these exact exception messages are allowed; changed values, evaluability, other errors or missing sites still fail."
+  }
+]

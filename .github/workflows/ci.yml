@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GH_TOKEN: ${{ secrets.INTERSECT_READ_TOKEN || secrets.INTERSECT_CORE_TOKEN }}
+  CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+  RUSTUP_TOOLCHAIN: '1.99.1'
+  INTERSECT_TEST_REPORTS: ${{ github.workspace }}/target/test-reports
+
+jobs:
+  verify:
+    name: Native and WASM (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The checkout token cannot read both private upstream repositories.
+          persist-credentials: false
+      # The organization read token needs access to intersect-model and
+      # intersect-text. A legacy core token works only with both permissions.
+      - name: Model and Text repository access
+        run: gh auth setup-git
+      - name: Short Windows Cargo cache paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "CARGO_HOME=C:\c" >> $env:GITHUB_ENV
+          git config --global core.longpaths true
+      - name: Install Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy --target wasm32-unknown-unknown
+      - name: Formatting
+        run: python -B tools/format_workspace.py --check
+      - name: Lint
+        run: cargo +1.99.1 clippy --workspace --all-targets --locked -- -D warnings
+      - name: Quick tier
+        run: python -B tools/test_report.py run -- --profile test-fast -p intersect-kerml-ide -p intersect-kerml -p intersect-kerml-eval -p intersect-kerml-web -p intersect-cli -p intersect-kpar -p intersect-kpar-host --lib --bins --tests --locked
+      - name: WASM build
+        run: cargo +1.99.1 build --workspace --lib --target wasm32-unknown-unknown --locked

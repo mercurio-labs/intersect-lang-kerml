@@ -1,0 +1,37 @@
+[
+  {
+    "class": "FeatureChainExpression",
+    "feature": "operator",
+    "reason": "The Pilot computes operator and does not store it; Intersect stores the construction default."
+  },
+  {
+    "class": "IndexExpression",
+    "feature": "operator",
+    "reason": "The Pilot computes operator and does not store it; Intersect stores the construction default."
+  },
+  {
+    "class": "SelectExpression",
+    "feature": "operator",
+    "reason": "The Pilot computes operator and does not store it; Intersect stores the construction default."
+  },
+  {
+    "class": "CollectExpression",
+    "feature": "operator",
+    "reason": "The Pilot computes operator and does not store it; Intersect stores the construction default."
+  },
+  {
+    "class": "Redefinition",
+    "feature": "redefinedFeature",
+    "objects": [
+      [
+        "sysml.library/Systems Library/Items.sysml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.16/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.5/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0"
+      ],
+      [
+        "sysml.library/Systems Library/Items.sysml",
+        "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.16/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.6/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0"
+      ]
+    ],
+    "reason": "Pending SysML implicit subsettings (2026-11-07). In Items::Item::boundingShapes, `ref item face :>> self` (in `private item :>> faces`) and `ref item edge :>> self` (in `private item :>> edges`): the Pilot resolves Items::Item::self, because a composite item usage nested in an item also subsets Items::Item::subitems (the ImplicitGeneralizationMap 'subitem' entry), whose Item::self redefines Object::self. Intersect resolves Objects::Object::self through the redefined StructuredSpaceObject::faces/edges. The name resolution does not add the subitem kind: it depends on isComposite, which the construction does not yet set for these item usages (the parallel construction work on isComposite and implicit elements). Remove this entry when both exist."
+  }
+]

@@ -1,0 +1,8 @@
+rcore 1;
+package intersect.kerml.baseName version "1";
+
+// Element.effectiveName base branch. Receiver and operation selection stay
+// source-checked by the language adapter; specialized algorithms are separate.
+fn base_name(declared_name: Option<String>) -> Option<String> {
+    declared_name
+}

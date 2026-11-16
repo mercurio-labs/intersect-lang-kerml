@@ -1,0 +1,1834 @@
+rcore 1;
+package intersect.kerml.nameResolution version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+import package intersect.kerml.implicitGeneralizations version "1" as implicit;
+
+// KerML name resolution over physical containment and stored relationships.
+//
+// A name is resolved from the namespaces above the referencing element's owner,
+// nearest first, and then among the root namespaces of every loaded resource.
+// In each namespace, owned memberships are searched first, then imports
+// (membership imports, then the visible members of imported namespaces), then
+// members inherited through the namespace's own specializations and
+// conjugation.
+// Further segments of a qualified name are resolved among the visible members
+// of the previous segment's elements. A feature chain segment after the first
+// is resolved among the visible members of the previous chaining feature.
+//
+// Inherited members include those of the Pilot's implicit library
+// generalizations, and a member that another inherited member redefines is
+// hidden. Quoted names match their unquoted declarations.
+//
+// Visibility is applied through namespace imports only (`exported`): an
+// imported namespace exposes its public members and public imports. Private
+// members of generals are still inherited, and qualified names see private
+// members.
+//
+// Recursive imports (`::**`) search the public owned namespaces of their
+// target; filtered imports (`::*[cond]`) import through their filter
+// package without evaluating the filter conditions (`through_import`).
+//
+// Not covered yet: the rest of visibility, import filter conditions (every
+// member passes), escapes inside quoted names and quoted names containing
+// "::".
+
+bind scope k.FeatureTyping.type = typing_type;
+bind scope k.Subclassification.superclassifier = superclassifier;
+bind scope k.Subsetting.subsettedFeature = subsetted_feature;
+bind scope k.Redefinition.redefinedFeature = redefined_feature;
+bind scope k.FeatureChaining.chainingFeature = chaining_feature;
+bind scope k.MembershipImport.importedMembership = imported_membership;
+bind scope k.NamespaceImport.importedNamespace = imported_namespace;
+bind scope k.Membership.memberElement = member_element;
+bind scope k.Annotation.annotatedElement = annotated_element;
+bind scope k.ReferenceSubsetting.referencedFeature = referenced_feature;
+bind scope k.Subsetting.subsettingFeature = subsetting_feature;
+bind scope k.FeatureInverting.invertingFeature = inverting_feature;
+bind scope k.Subclassification.subclassifier = subclassifier;
+bind scope k.Intersecting.intersectingType = intersecting_type;
+bind scope k.Unioning.unioningType = unioning_type;
+bind scope k.Disjoining.disjoiningType = disjoining_type;
+bind scope k.Differencing.differencingType = differencing_type;
+bind scope k.Specialization.general = general_type;
+bind scope k.Specialization.specific = specific_type;
+bind scope k.Conjugation.originalType = original_type;
+bind scope k.Conjugation.conjugatedType = conjugated_type;
+bind scope k.TypeFeaturing.featuringType = featuring_type;
+bind scope k.TypeFeaturing.featureOfType = feature_of_type;
+bind scope k.Redefinition.redefiningFeature = redefining_feature;
+bind scope k.FeatureTyping.typedFeature = typed_feature;
+bind scope k.FeatureInverting.featureInverted = feature_inverted;
+bind scope k.Dependency.client = dependency_client;
+bind scope k.Dependency.supplier = dependency_supplier;
+
+fn typing_type(r:k.FeatureTyping, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+
+// A plain specialization or conjugation written as a relationship
+// (`specialization Gen subtype A specializes B;`, `conjugation c conjugate
+// C conjugates O;`, `type T specializes U`) names its ends like any type.
+fn general_type(r:k.Specialization, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn specific_type(r:k.Specialization, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn original_type(r:k.Conjugation, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn conjugated_type(r:k.Conjugation, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+
+fn superclassifier(r:k.Subclassification, name:String)->Sequence<k.Classifier> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Classifier>());
+
+fn subsetted_feature(r:k.Subsetting, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+
+// A redefined feature is inherited: an unqualified name is resolved first
+// among the inherited members of the type that owns the redefining feature,
+// including those of its library default (a metaclass's
+// `Metaobjects::Metaobject::annotatedElement`).
+// The redefining feature itself is never a candidate: in
+// `feature x redefines x` the nearest `x` is the feature being declared.
+//
+// Otherwise the name is resolved like any other, except that among the
+// owned members of the type that owns the redefining feature only declared
+// names are matched: an unnamed sibling's effective name is its own
+// redefinition's target, so matching it could make two redefinitions that
+// both fall back here depend on each other. Further out, effective names are
+// matched as in the Pilot: in `item :>> e1 { attribute :>> length = ...; }`
+// of `Rectangle`, `length` names Rectangle's own `attribute :>> length`.
+fn redefined_feature(r:k.Redefinition, name:String)->Sequence<k.Feature> {
+  let inherited_first = inherited_redefinable(r, name);
+  let found = if inherited_first.notEmpty() { inherited_first } else {
+    resolve_from(r, name, redefining(r), redefining_owner(r))
+  };
+  found.flatMap(|m| elements_of(m).selectByKind::<k.Feature>())
+}
+
+fn redefining(r:k.Redefinition)->Sequence<k.Element> =
+  match ancestors::<k.Feature>(r).first() {
+    Some(f) => Sequence([f]).selectByKind::<k.Element>(),
+    None => []
+  };
+
+fn redefining_owner(r:k.Redefinition)->Sequence<k.Namespace> =
+  match ancestors::<k.Feature>(r).first() {
+    Some(f) => match ancestors::<k.Type>(f).first() {
+      Some(t) => Sequence([t]).selectByKind::<k.Namespace>(),
+      None => no_namespaces()
+    },
+    None => no_namespaces()
+  };
+
+// A named argument of an invocation (`tradeStudyObjective(selectedAlternative
+// = a)`) redefines a feature of the invoked type or feature, as the Pilot
+// resolves it; it is searched before the invocation's other generals.
+fn inherited_redefinable(r:k.Redefinition, name:String)->Sequence<k.Membership> =
+  if name.split("::").size() == 1 {
+    match ancestors::<k.Feature>(r).first() {
+      Some(f) => match ancestors::<k.Type>(f).first() {
+        Some(t) => {
+          let invoked = invoked_members(t, name);
+          if invoked.notEmpty() { invoked } else {
+            let found = inherited(t, name, []);
+            if found.notEmpty() { found } else { library_visible(t, name, []) }
+          }
+        },
+        None => []
+      },
+      None => []
+    }
+  } else { [] };
+
+fn invoked_members(t:k.Type, name:String)->Sequence<k.Membership> =
+  match t {
+    _: k.ConstructorExpression => no_memberships(),
+    e: k.InvocationExpression => referenced_members(e).flatMap(|g| visible_or_library(g, name)),
+    _ => no_memberships()
+  };
+
+fn no_memberships()->Sequence<k.Membership> = [];
+
+fn imported_membership(r:k.MembershipImport, name:String)->Sequence<k.Membership> =
+  resolve_import(r, name);
+
+fn imported_namespace(r:k.NamespaceImport, name:String)->Sequence<k.Namespace> =
+  resolve_import(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Namespace>());
+
+// An alias, feature reference or instantiated type may name any element; the
+// grammar's cross-reference type is checked by the linker.
+fn member_element(r:k.Membership, name:String)->Sequence<k.Element> =
+  match ancestors::<k.Namespace>(r).first() {
+    Some(owner) => match owner {
+      // `e.f`: f is a member of what the first operand e refers to.
+      chain: k.FeatureChainExpression => chain_members(chain, name).flatMap(|m| elements_of(m)),
+      // SysML: `assign x.f := v` names f among the members of what the
+      // target x refers to (the Pilot's relative namespace of an
+      // assignment); without a target (`assign f := v`), like any member.
+      a: k.AssignmentActionUsage => {
+        let target = assignment_target(a);
+        if target.isEmpty() { resolve_member(r, name).flatMap(|m| elements_of(m)) } else {
+          target.flatMap(|t| visible_or_library(t, name)).flatMap(|m| elements_of(m))
+        }
+      },
+      _ => resolve_member(r, name).flatMap(|m| elements_of(m))
+    },
+    None => []
+  };
+
+// What the target expression of an assignment (the value of its first
+// parameter, `assign x.f := v`) refers to.
+fn assignment_target(a:k.AssignmentActionUsage)->Sequence<k.Namespace> =
+  match contents::<k.ParameterMembership>(a).first() {
+    Some(p) => contents::<k.Feature>(p).flatMap(|f| contents::<k.FeatureValue>(f))
+      .flatMap(|v| contents::<k.Expression>(v))
+      .flatMap(|e| referent_of(e)),
+    None => []
+  };
+
+fn chain_members(chain:k.FeatureChainExpression, name:String)->Sequence<k.Membership> =
+  first_operand(chain).flatMap(|e| referent_of(e)).flatMap(|f| visible_or_library(f, name));
+
+// The parsed operands of an operator expression are input parameters whose
+// feature values own the operand expressions.
+fn first_operand(e:k.OperatorExpression)->Sequence<k.Expression> =
+  match contents::<k.ParameterMembership>(e).first() {
+    Some(p) => contents::<k.Feature>(p).flatMap(|f| contents::<k.FeatureValue>(f))
+      .flatMap(|v| contents::<k.Expression>(v)),
+    None => []
+  };
+
+// The feature an expression refers to: a feature reference's referent, or the
+// last member of a feature chain.
+// A cast (`x as T`) refers to its result, a feature typed by T.
+// An index (`x#(i)`) refers to what its sequence operand refers to: its
+// result specializes that operand's result, so `edges#(i).vertices` names a
+// member of what `edges` names.
+fn referent_of(e:k.Expression)->Sequence<k.Namespace> =
+  match e {
+    x: k.FeatureReferenceExpression => referenced_members(x),
+    x: k.FeatureChainExpression => referenced_members(x),
+    x: k.IndexExpression => first_operand(x).flatMap(|o| referent_of(o)),
+    x: k.OperatorExpression => contents::<k.ReturnParameterMembership>(x)
+      .flatMap(|m| contents::<k.Feature>(m))
+      .selectByKind::<k.Namespace>(),
+    // An invocation (`A().y`) refers to its result: for a behavior or
+    // other non-function type, the Pilot types the result by the invoked
+    // type (`addResultTyping`); for a function, the result redefines the
+    // function's result parameter.
+    x: k.InvocationExpression => referenced_members(x).flatMap(|t| invocation_result(t)),
+    // A constructor (`new A().g`) refers to its result, typed by A
+    // (`constructed_type`).
+    x: k.ConstructorExpression => referenced_members(x),
+    _ => []
+  };
+
+fn invocation_result(t:k.Namespace)->Sequence<k.Namespace> =
+  match t {
+    f: k.Function => result_parameter(f, 0).selectByKind::<k.Namespace>(),
+    e: k.Expression => result_parameter(e, 0).selectByKind::<k.Namespace>(),
+    _ => Sequence([t])
+  };
+
+fn referenced_members(e:k.Expression)->Sequence<k.Namespace> =
+  contents::<k.Membership>(e)
+    .reject(|m| oclIsKindOf::<k.OwningMembership>(m))
+    .flatMap(|m| elements_of(m).selectByKind::<k.Namespace>());
+fn annotated_element(r:k.Annotation, name:String)->Sequence<k.Element> =
+  resolve(r, name).flatMap(|m| elements_of(m));
+fn referenced_feature(r:k.ReferenceSubsetting, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn subsetting_feature(r:k.Subsetting, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn inverting_feature(r:k.FeatureInverting, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+// The other ends of featurings, redefinitions, typings and inversions
+// written as relationships (`featuring of f featured by T`, `redefinition
+// redefining a redefines b`), and both ends of a dependency, which may be any
+// element (`dependency from a to b`), resolve like any other name.
+fn featuring_type(r:k.TypeFeaturing, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn feature_of_type(r:k.TypeFeaturing, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn redefining_feature(r:k.Redefinition, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn typed_feature(r:k.FeatureTyping, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn feature_inverted(r:k.FeatureInverting, name:String)->Sequence<k.Feature> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>());
+fn dependency_client(r:k.Dependency, name:String)->Sequence<k.Element> =
+  resolve(r, name).flatMap(|m| elements_of(m));
+fn dependency_supplier(r:k.Dependency, name:String)->Sequence<k.Element> =
+  resolve(r, name).flatMap(|m| elements_of(m));
+fn subclassifier(r:k.Subclassification, name:String)->Sequence<k.Classifier> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Classifier>());
+fn intersecting_type(r:k.Intersecting, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn unioning_type(r:k.Unioning, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn disjoining_type(r:k.Disjoining, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+fn differencing_type(r:k.Differencing, name:String)->Sequence<k.Type> =
+  resolve(r, name).flatMap(|m| elements_of(m).selectByKind::<k.Type>());
+
+// The first chaining feature is resolved like any name; each later one among
+// the visible members of the chaining feature before it.
+// A chain written after the dot of a feature chain expression
+// (`fn.samples.domainValue`, owned by the expression through a membership)
+// starts among the members of what the first operand refers to, as `e.f`
+// does (`member_element`).
+fn chaining_feature(r:k.FeatureChaining, name:String)->Sequence<k.Feature> =
+  match ancestors::<k.Feature>(r).first() {
+    Some(owner) => match previous_chaining(contents::<k.FeatureChaining>(owner), r, 0) {
+      // The chain itself is not a general of its previous feature here:
+      // in `ref p : Person :> p.asPresident`, p's subsetting is this chain,
+      // whose members would be those of `asPresident` being resolved (the
+      // Pilot skips the specialization it is resolving).
+      Some(previous) => visible_except(previous.chainingFeature, name, Sequence([owner]).selectByKind::<k.Namespace>())
+        .flatMap(|m| elements_of(m).selectByKind::<k.Feature>()),
+      None => match chain_expression_of(owner) {
+        Some(chain) => chain_members(chain, name).flatMap(|m| elements_of(m).selectByKind::<k.Feature>()),
+        None => {
+          // SysML: `assign x.f.g := v` whose target `x` is parsed apart
+          // from the chain `f.g`: f is a member of what x refers to, as
+          // for a plain target member (`member_element`).
+          let target = match assignment_of_chain(owner) {
+            Some(a) => assignment_target(a),
+            None => no_namespaces()
+          };
+          if target.notEmpty() {
+            target.flatMap(|t| visible_or_library(t, name)).flatMap(|m| elements_of(m).selectByKind::<k.Feature>())
+          } else {
+            resolve_in(r, name, chain_scopes(r, owner)).flatMap(|m| elements_of(m).selectByKind::<k.Feature>())
+          }
+        }
+      }
+    },
+    None => []
+  };
+
+// The assignment whose target member chain `f` is (owned through a plain
+// owning membership of the assignment).
+fn assignment_of_chain(f:k.Feature)->Option<k.AssignmentActionUsage> =
+  match container::<k.OwningMembership>(f) {
+    Some(m) => match m {
+      _: k.FeatureMembership => None,
+      _ => container::<k.AssignmentActionUsage>(m)
+    },
+    None => None
+  };
+
+// The feature chain expression whose target chain `f` is: owned through a
+// plain owning membership (not a parameter) of the expression.
+fn chain_expression_of(f:k.Feature)->Option<k.FeatureChainExpression> =
+  match container::<k.OwningMembership>(f) {
+    Some(m) => match m {
+      _: k.FeatureMembership => None,
+      _ => container::<k.FeatureChainExpression>(m)
+    },
+    None => None
+  };
+
+// A chain written as a relationship's end (`:> a.b`, `subset a.b subsets
+// c.d;`) is resolved where that relationship's plain target would be: from
+// above the feature that owns the relationship, so in
+// `feature redefines edges subsets that.edges;` the first segment is not a
+// member that the new feature itself inherits. A chain a feature owns
+// directly (`feature f chains a.b`) is resolved from that feature.
+fn chain_scopes(r:k.FeatureChaining, chain:k.Feature)->OrderedSet<k.Namespace> =
+  match ancestors::<k.Relationship>(chain).first() {
+    Some(rel) => match rel {
+      _: k.Membership => search_scopes(r),
+      _ => search_scopes(rel)
+    },
+    None => search_scopes(r)
+  };
+
+fn previous_chaining(chains:OrderedSet<k.FeatureChaining>, r:k.FeatureChaining, i:Int64)->Option<k.FeatureChaining> =
+  match chains.at(i + 1) {
+    Some(next) => if next == r { chains.at(i) } else { previous_chaining(chains, r, i + 1) },
+    None => None
+  };
+
+// Memberships named by a possibly qualified name, seen from element `r`.
+pub fn resolve(r:k.Element, name:String)->Sequence<k.Membership> = resolve_from(r, name, [], no_namespaces());
+
+// As `resolve`, except that a first segment naming one of `except` is
+// skipped and the search goes on outward, and that in the namespaces of
+// `declared_only` the first segment matches only declared names.
+fn resolve_from(r:k.Element, name:String, except:Sequence<k.Element>, declared_only:Sequence<k.Namespace>)->Sequence<k.Membership> {
+  let parts = name.split("::");
+  match parts.first() {
+    Some(head) => if head == "$" { global_qualified(r, parts) } else {
+      qualified(first_visible(r, search_scopes(r), head, 0, except, declared_only), parts, 1)
+    },
+    None => []
+  }
+}
+
+// As `resolve`, from the given enclosing namespaces.
+fn resolve_in(r:k.Element, name:String, scopes:OrderedSet<k.Namespace>)->Sequence<k.Membership> {
+  let parts = name.split("::");
+  match parts.first() {
+    Some(head) => if head == "$" { global_qualified(r, parts) } else {
+      qualified(first_visible(r, scopes, head, 0, [], no_namespaces()), parts, 1)
+    },
+    None => []
+  }
+}
+
+// `$::A::B` (the Pilot's global scope qualification): the segments after
+// `$` are resolved from the root namespaces only, so an enclosing package
+// named `'$'` or `A` does not hide the library's.
+fn global_qualified(r:k.Element, parts:Sequence<String>)->Sequence<k.Membership> =
+  match parts.at(1) {
+    Some(head) => qualified(global(r, head), parts, 2),
+    None => []
+  };
+
+// The namespaces a name in `r` is resolved from, nearest first. A
+// relationship that a namespace owns as part of its declaration (`f : T`)
+// is resolved from above that namespace; a relationship that is itself a
+// member (`subclassifier A specializes B;`) or that a non-namespace owns
+// (`comment about X`) is resolved from its own namespace.
+//
+// A connector end's reference (`from a.b to c`, `end x references y`) names
+// a feature related by the connector, so it is resolved from above the
+// connector: neither the connector's own ends nor the members it inherits
+// from its association hide that feature.
+fn search_scopes(r:k.Element)->OrderedSet<k.Namespace> =
+  match r {
+    rel: k.Relationship => match rel.owningRelatedElement {
+      Some(e) => match e {
+        ns: k.Namespace => match rel {
+          _: k.ReferenceSubsetting => match connector_of_end(ns) {
+            Some(c) => connector_scopes(c),
+            None => ancestors::<k.Namespace>(ns)
+          },
+          // These relationships of a declaration (`featured by T`, `inverse
+          // of g`, `disjoint from h`, `unions A, B`) are resolved from the
+          // namespace that owns them, as the Pilot's `scope_owningNamespace`
+          // of the relationship itself (it scopes specializations and
+          // conjugations from above their owner instead): in `feature
+          // inCart featured by Product_Account { feature Product_Account; }`
+          // the featuring type is inCart's own member.
+          _: k.TypeFeaturing => ancestors::<k.Namespace>(r),
+          _: k.FeatureInverting => ancestors::<k.Namespace>(r),
+          _: k.Disjoining => ancestors::<k.Namespace>(r),
+          _: k.Unioning => ancestors::<k.Namespace>(r),
+          _: k.Intersecting => ancestors::<k.Namespace>(r),
+          _: k.Differencing => ancestors::<k.Namespace>(r),
+          // A metadata feature's metaclass (`#M struct T`, `metadata M;`
+          // in T's body) is resolved from above the annotated namespace T:
+          // T's inherited members include the base types of its semantic
+          // metadata (`semantic_bases`), which read that metaclass. (The
+          // Pilot also searches T, guarding the recursion.)
+          _: k.FeatureTyping => match ns {
+            _: k.MetadataFeature => match ancestors::<k.Namespace>(ns).first() {
+              Some(annotated) => match annotated {
+                _: k.Type => ancestors::<k.Namespace>(annotated),
+                _ => ancestors::<k.Namespace>(ns)
+              },
+              None => ancestors::<k.Namespace>(ns)
+            },
+            _ => ancestors::<k.Namespace>(ns)
+          },
+          _ => ancestors::<k.Namespace>(ns)
+        },
+        _ => ancestors::<k.Namespace>(r)
+      },
+      None => ancestors::<k.Namespace>(r)
+    },
+    _ => match ancestors::<k.Namespace>(r).first() {
+      Some(owner) => ancestors::<k.Namespace>(owner),
+      None => ancestors::<k.Namespace>(r)
+    }
+  };
+
+// A transition's target succession (`then done`) is resolved from above the
+// transition: the transition's own library default
+// (`Actions::transitionActions`, which inherits `Action::done`) does not hide
+// the enclosing state's `StateAction::done`, which the Pilot resolves.
+fn connector_scopes(c:k.Connector)->OrderedSet<k.Namespace> =
+  match ancestors::<k.Type>(c).first() {
+    Some(t) => match t {
+      _: k.TransitionUsage => ancestors::<k.Namespace>(t),
+      _ => ancestors::<k.Namespace>(c)
+    },
+    None => ancestors::<k.Namespace>(c)
+  };
+
+// The connector whose end `ns` is.
+fn connector_of_end(ns:k.Namespace)->Option<k.Connector> =
+  match ns {
+    f: k.Feature => if is_end(f) {
+      match ancestors::<k.Type>(f).first() {
+        Some(t) => asType::<k.Connector>(t),
+        None => None
+      }
+    } else { None },
+    _ => None
+  };
+
+// An import is resolved first among its own namespace's owned and inherited
+// members, then like any name from the enclosing namespaces, and only when
+// that finds nothing through the imports declared before it in its own
+// namespace (`import RiskMetadata::*; import RiskLevelEnum::*;`). The Pilot
+// searches the namespace's other imports before the enclosing namespaces,
+// skipping those being resolved; taking only the earlier ones, and only as
+// a last resort, keeps the imports of one namespace from depending on each
+// other.
+fn resolve_import(r:k.Import, name:String)->Sequence<k.Membership> {
+  let parts = name.split("::");
+  match parts.first() {
+    Some(head) => if head == "$" { global_qualified(r, parts) } else {
+      match ancestors::<k.Namespace>(r).first() {
+        Some(owner) => {
+          let local = owned_or_inherited(owner, head);
+          let found = if local.notEmpty() { local } else {
+            let outer = first_visible(r, ancestors::<k.Namespace>(owner), head, 0, [], no_namespaces());
+            if outer.notEmpty() { outer } else {
+              imported(head, Sequence([owner]), Sequence([r]),
+                imports_before(Sequence(contents::<k.Import>(owner)), r, 0), 0)
+            }
+          };
+          qualified(found, parts, 1)
+        },
+        None => []
+      }
+    },
+    None => []
+  }
+}
+
+// A membership (alias, feature reference, instantiated type) is resolved
+// first among the visible members of its own namespace, then like any name.
+// An expression's own namespace does not include the members of its library
+// default (`Performances::Evaluation`, which inherits `Performance::self`):
+// as in the Pilot, `feature this : Occurrence default self` names the
+// enclosing `Occurrence::self`.
+fn resolve_member(r:k.Membership, name:String)->Sequence<k.Membership> {
+  let parts = name.split("::");
+  match parts.first() {
+    Some(head) => if head == "$" { global_qualified(r, parts) } else { match ancestors::<k.Namespace>(r).first() {
+      Some(owner) => {
+        let local = match owner {
+          // An invocation's own members are its arguments, named after the
+          // features of the invoked type they redefine
+          // (`inherited_redefinable`), so the invoked type is not looked up
+          // among their effective names.
+          _: k.InvocationExpression => visible_declared(owner, head),
+          _: k.Expression => visible(owner, head, [], []),
+          // A transition's source (`first start`) is resolved from above
+          // the transition, as its target is (`connector_scopes`).
+          _: k.TransitionUsage => no_memberships(),
+          _ => visible_or_library(owner, head)
+        };
+        let found = if local.notEmpty() { local } else {
+          first_visible(r, ancestors::<k.Namespace>(owner), head, 0, [], no_namespaces())
+        };
+        qualified(found, parts, 1)
+      },
+      None => []
+    } },
+    None => []
+  }
+}
+
+fn imports_before(imports:Sequence<k.Import>, r:k.Import, i:Int64)->Sequence<k.Import> =
+  match imports.at(i) {
+    Some(x) => if x == r { no_imports() } else { Sequence([x]).concat(imports_before(imports, r, i + 1)) },
+    None => no_imports()
+  };
+
+fn no_imports()->Sequence<k.Import> = [];
+
+fn visible_declared(ns:k.Namespace, name:String)->Sequence<k.Membership> {
+  let owned = owned_named(ns, name, [], false);
+  if owned.notEmpty() { owned } else { not_owned(ns, name, [], []) }
+}
+
+fn owned_or_inherited(ns:k.Namespace, name:String)->Sequence<k.Membership> {
+  let owned = owned_named(ns, name, [], true);
+  if owned.notEmpty() { owned } else { inherited(ns, name, []) }
+}
+
+// An import is not visible while its own target is being resolved: the
+// Pilot skips the imports it is resolving, so `import Systems::*` in an outer
+// namespace does not lead back into `import KerML::Kernel::*` in Systems.
+//
+// A feature that encloses `r` is matched by effective name like any other
+// member, as in the Pilot (`ref port :>> participant { ... default
+// participant->excludingOnce(...) }` names the enclosing port), except a
+// feature whose naming relationship contains `r`: the effective name of the
+// feature that owns a redefinition or feature chaining enclosing `r` comes
+// from that relationship (`naming_owners`). A redefinition's own target
+// never matches an enclosing feature by effective name: in
+// `item :>> base : CircularDisc { ref :>> base::edges, ...; }` the Pilot
+// resolves `base` to the inherited `ConeOrCylinder::base`, and matching the
+// enclosing `:>> base` would make the inner redefinition depend on itself.
+//
+// In the namespaces of `declared_only`, only declared names are matched.
+//
+// A feature whose value contains `r` (`attribute x : LengthValue = num#(1)`)
+// is searched for its owned members only: as in the Pilot, the members it
+// inherits from its types (`LengthValue::num`) do not hide those of the
+// namespace around it.
+fn first_visible(r:k.Element, scopes:OrderedSet<k.Namespace>, name:String, i:Int64, except:Sequence<k.Element>, declared_only:Sequence<k.Namespace>)->Sequence<k.Membership> {
+  let enclosing = match r {
+    _: k.Redefinition => ancestors::<k.Feature>(r).selectByKind::<k.Element>(),
+    _ => naming_owners(r)
+  };
+  let avoid = if in_reference_naming(r) {
+    enclosing.concat(except).concat(derived_named_members(scopes))
+  } else { enclosing.concat(except).concat(reference_named_members(scopes)) };
+  first_visible_from(r, scopes, name, i, except, avoid, valued_features(r), declared_only)
+}
+
+// A perform (`perform a.b;`) or a variant written as a reference (`variant
+// x;`) is named after the feature it references, and an unnamed feature
+// that chains (`feature subsets s chains paint.painting.endShot;`) after
+// its last chaining feature (`naming_features`). While such a naming
+// reference or chain is resolved, no feature named this way is matched by
+// its effective name in the enclosing namespaces: sibling variants or
+// chained features would otherwise depend on each other's references (the
+// Pilot skips the memberships it is already resolving).
+fn in_reference_naming(r:k.Element)->Bool =
+  Sequence([r]).selectByKind::<k.Relationship>().concat(ancestors::<k.Relationship>(r))
+    .exists(|rel| match rel {
+      _: k.ReferenceSubsetting => owning_element(rel).selectByKind::<k.Feature>().exists(|f| reference_named(f)),
+      _: k.FeatureChaining => owning_element(rel).selectByKind::<k.Feature>().exists(|f| chain_named(f)),
+      _ => false
+    });
+
+fn reference_named(f:k.Feature)->Bool =
+  match container::<k.VariantMembership>(f) {
+    Some(_) => true,
+    None => match f { _: k.PerformActionUsage => true, _ => false }
+  };
+
+// An unnamed feature of a namespace named after its own chain.
+fn chain_named(f:k.Feature)->Bool =
+  unnamed(f) && contents::<k.Redefinition>(f).isEmpty() && contents::<k.FeatureChaining>(f).notEmpty()
+    && match container::<k.Membership>(f) { Some(_) => true, None => false };
+
+// Performs and reference variants that reference a feature chain, and
+// unnamed features named after their own chain, are not matched by
+// effective name in the enclosing namespaces of any reference: resolving a
+// type name next to `perform c.incr` or `feature subsets f chains p.s.e;`
+// would otherwise resolve that chain, whose first feature may be typed by
+// the very name being resolved (`in c : Counter; ... perform c.incr;`,
+// `step p : B;`). Performs that name their feature plainly (`do
+// senseTemperature { out temp; }`) are matched.
+// All are still found through inheritance and qualified names. The Pilot
+// matches them all, guarding the recursion.
+fn reference_named_members(scopes:OrderedSet<k.Namespace>)->Sequence<k.Element> =
+  Sequence(scopes.selectByKind::<k.Type>().flatMap(|s| contents::<k.OwningMembership>(s).flatMap(|m| contents::<k.Feature>(m)))
+    .filter(|f| (reference_named(f) && references_chain(f)) || chain_named(f))
+    .selectByKind::<k.Element>());
+
+fn references_chain(f:k.Feature)->Bool =
+  contents::<k.ReferenceSubsetting>(f).exists(|r| contents::<k.Feature>(r).notEmpty());
+
+// Within a naming reference, the siblings in the nearest enclosing
+// namespace named this way are avoided (they could depend on each other);
+// those further out are matched (`perform providePower.distributeTorque`
+// inside a part names the enclosing part's `perform ActionTree::providePower
+// redefines providePower`), except for chain-named ones (above).
+fn derived_named_members(scopes:OrderedSet<k.Namespace>)->Sequence<k.Element> =
+  match scopes.first() {
+    Some(s) => Sequence(contents::<k.OwningMembership>(s).flatMap(|m| contents::<k.Feature>(m))
+      .filter(|f| reference_named(f) || chain_named(f))
+      .selectByKind::<k.Element>()).concat(reference_named_members(scopes)),
+    None => reference_named_members(scopes)
+  };
+
+fn first_visible_from(r:k.Element, scopes:OrderedSet<k.Namespace>, name:String, i:Int64, except:Sequence<k.Element>, avoid:Sequence<k.Element>, valued:Sequence<k.Namespace>, declared_only:Sequence<k.Namespace>)->Sequence<k.Membership> =
+  match scopes.at(i) {
+    Some(scope) => {
+      let effective = !declared_only.contains(scope);
+      let candidates = if valued.contains(scope) { owned_named(scope, name, avoid, effective) } else {
+        enclosing_visible(scope, name, resolving(r), avoid, effective)
+      };
+      let found = Sequence(candidates.reject(|m| elements_of(m).exists(|e| except.contains(e))));
+      if found.isEmpty() { first_visible_from(r, scopes, name, i + 1, except, avoid, valued, declared_only) } else { found }
+    },
+    None => global(r, name)
+  };
+
+// The features that own a redefinition or feature chaining that is or
+// encloses `r`: their effective names may depend on `r`.
+fn naming_owners(r:k.Element)->Sequence<k.Element> =
+  Sequence([r]).selectByKind::<k.Relationship>().concat(ancestors::<k.Relationship>(r))
+    .filter(|rel| is_naming_relationship(rel))
+    .flatMap(|rel| owning_element(rel));
+
+fn is_naming_relationship(rel:k.Relationship)->Bool =
+  match rel { _: k.Redefinition => true, _: k.FeatureChaining => true, _ => false };
+
+fn owning_element(rel:k.Relationship)->Sequence<k.Element> =
+  match rel.owningRelatedElement { Some(e) => Sequence([e]), None => no_elements() };
+
+fn no_elements()->Sequence<k.Element> = [];
+
+// The features whose feature value contains `r`.
+fn valued_features(r:k.Element)->Sequence<k.Namespace> =
+  ancestors::<k.FeatureValue>(r).flatMap(|v| value_owner(v));
+
+fn value_owner(v:k.FeatureValue)->Sequence<k.Namespace> =
+  match container::<k.Feature>(v) {
+    Some(f) => Sequence([f]).selectByKind::<k.Namespace>(),
+    None => no_namespaces()
+  };
+
+fn no_namespaces()->Sequence<k.Namespace> = [];
+
+// `visible_skipping` for an enclosing namespace of a reference.
+fn enclosing_visible(ns:k.Namespace, name:String, skip:Sequence<k.Import>, avoid:Sequence<k.Element>, effective:Bool)->Sequence<k.Membership> {
+  let owned = owned_named(ns, name, avoid, effective);
+  let found = if owned.notEmpty() { owned } else {
+    if skip.isEmpty() { not_owned(ns, name, [], skip) } else { not_owned_direct(ns, name, skip) }
+  };
+  if found.notEmpty() { found } else { library_visible(ns, name, skip) }
+}
+
+// While an import is resolved (`skip` holds its namespace's imports), the
+// imports of the enclosing namespaces are searched one level deep: the
+// members of each import's target (and, for a recursive import, of its
+// nested namespaces), not the target's own imports. Following re-exports
+// here would read the targets of other imports that may themselves be
+// resolving (`package Definitions { import AttributeDefinitions::*;
+// import MetadataDefinitions::**; package AttributeDefinitions { import
+// ScalarValues::*; } package MetadataDefinitions { import
+// AnalysisTooling::*; } }`), where the Pilot skips the imports it is
+// resolving. A name only re-exported through an enclosing import is not
+// found by an import.
+fn not_owned_direct(ns:k.Namespace, name:String, skip:Sequence<k.Import>)->Sequence<k.Membership> {
+  let general = inherited_skipping(ns, name, [], skip);
+  if general.notEmpty() { general } else {
+    imported_direct(name, skip, Sequence(contents::<k.Import>(ns).reject(|i| skip.contains(i))), 0)
+  }
+}
+
+fn imported_direct(name:String, skip:Sequence<k.Import>, imports:Sequence<k.Import>, i:Int64)->Sequence<k.Membership> =
+  match imports.at(i) {
+    Some(imp) => {
+      let found = through_import_direct(imp, name, skip);
+      if found.isEmpty() { imported_direct(name, skip, imports, i + 1) } else { found }
+    },
+    None => no_memberships()
+  };
+
+fn through_import_direct(imp:k.Import, name:String, skip:Sequence<k.Import>)->Sequence<k.Membership> =
+  match imp {
+    m: k.MembershipImport => {
+      let direct = Sequence([m.importedMembership]).filter(|x| named(x, name));
+      if direct.notEmpty() || !m.isRecursive { direct } else {
+        Sequence(elements_of(m.importedMembership).selectByKind::<k.Namespace>()
+          .flatMap(|target| recursive_direct(target, name, import_all(m), 0)))
+      }
+    },
+    n: k.NamespaceImport => {
+      let filter = Sequence(contents::<k.Namespace>(n));
+      if filter.notEmpty() {
+        Sequence(filter.flatMap(|f| imported_direct(name, skip, Sequence(contents::<k.Import>(f).reject(|x| skip.contains(x))), 0)))
+      } else {
+        if n.isRecursive {
+          recursive_direct(n.importedNamespace, name, import_all(n), 0)
+        } else { members_direct(n.importedNamespace, name, import_all(n)) }
+      }
+    },
+    _ => no_memberships()
+  };
+
+fn members_direct(ns:k.Namespace, name:String, all:Bool)->Sequence<k.Membership> {
+  let owned = Sequence(owned_named(ns, name, [], true).filter(|m| all || is_public(m)));
+  if owned.notEmpty() { owned } else {
+    Sequence(inherited(ns, name, []).filter(|m| all || is_public(m)))
+  }
+}
+
+fn recursive_direct(ns:k.Namespace, name:String, all:Bool, depth:Int64)->Sequence<k.Membership> =
+  if depth > 32 { no_memberships() } else {
+    let here = if nested_type(ns, depth) { owned_public(ns, name, all) } else { members_direct(ns, name, all) };
+    if here.notEmpty() { here } else {
+      recursive_direct_children(Sequence(contents::<k.OwningMembership>(ns)
+        .filter(|m| is_public(m))
+        .flatMap(|m| contents::<k.Namespace>(m))), name, all, depth, 0)
+    }
+  };
+
+// Below the import's target, a recursive import searches the owned public
+// members of nested types only, not what they inherit: inherited members
+// would read the types of every nested feature (`attribute isMandatory :
+// Boolean` inside a recursively imported package), which may be resolving.
+fn nested_type(ns:k.Namespace, depth:Int64)->Bool =
+  depth > 0 && match ns { _: k.Type => true, _ => false };
+
+fn owned_public(ns:k.Namespace, name:String, all:Bool)->Sequence<k.Membership> =
+  Sequence(owned_named(ns, name, [], false).filter(|m| all || is_public(m)));
+
+fn recursive_direct_children(children:Sequence<k.Namespace>, name:String, all:Bool, depth:Int64, i:Int64)->Sequence<k.Membership> =
+  match children.at(i) {
+    Some(child) => {
+      let found = recursive_direct(child, name, all, depth + 1);
+      if found.isEmpty() { recursive_direct_children(children, name, all, depth, i + 1) } else { found }
+    },
+    None => no_memberships()
+  };
+
+// While an import is resolved, it and the other imports of its namespace are
+// skipped when the search comes back into that namespace through an
+// enclosing namespace's import (`package P { import AD::*; } package AD {
+// import ScalarValues::*; import Quantities::*; }`): resolving `Quantities`
+// would otherwise read `ScalarValues`' import while it may be resolving
+// (the Pilot skips the imports it is resolving).
+fn resolving(r:k.Element)->Sequence<k.Import> =
+  match r {
+    i: k.Import => match ancestors::<k.Namespace>(i).first() {
+      Some(owner) => Sequence(contents::<k.Import>(owner)),
+      None => Sequence([i])
+    },
+    _ => []
+  };
+
+fn global(r:k.Element, name:String)->Sequence<k.Membership> =
+  roots::<k.Namespace>(r).flatMap(|root| contents::<k.Membership>(root).filter(|m| named(m, name)));
+
+fn qualified(found:Sequence<k.Membership>, parts:Sequence<String>, i:Int64)->Sequence<k.Membership> =
+  match parts.at(i) {
+    Some(segment) => qualified(
+      found.flatMap(|m| elements_of(m).selectByKind::<k.Namespace>()
+        .flatMap(|ns| visible_or_library(ns, segment))),
+      parts,
+      i + 1),
+    None => found
+  };
+
+// Owned memberships, then inherited members, then imports, as the Pilot's
+// KerMLScope (owned, gen, imp). `visited` holds the namespaces already on
+// this search path; import and specialization cycles stop there.
+fn visible(ns:k.Namespace, name:String, visited:Sequence<k.Namespace>, skip:Sequence<k.Import>)->Sequence<k.Membership> {
+  let owned = owned_named(ns, name, [], true);
+  if owned.notEmpty() { owned } else { not_owned(ns, name, visited, skip) }
+}
+
+// Inherited members, then imports.
+fn not_owned(ns:k.Namespace, name:String, visited:Sequence<k.Namespace>, skip:Sequence<k.Import>)->Sequence<k.Membership> {
+  let general = inherited_skipping(ns, name, visited, skip);
+  if general.notEmpty() { general } else {
+    let imports = Sequence(contents::<k.Import>(ns).reject(|i| skip.contains(i)));
+    imported(name, visited.concat(Sequence([ns])), skip, imports, 0)
+  }
+}
+
+// The imports in declaration order; the first that finds the name wins, as
+// in the Pilot. An import is skipped while it is being searched through.
+fn imported(name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>, imports:Sequence<k.Import>, i:Int64)->Sequence<k.Membership> =
+  match imports.at(i) {
+    Some(imp) => {
+      let found = through_import(imp, name, path, skip.concat(Sequence([imp])));
+      if found.isEmpty() { imported(name, path, skip, imports, i + 1) } else { found }
+    },
+    None => []
+  };
+
+//
+// A recursive import (`import P::**`, `import P::*::**`) that does not find
+// the name directly searches the public owned namespaces of its target, in
+// order and depth first, as the Pilot's `resolveRecursive`. A filtered
+// import (`import P::*[cond]`) imports through the filter package it owns;
+// its filter conditions are not evaluated (every member passes).
+fn through_import(imp:k.Import, name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>)->Sequence<k.Membership> =
+  match imp {
+    m: k.MembershipImport => {
+      let direct = Sequence([m.importedMembership]).filter(|x| named(x, name));
+      if direct.notEmpty() || !m.isRecursive { direct } else {
+        Sequence(elements_of(m.importedMembership).selectByKind::<k.Namespace>()
+          .reject(|target| path.contains(target))
+          .flatMap(|target| recursive_visible(target, name, path, skip, import_all(m), 0)))
+      }
+    },
+    n: k.NamespaceImport => {
+      let filter = Sequence(contents::<k.Namespace>(n));
+      if filter.notEmpty() {
+        // The filter package's own import (`P::*` of `P::*[cond]`) decides
+        // what is visible; the package is searched like its owner.
+        Sequence(filter.flatMap(|f| visible(f, name, path, skip)))
+      } else {
+        Sequence(Sequence([n.importedNamespace])
+          .reject(|target| path.contains(target))
+          .flatMap(|target| if n.isRecursive {
+            recursive_visible(target, name, path, skip, import_all(n), 0)
+          } else {
+            visible_through(target, name, path, skip, import_all(n))
+          }))
+      }
+    },
+    _ => []
+  };
+
+// SysML: an expose (`expose P::*`) imports all members regardless of
+// visibility (the metamodel's `isImportAll` for Expose).
+fn import_all(i:k.Import)->Bool =
+  match i { _: k.Expose => true, _ => i.isImportAll };
+
+fn visible_through(ns:k.Namespace, name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>, all:Bool)->Sequence<k.Membership> =
+  if all { visible(ns, name, path, skip) } else { exported(ns, name, path, skip) };
+
+fn recursive_visible(ns:k.Namespace, name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>, all:Bool, depth:Int64)->Sequence<k.Membership> =
+  if depth > 32 { no_memberships() } else {
+    let here = if nested_type(ns, depth) { owned_public(ns, name, all) } else { visible_through(ns, name, path, skip, all) };
+    if here.notEmpty() { here } else {
+      recursive_children(Sequence(contents::<k.OwningMembership>(ns)
+        .filter(|m| is_public(m))
+        .flatMap(|m| contents::<k.Namespace>(m))), name, path, skip, all, depth, 0)
+    }
+  };
+
+fn recursive_children(children:Sequence<k.Namespace>, name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>, all:Bool, depth:Int64, i:Int64)->Sequence<k.Membership> =
+  match children.at(i) {
+    Some(child) => {
+      let found = recursive_visible(child, name, path, skip, all, depth + 1);
+      if found.isEmpty() { recursive_children(children, name, path, skip, all, depth, i + 1) } else { found }
+    },
+    None => no_memberships()
+  };
+
+// The members a namespace import sees: the target's public owned and
+// inherited members, then those of its public imports. Its private imports
+// are not re-exported, so `USCustomaryUnits`' `import MeasurementReferences::*`
+// does not reach `ScalarFunctions::min` through MeasurementReferences'
+// private imports, and `min` names `SI::minute` (`<min>`), as in the Pilot.
+fn exported(ns:k.Namespace, name:String, path:Sequence<k.Namespace>, skip:Sequence<k.Import>)->Sequence<k.Membership> {
+  let owned = Sequence(owned_named(ns, name, [], true).filter(|m| is_public(m)));
+  if owned.notEmpty() { owned } else {
+    let general = Sequence(inherited_skipping(ns, name, path, skip).filter(|m| is_public(m)));
+    if general.notEmpty() { general } else {
+      let imports = Sequence(contents::<k.Import>(ns)
+        .reject(|i| skip.contains(i))
+        .filter(|i| i.visibility != k.VisibilityKind.`private` && i.visibility != k.VisibilityKind.`protected`));
+      imported(name, path.concat(Sequence([ns])), skip, imports, 0)
+    }
+  }
+}
+
+fn is_public(m:k.Membership)->Bool = m.visibility == k.VisibilityKind.`public`;
+
+// Members inherited from every general, without duplicates and without those
+// that another inherited member redefines.
+fn inherited(ns:k.Namespace, name:String, visited:Sequence<k.Namespace>)->Sequence<k.Membership> =
+  inherited_skipping(ns, name, visited, []);
+
+fn inherited_skipping(ns:k.Namespace, name:String, visited:Sequence<k.Namespace>, skip:Sequence<k.Import>)->Sequence<k.Membership> =
+  match ns {
+    t: k.Type => {
+      let path = visited.concat(Sequence([ns]));
+      let found = Sequence(implied_generals(t)
+        .reject(|g| visited.contains(g))
+        .flatMap(|g| visible(g, name, path, skip))
+        .distinct()
+        .reject(|m| positionally_redefines(t, m)));
+      // Redefinitions are only read to choose among several members.
+      if found.size() > 1 {
+        found.reject(|m| found.exists(|other| other != m && redefines(other, m)))
+      } else { found }
+    },
+    _ => []
+  };
+
+// A parameter of a behavior or step (an owned feature with a direction,
+// other than the result) that has no owned redefinition implicitly redefines
+// the parameter at the same position of each Behavior or Step general, as the
+// metamodel's Feature constraint and the Pilot have it: in `step : addAt {
+// inout seq; in values; in startIndex = index; }`, `startIndex` redefines
+// `addAt::index`, which is then not inherited, so `index` names the
+// enclosing behavior's parameter.
+// Only containment and `direction` are read, never a specialization,
+// redefinition or member target, which may still be pending; `direction`
+// reads as unset on a feature that does not declare one until defaults run.
+// The position is the inherited parameter's among its own type's owned
+// parameters, which assumes that type is a direct general (true of the
+// standard library).
+// The Pilot's other computed redefinitions hide inherited members the same
+// way (TypeUtil's removal of the features the type's owned features redefine,
+// computed ones included): the type's named owned result parameter,
+// objective or end without an owned redefinition redefines the general's
+// result parameter, objective or end at its position. In `calc def C { return T; }
+// calc c2 : C { return r1 : T; }`, `C::T` is not inherited by `c2`, so `T`
+// names the enclosing package's `T`.
+fn positionally_redefines(t:k.Type, m:k.Membership)->Bool =
+  match t {
+    _: k.Behavior => owned_parameter_of(t, m) || implicitly_hidden(t, m),
+    _: k.Step => owned_parameter_of(t, m) || implicitly_hidden(t, m),
+    _ => implicitly_hidden(t, m)
+  };
+
+fn owned_parameter_of(t:k.Type, m:k.Membership)->Bool =
+  match m {
+    o: k.OwningMembership => contents::<k.Feature>(o).exists(|p| redefined_by_position(t, p)),
+    _ => false
+  };
+
+// An inherited result parameter, objective or end that one of `t`'s owned
+// features redefines implicitly. Like `redefined_by_position`, only
+// containment is read.
+fn implicitly_hidden(t:k.Type, m:k.Membership)->Bool =
+  match m {
+    _: k.ReturnParameterMembership => is_behavior_or_step(t) && owner_is_general(t, m)
+      && match contents::<k.ReturnParameterMembership>(t).first() { Some(r) => unredefined(r), None => false },
+    _: k.ObjectiveMembership => owner_is_general(t, m)
+      && match contents::<k.ObjectiveMembership>(t).first() { Some(r) => unredefined(r), None => false },
+    o: k.OwningMembership => contents::<k.Feature>(o).exists(|e| end_redefined_by_position(t, e)),
+    _ => false
+  };
+
+fn is_behavior_or_step(t:k.Type)->Bool =
+  match t { _: k.Behavior => true, _: k.Step => true, _ => false };
+
+fn owner_is_general(t:k.Type, m:k.Membership)->Bool =
+  match ancestors::<k.Type>(m).first() {
+    Some(g) => g != t,
+    None => false
+  };
+
+// The first of `t`'s memberships of a kind owns a feature with no owned
+// redefinition, which then redefines the general's feature of that kind.
+fn unredefined(r:k.FeatureMembership)->Bool =
+  contents::<k.Feature>(r).exists(|f| implicit_redefiner(f));
+
+// A named feature with no owned redefinition. An unnamed one is named after
+// the feature it redefines in the Pilot (`interface i : I connect a to b`
+// has ends named `source` and `target`); Intersect does not name it so and
+// keeps finding the inherited member under that name instead.
+fn implicit_redefiner(f:k.Feature)->Bool =
+  contents::<k.Redefinition>(f).isEmpty() && !unnamed(f);
+
+fn end_redefined_by_position(t:k.Type, e:k.Feature)->Bool =
+  if is_end(e) {
+    match ancestors::<k.Type>(e).first() {
+      Some(g) => if g == t { false } else {
+        match position(owned_ends(g), e, 0) {
+          Some(i) => match owned_ends(t).at(i) {
+            Some(f) => implicit_redefiner(f),
+            None => false
+          },
+          None => false
+        }
+      },
+      None => false
+    }
+  } else { false };
+
+fn redefined_by_position(t:k.Type, p:k.Feature)->Bool =
+  if is_parameter(p) {
+    match ancestors::<k.Type>(p).first() {
+      Some(g) => if g == t { false } else {
+        match g {
+          _: k.Behavior => same_position(t, g, p),
+          _: k.Step => same_position(t, g, p),
+          _ => false
+        }
+      },
+      None => false
+    }
+  } else { false };
+
+fn same_position(t:k.Type, g:k.Type, p:k.Feature)->Bool =
+  match position(owned_parameters(g), p, 0) {
+    Some(i) => match owned_parameters(t).at(i) {
+      Some(f) => contents::<k.Redefinition>(f).isEmpty(),
+      None => false
+    },
+    None => false
+  };
+
+fn owned_parameters(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureMembership>(t)
+    .reject(|m| match m { _: k.ReturnParameterMembership => true, _ => false })
+    .flatMap(|m| contents::<k.Feature>(m))
+    .filter(|f| is_parameter(f)));
+
+// A parameter: a feature with a declared direction, or one a parameter
+// membership owns (a loop's condition and body, an expression's operands),
+// which gets `in` once defaults run.
+fn is_parameter(f:k.Feature)->Bool =
+  match f.direction {
+    Some(_) => true,
+    None => match ancestors::<k.Relationship>(f).first() {
+      Some(m) => match m {
+        _: k.ReturnParameterMembership => false,
+        _: k.ParameterMembership => true,
+        _ => false
+      },
+      None => false
+    }
+  };
+
+// `other`'s feature redefines `m`'s, directly or through the features it
+// redefines (`Performance::self` redefines `Occurrence::self`, which
+// redefines `Anything::self`).
+fn redefines(other:k.Membership, m:k.Membership)->Bool =
+  elements_of(other).selectByKind::<k.Feature>()
+    .exists(|f| redefines_any(f, elements_of(m), 0));
+
+fn redefines_any(f:k.Feature, targets:Sequence<k.Element>, depth:Int64)->Bool =
+  if depth > 16 { false } else {
+    redefined_features(f).exists(|g| redefinition_reaches(g, targets, depth))
+  };
+
+// The features `f` redefines: those of its owned redefinitions, or for a
+// result parameter without one, the result parameters it implicitly
+// redefines (`implicitly_redefined`), or for another parameter of a behavior
+// or step, the parameter at its position in each general
+// (`positionally_redefined`): `WhileLoopAction::body` redefines
+// `LoopAction::body`.
+fn redefined_features(f:k.Feature)->Sequence<k.Element> {
+  let owned = Sequence(contents::<k.Redefinition>(f).map(|r| redefined_of(r)));
+  if owned.notEmpty() { owned } else {
+    let result = implicitly_redefined(f);
+    if result.notEmpty() { result.selectByKind::<k.Element>() } else {
+      positionally_redefined(f).selectByKind::<k.Element>()
+    }
+  }
+}
+
+// The metamodel's implicit parameter redefinition (`positionally_redefines`),
+// read from the redefining side.
+fn positionally_redefined(f:k.Feature)->Sequence<k.Feature> =
+  if is_parameter(f) {
+    match ancestors::<k.Type>(f).first() {
+      Some(t) => match t {
+        _: k.Behavior => parameter_at_position(t, f),
+        _: k.Step => parameter_at_position(t, f),
+        _ => []
+      },
+      None => []
+    }
+  } else { [] };
+
+fn parameter_at_position(t:k.Type, f:k.Feature)->Sequence<k.Feature> =
+  match position(owned_parameters(t), f, 0) {
+    Some(i) => naming_generals(t).flatMap(|g| parameter_at(g, i)),
+    None => []
+  };
+
+// The parameter at position `i` of a Behavior or Step general: among its own
+// parameters, followed by those of its first general that has any beyond
+// the positions its own take (which redefine them by position). A while
+// loop's default `Actions::whileLoopActions` declares none, so its second is
+// `WhileLoopAction::body`; `AcceptMessageAction` declares only `payload`, so
+// its second is `AcceptPerformance::receiver` (`accept p via r`).
+fn parameter_at(g:k.Type, i:Int64)->Sequence<k.Feature> =
+  match g {
+    _: k.Behavior => match parameters_of(g, 0).at(i) { Some(p) => Sequence([p]), None => no_features() },
+    _: k.Step => match parameters_of(g, 0).at(i) { Some(p) => Sequence([p]), None => no_features() },
+    _ => no_features()
+  };
+
+fn parameters_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { no_features() } else {
+    let own = owned_parameters(t);
+    own.concat(parameters_beyond(naming_generals(t), 0, own.size(), depth))
+  };
+
+fn parameters_beyond(generals:Sequence<k.Type>, i:Int64, n:Int64, depth:Int64)->Sequence<k.Feature> =
+  match generals.at(i) {
+    Some(g) => {
+      let ps = parameters_of(g, depth + 1);
+      if ps.size() > n { features_from(ps, n) } else { parameters_beyond(generals, i + 1, n, depth) }
+    },
+    None => no_features()
+  };
+
+fn features_from(items:Sequence<k.Feature>, i:Int64)->Sequence<k.Feature> =
+  match items.at(i) {
+    Some(x) => Sequence([x]).concat(features_from(items, i + 1)),
+    None => no_features()
+  };
+
+fn redefinition_reaches(g:k.Element, targets:Sequence<k.Element>, depth:Int64)->Bool =
+  if targets.contains(g) { true } else {
+    match asType::<k.Feature>(g) {
+      Some(h) => redefines_any(h, targets, depth + 1),
+      None => false
+    }
+  };
+
+fn redefined_of(r:k.Redefinition)->k.Element =
+  match contents::<k.Feature>(r).first() {
+    Some(chain) => chain,
+    None => r.redefinedFeature
+  };
+
+// Targets of the type's own specializations and conjugation. A relationship
+// whose target is written as a feature chain (`:> a.b`) owns that chain and
+// leaves its target reference empty; the chain is the target. Cross
+// subsettings are skipped: their crossed feature is an anonymous chain owned
+// by the relationship.
+fn generals(t:k.Type)->Sequence<k.Namespace> =
+  contents::<k.Specialization>(t).flatMap(|s| general_of(s))
+    .concat(contents::<k.Conjugation>(t).flatMap(|c| original_of(c)));
+
+// The generals inherited members come from: the type's own, or, when it has
+// none, its metaclass's library default (the Pilot's implicit
+// generalization), so `behavior B {}` inherits `Performance`'s members.
+//
+// Features (other than ends, below) and metaclasses do not take it here:
+// their defaults are looked up once, at the start of the search
+// (`visible_skipping`). Walking a feature's
+// default (`Base::things`, `Performances::performances`, ...) at every step,
+// or the default of every root of the KerML metaclass hierarchy, multiplies
+// the walk over each inheritance path.
+fn implied_generals(t:k.Type)->Sequence<k.Namespace> =
+  semantic_bases(t).concat(declared_or_default_generals(t)).concat(owned_cross_generals(t));
+
+// An end's owned cross feature (`end cart redefines cart { member feature
+// inCart1; }`, a member feature not owned through a feature membership)
+// subsets the cross feature of each end its end redefines, as the Pilot's
+// checkFeatureOwnedCrossFeatureRedefinitionSpecialization: inCart1 inherits
+// the members of the redefined end's `crosses cart::product_account.inCart`
+// target, `inCart`.
+fn owned_cross_generals(t:k.Type)->Sequence<k.Namespace> =
+  match t {
+    _: k.Multiplicity => no_namespaces(),
+    _: k.MetadataFeature => no_namespaces(),
+    _: k.BindingConnector => no_namespaces(),
+    f: k.Feature => match container::<k.OwningMembership>(f) {
+      Some(m) => match m {
+        _: k.FeatureMembership => no_namespaces(),
+        _ => match container::<k.Feature>(m) {
+          Some(e) => if is_end(e) { redefined_ends(e).flatMap(|g| cross_feature_of(g)) } else { no_namespaces() },
+          None => no_namespaces()
+        }
+      },
+      None => no_namespaces()
+    },
+    _ => no_namespaces()
+  };
+
+fn redefined_ends(e:k.Feature)->Sequence<k.Feature> =
+  Sequence(redefined_or_implied(e).filter(|g| is_end(g)));
+
+fn redefined_or_implied(e:k.Feature)->Sequence<k.Feature> {
+  let own = Sequence(contents::<k.Redefinition>(e).map(|r| redefined_of(r))).selectByKind::<k.Feature>();
+  if own.notEmpty() { own } else { implied_end(e) }
+}
+
+// The cross feature of an end: the last chaining feature of its crossed
+// feature chain (`crosses a.b`).
+fn cross_feature_of(g:k.Feature)->Sequence<k.Namespace> =
+  Sequence(contents::<k.CrossSubsetting>(g).flatMap(|c| contents::<k.Feature>(c))
+    .flatMap(|chain| match contents::<k.FeatureChaining>(chain).last() {
+      Some(l) => Sequence([l.chainingFeature]).selectByKind::<k.Namespace>(),
+      None => no_namespaces()
+    }));
+
+// Semantic metadata (`#M struct T`, where M redefines
+// `Metaobjects::SemanticMetadata::baseType`) makes the annotated type
+// specialize the value of `baseType`, as the Pilot's
+// `TypeAdapter.getBaseTypes`; a feature takes only feature base types. The
+// value expression is evaluated for the forms the examples use: `X meta T`
+// (X), `if c ? a else b` with a classification test of `annotatedElement`
+// (`base_of`), and a plain reference. Any other expression adds nothing.
+//
+// Only the metaclass's features are searched for the value (not a
+// `:>> baseType` in the metadata feature's own body), and metadata features
+// themselves take no base types: reading the effective names of a metadata
+// body's features resolves their redefinitions inside the metadata feature,
+// whose inherited members would need its own metadata again
+// (`#Security metadata Classified { classificationLevel = secret; }`).
+fn semantic_bases(t:k.Type)->Sequence<k.Namespace> = match t {
+  _: k.MetadataFeature => no_namespaces(),
+  _ => type_semantic_bases(t)
+};
+
+fn type_semantic_bases(t:k.Type)->Sequence<k.Namespace> {
+  let metadata = Sequence(contents::<k.OwningMembership>(t).flatMap(|m| contents::<k.MetadataFeature>(m))
+    .concat(contents::<k.Annotation>(t).flatMap(|a| contents::<k.MetadataFeature>(a))));
+  if metadata.isEmpty() { no_namespaces() } else {
+    let bases = Sequence(metadata.flatMap(|m| match generals(m).selectByKind::<k.Type>()
+        .flatMap(|g| base_type_value(g, 0)).first() {
+      Some(e) => base_of(e, t, 0),
+      None => no_namespaces()
+    }));
+    match t {
+      _: k.Feature => Sequence(bases.selectByKind::<k.Feature>()).selectByKind::<k.Namespace>(),
+      _ => bases
+    }
+  }
+}
+
+// The value expression of the nearest feature that redefines `baseType`
+// (`:>> baseType = ...`, an unnamed feature named after it): among the
+// metaclass's features, then its generals'. A feature declared with the
+// name `baseType` that redefines nothing (`metaclass AtomMetadata
+// specializes Metaobject { baseType = ...; }`) is not one, as in the Pilot.
+fn base_type_value(ns:k.Type, depth:Int64)->Sequence<k.Expression> =
+  if depth > 8 { no_expressions() } else {
+    let own = Sequence(contents::<k.FeatureMembership>(ns).flatMap(|m| contents::<k.Feature>(m))
+      .filter(|f| effectively_named(f, "baseType", 0))
+      .flatMap(|f| contents::<k.FeatureValue>(f))
+      .flatMap(|v| contents::<k.Expression>(v)));
+    if own.notEmpty() { own } else {
+      Sequence(generals(ns).selectByKind::<k.Type>().flatMap(|g| base_type_value(g, depth + 1)))
+    }
+  };
+
+fn no_expressions()->Sequence<k.Expression> = [];
+
+fn base_of(e:k.Expression, annotated:k.Type, depth:Int64)->Sequence<k.Namespace> =
+  if depth > 8 { no_namespaces() } else {
+    match e {
+      x: k.MetadataAccessExpression => referenced_members(x),
+      x: k.FeatureReferenceExpression => {
+        let inner = owned_expression(x);
+        if inner.notEmpty() { inner.flatMap(|i| base_of(i, annotated, depth + 1)) } else { referenced_members(x) }
+      },
+      _: k.FeatureChainExpression => no_namespaces(),
+      _: k.IndexExpression => no_namespaces(),
+      _: k.CollectExpression => no_namespaces(),
+      _: k.SelectExpression => no_namespaces(),
+      x: k.OperatorExpression => if x.operator == "meta" {
+        Sequence(operands(x).flatMap(|o| base_of(o, annotated, depth + 1)))
+      } else {
+        if x.operator == "if" { conditional_base(x, annotated, depth) } else { no_namespaces() }
+      },
+      _ => no_namespaces()
+    }
+  };
+
+// `if c ? a else b`: the branch the classification test `c` selects; nothing
+// when `c` is not a test this evaluation knows.
+fn conditional_base(x:k.OperatorExpression, annotated:k.Type, depth:Int64)->Sequence<k.Namespace> {
+  let ops = operands(x);
+  match ops.at(0) {
+    Some(c) => {
+      let holds = classification_holds(c, annotated);
+      let branch = if holds.contains(true) { ops.at(1) } else {
+        if holds.contains(false) { ops.at(2) } else { None }
+      };
+      match branch {
+        Some(b) => base_of(b, annotated, depth + 1),
+        None => no_namespaces()
+      }
+    },
+    None => no_namespaces()
+  }
+}
+
+// `annotatedElement istype KerML::Structure` (also `hastype`, `@`): whether
+// the annotated element is an instance of the named library metaclass
+// (`metaclass_named`). Empty for any other expression.
+fn classification_holds(c:k.Expression, annotated:k.Type)->Sequence<Bool> =
+  match c {
+    _: k.FeatureChainExpression => no_bools(),
+    _: k.IndexExpression => no_bools(),
+    _: k.CollectExpression => no_bools(),
+    _: k.SelectExpression => no_bools(),
+    x: k.OperatorExpression => if x.operator == "istype" || x.operator == "hastype" || x.operator == "@" {
+      if operands(x).exists(|o| refers_to_annotated(o)) {
+        Sequence(test_types(x).map(|ty| metaclass_test(annotated, ty)))
+      } else { no_bools() }
+    } else { no_bools() },
+    _ => no_bools()
+  };
+
+fn no_bools()->Sequence<Bool> = [];
+
+fn refers_to_annotated(o:k.Expression)->Bool =
+  match o {
+    x: k.FeatureReferenceExpression => referenced_members(x).selectByKind::<k.Feature>()
+      .exists(|f| spells(f.declaredName, "annotatedElement") || effectively_named(f, "annotatedElement", 0)),
+    _ => false
+  };
+
+// The types a classification test names (its typed, valueless parameter).
+fn test_types(x:k.OperatorExpression)->Sequence<k.Type> =
+  Sequence(contents::<k.ParameterMembership>(x)
+    .reject(|m| match m { _: k.ReturnParameterMembership => true, _ => false })
+    .flatMap(|m| contents::<k.Feature>(m))
+    .filter(|f| contents::<k.FeatureValue>(f).isEmpty())
+    .flatMap(|f| contents::<k.FeatureTyping>(f))
+    .map(|r| r.type));
+
+fn metaclass_test(e:k.Type, ty:k.Type)->Bool =
+  match ty.declaredName {
+    Some(n) => metaclass_named(e, n),
+    None => false
+  };
+
+// The library metaclasses a classification test of an annotated element may
+// name here; any other name tests false.
+fn metaclass_named(e:k.Type, n:String)->Bool =
+  if n == "Structure" { match e { _: k.Structure => true, _ => false } } else {
+  if n == "Class" { match e { _: k.Class => true, _ => false } } else {
+  if n == "DataType" { match e { _: k.DataType => true, _ => false } } else {
+  if n == "Classifier" { match e { _: k.Classifier => true, _ => false } } else {
+  if n == "Behavior" { match e { _: k.Behavior => true, _ => false } } else {
+  if n == "Feature" { match e { _: k.Feature => true, _ => false } } else {
+  n == "Type" || n == "Namespace" || n == "Element" }}}}}};
+
+// The parsed operands of an operator expression (not its type parameters).
+fn operands(x:k.OperatorExpression)->Sequence<k.Expression> =
+  Sequence(contents::<k.ParameterMembership>(x)
+    .reject(|m| match m { _: k.ReturnParameterMembership => true, _ => false })
+    .flatMap(|m| contents::<k.Feature>(m))
+    .flatMap(|f| contents::<k.FeatureValue>(f))
+    .flatMap(|v| contents::<k.Expression>(v)));
+
+// The expression a reference written as a body owns (`if c ? a else b`
+// wraps each branch so).
+fn owned_expression(x:k.FeatureReferenceExpression)->Sequence<k.Expression> =
+  Sequence(contents::<k.FeatureMembership>(x).flatMap(|m| contents::<k.Expression>(m)));
+
+fn declared_or_default_generals(t:k.Type)->Sequence<k.Namespace> {
+  let explicit = generals(t);
+  if explicit.notEmpty() {
+    match t {
+      // An end with explicit generals but no owned redefinition still
+      // redefines the end at its position (`flow { end ::> battery {
+      // attribute :>> sourceOutput; } }` inherits `Transfer::source`).
+      f: k.Feature => if contents::<k.Redefinition>(f).isEmpty() {
+        explicit.concat(implied_end(f).selectByKind::<k.Namespace>()).concat(end_reference_default(f))
+      } else { explicit.concat(end_reference_default(f)) },
+      _ => explicit
+    }
+  } else {
+    match t {
+      // A parameter without an owned redefinition implicitly redefines
+      // the general's parameter at its position, and so inherits its
+      // members (`in onOccurrence = w::self { feature redefines startingAt
+      // }` in a `FeatureWritePerformance` step).
+      // A transition's payload parameter specializes its trigger's payload
+      // (`accept pub : Publish ... if pub.topic == ...`).
+      f: k.Feature => implied_end(f).selectByKind::<k.Namespace>().concat(constructed_type(f))
+        .concat(transition_trigger(f).selectByKind::<k.Namespace>())
+        .concat(transition_payload(f).selectByKind::<k.Namespace>())
+        .concat(valuation_referent(f))
+        .concat(positionally_redefined(f).selectByKind::<k.Namespace>())
+        .concat(chain_end(f)),
+      _: k.Metaclass => explicit,
+      _ => library(t, implicit.library_default(t)).reject(|g| g == t)
+    }
+  }
+}
+
+// An end that references a feature by name (`flow aa.target to snd.receiver`,
+// whose target end references `snd`) also inherits from that feature's
+// library default when the feature has no general of its own (`action snd
+// send { ... }` takes `SendAction::receiver` from `Actions::sendActions`),
+// as the Pilot's implicit generalization of the referenced feature does.
+fn end_reference_default(f:k.Feature)->Sequence<k.Namespace> =
+  if is_end(f) {
+    Sequence(contents::<k.ReferenceSubsetting>(f)
+      .filter(|r| contents::<k.Feature>(r).isEmpty())
+      .map(|r| r.referencedFeature)
+      .filter(|g| generals(g).isEmpty())
+      .flatMap(|g| library(g, implicit.library_default(g)).reject(|d| d == g)))
+  } else { no_namespaces() };
+
+// An undirected feature with no specialization of its own and a (not
+// default) value specializes what its value expression refers to, as the
+// Pilot's checkFeatureValuationSpecialization: in `attribute lbcf =
+// lugBolts#(i).coordinateFrame`, `lbcf.transformation` names a member of
+// `coordinateFrame`.
+fn valuation_referent(f:k.Feature)->Sequence<k.Namespace> =
+  if is_parameter(f) { no_namespaces() } else {
+    Sequence(contents::<k.FeatureValue>(f)
+      .reject(|v| v.isDefault)
+      .flatMap(|v| contents::<k.Expression>(v))
+      .flatMap(|e| referent_of(e)))
+  };
+
+// A feature chain (`a1.aa` as a flow end's reference) has the members of
+// its last chaining feature, as the Pilot types a chain by it: in
+// `succession flow x.p to a1.aa.receiver`, the end's `receiver` is
+// inherited through `aa`.
+fn chain_end(f:k.Feature)->Sequence<k.Namespace> =
+  match contents::<k.FeatureChaining>(f).last() {
+    Some(c) => end_with_default(c.chainingFeature),
+    None => []
+  };
+
+// The last chaining feature and, when it has no general of its own (`action
+// aa accept S;`), its library default (`Actions::acceptActions`, whose type
+// has `receiver`); the walk does not otherwise take a feature's default at
+// each step.
+fn end_with_default(g:k.Feature)->Sequence<k.Namespace> =
+  if generals(g).isEmpty() {
+    Sequence([g]).selectByKind::<k.Namespace>()
+      .concat(library(g, implicit.library_default(g)).reject(|d| d == g))
+  } else { Sequence([g]).selectByKind::<k.Namespace>() };
+
+// The result of a constructor expression (`new T(a = 1)`) is typed by the
+// instantiated type T, as the Pilot adds it; its argument features redefine
+// T's features (`new SampledFunction(samples = ...)`).
+fn constructed_type(f:k.Feature)->Sequence<k.Namespace> =
+  match container::<k.ReturnParameterMembership>(f) {
+    Some(m) => match container::<k.ConstructorExpression>(m) {
+      Some(e) => referenced_members(e),
+      None => []
+    },
+    None => []
+  };
+
+// An end feature with no owned specialization implicitly redefines the end
+// at the same position of each general of its owning type, as the Pilot adds
+// it (`step transfer : TransferBefore { end feature source { ... } }` inherits
+// the members of `Transfer::source`).
+fn implied_end(f:k.Feature)->Sequence<k.Feature> =
+  if is_end(f) {
+    match ancestors::<k.Type>(f).first() {
+      Some(t) => match position(owned_ends(t), f, 0) {
+        Some(i) => naming_generals(t).flatMap(|g| end_at(g, i)),
+        None => []
+      },
+      None => []
+    }
+  } else { [] };
+
+// An end feature: declared `end` (in a type body), or owned through an
+// EndFeatureMembership (a connector's `from`/`to` ends).
+fn is_end(f:k.Feature)->Bool =
+  f.isEnd || match ancestors::<k.Relationship>(f).first() {
+    Some(m) => match m { _: k.EndFeatureMembership => true, _ => false },
+    None => false
+  };
+
+fn end_at(g:k.Type, i:Int64)->Sequence<k.Feature> =
+  match ends_of(g, 0).at(i) { Some(e) => Sequence([e]), None => [] };
+
+fn owned_ends(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureMembership>(t).flatMap(|m| contents::<k.Feature>(m))
+    .filter(|f| is_end(f)));
+
+// The end features of `t`: its own, or else those of its first general that
+// has any.
+fn ends_of(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { [] } else {
+    let own = owned_ends(t);
+    if own.notEmpty() { own } else {
+      match naming_generals(t).find(|g| ends_of(g, depth + 1).notEmpty()) {
+        Some(g) => ends_of(g, depth + 1),
+        None => []
+      }
+    }
+  };
+
+fn position(items:Sequence<k.Feature>, x:k.Feature, i:Int64)->Option<Int64> =
+  match items.at(i) {
+    Some(item) => if item == x { Some(i) } else { position(items, x, i + 1) },
+    None => None
+  };
+
+// The Pilot's implicit generalizations: a type with no owned specialization
+// specializes its metaclass's library default, so every type of a metaclass
+// eventually inherits that default's members. Instead of adding implicit
+// generals at each step of the walk, a name not found among a namespace's
+// own and explicitly inherited members is looked up once among the members
+// of its metaclass's default (`visible_or_library`). The defaults are the
+// shared KerML and SysML map in implicit-generalizations.rcore.
+fn visible_or_library(ns:k.Namespace, name:String)->Sequence<k.Membership> =
+  visible_skipping(ns, name, []);
+
+fn visible_except(ns:k.Namespace, name:String, visited:Sequence<k.Namespace>)->Sequence<k.Membership> {
+  let found = visible(ns, name, visited, []);
+  if found.notEmpty() { found } else { library_visible(ns, name, []) }
+}
+
+fn visible_skipping(ns:k.Namespace, name:String, skip:Sequence<k.Import>)->Sequence<k.Membership> {
+  let found = visible(ns, name, [], skip);
+  if found.notEmpty() { found } else { library_visible(ns, name, skip) }
+}
+
+// A binary association (two owned ends) also specializes its metaclass's
+// binary default, even with explicit generals, as the Pilot adds it:
+// `connection def Causation :> Multicausation` with ends `theCause` and
+// `theEffect` specializes `Connections::BinaryConnection`, whose `source` and
+// `target` those ends redefine. The binary default is searched first. Like
+// the base default, it is looked up at the start of a search, not at each
+// step of the walk.
+fn library_visible(ns:k.Namespace, name:String, skip:Sequence<k.Import>)->Sequence<k.Membership> =
+  match ns {
+    t: k.Type => {
+      let binary = binary_library(t).flatMap(|g| visible(g, name, Sequence([ns]), skip));
+      if binary.notEmpty() { binary } else {
+        // A parameter the type itself redefines by position is not
+        // inherited from its default either: in `while c { ... perform body;
+        // }` the loop's body action redefines `WhileLoopAction::body` (and
+        // `LoopAction::body`), so `body` names the enclosing action's own.
+        Sequence(library(t, implicit.library_default(t))
+          .reject(|g| g == t)
+          .flatMap(|g| visible(g, name, Sequence([ns]), skip))
+          .reject(|m| positionally_redefines(t, m)))
+      }
+    },
+    _ => []
+  };
+
+pub fn binary_library(t:k.Type)->Sequence<k.Namespace> {
+  let binary_name = implicit.binary_default(t);
+  if binary_name == "" { [] } else {
+    if owned_ends(t).size() == 2 { library(t, binary_name).reject(|g| g == t) } else { [] }
+  }
+}
+
+// A library element by its qualified name, from the loaded root namespaces.
+pub fn library(r:k.Element, name:String)->Sequence<k.Namespace> {
+  let parts = name.split("::");
+  match parts.first() {
+    Some(head) => qualified(global(r, head), parts, 1)
+      .flatMap(|m| elements_of(m).selectByKind::<k.Namespace>()),
+    None => []
+  }
+}
+
+fn general_of(s:k.Specialization)->Sequence<k.Namespace> =
+  match s {
+    _: k.CrossSubsetting => [],
+    _ => {
+      let chain = contents::<k.Feature>(s).selectByKind::<k.Namespace>();
+      if chain.notEmpty() { chain } else { stored_general(s) }
+    }
+  };
+
+fn stored_general(s:k.Specialization)->Sequence<k.Namespace> =
+  match s {
+    x: k.Subclassification => Sequence([x.superclassifier]),
+    x: k.FeatureTyping => Sequence([x.type]),
+    x: k.Redefinition => Sequence([x.redefinedFeature]),
+    x: k.Subsetting => Sequence([x.subsettedFeature]),
+    _ => []
+  };
+
+// SysML: the implicit `PortConjugation` of a conjugated port definition
+// `~P` gets its original type only when defaults run; while linking, its
+// original is the port definition that owns `~P`
+// (`PortConjugation::originalPortDefinition`), so `p.air` of a port typed by
+// `~P` names `P::air`.
+fn original_of(c:k.Conjugation)->Sequence<k.Namespace> =
+  match c {
+    p: k.PortConjugation => port_original(p),
+    _ => {
+      let chain = contents::<k.Feature>(c).selectByKind::<k.Namespace>();
+      if chain.notEmpty() { chain } else { Sequence([c.originalType]) }
+    }
+  };
+
+fn port_original(p:k.PortConjugation)->Sequence<k.Namespace> =
+  match p.owningRelatedElement {
+    Some(c) => match ancestors::<k.PortDefinition>(c).first() {
+      Some(d) => Sequence([d]).selectByKind::<k.Namespace>(),
+      None => no_namespaces()
+    },
+    None => no_namespaces()
+  };
+
+// The owned memberships of `ns` that `name` spells: by declared names first;
+// only if none matches, by the effective names of unnamed features. Effective
+// names read redefinitions, so they are read only when no declared name
+// matches.
+// Features in `avoid` are not matched by effective name; with `effective`
+// false, none is. Nor are the members of a feature chain expression: its
+// target chain is named after its last chaining feature, which is resolved
+// from the expression's first operand, so matching it while resolving that
+// operand would make the operand depend on itself.
+fn owned_named(ns:k.Namespace, name:String, avoid:Sequence<k.Element>, effective:Bool)->Sequence<k.Membership> {
+  let declared = Sequence(contents::<k.Membership>(ns).filter(|m| named(m, name)));
+  if declared.notEmpty() || !effective || is_chain_expression(ns) { declared } else {
+    // The first member in order whose effective name matches, as the
+    // Pilot's search stops at its first match: the effective names of the
+    // later members (which may depend on the reference being resolved)
+    // are not read.
+    // A chain owned through a plain owning membership (an assignment's
+    // `assign x.f.g` target chain) is a reference, not a named member.
+    match Sequence(contents::<k.OwningMembership>(ns))
+      .find(|m| !plain_chain_member(m)
+        && contents::<k.Feature>(m).exists(|f| !avoid.contains(f) && effectively_named(f, name, 0))) {
+      Some(m) => Sequence([m]).selectByKind::<k.Membership>(),
+      None => no_memberships()
+    }
+  }
+}
+
+// The effective name of a feature without a declared name or short name is
+// that of its naming feature (the Pilot's FeatureImpl.namingFeature): the
+// feature its first owned redefinition redefines; for a feature chain, its
+// last chaining feature; for a result parameter without an owned
+// redefinition, the result parameter of a general, which it implicitly
+// redefines (below). The walk is bounded.
+fn effectively_named(f:k.Feature, name:String, depth:Int64)->Bool =
+  if depth > 16 { false } else {
+    if unnamed(f) {
+      naming_features(f).exists(|g| spells(g.declaredName, name) || spells(g.declaredShortName, name)
+        || effectively_named(g, name, depth + 1))
+    } else { false }
+  };
+
+fn plain_chain_member(m:k.OwningMembership)->Bool =
+  match m {
+    _: k.FeatureMembership => false,
+    _ => contents::<k.Feature>(m).exists(|f| contents::<k.FeatureChaining>(f).notEmpty())
+  };
+
+fn is_chain_expression(ns:k.Namespace)->Bool =
+  match ns { _: k.FeatureChainExpression => true, _ => false };
+
+fn unnamed(e:k.Element)->Bool =
+  match e.declaredName {
+    Some(_) => false,
+    None => match e.declaredShortName { Some(_) => false, None => true }
+  };
+
+fn naming_features(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.VariantMembership>(f) {
+    Some(_) => variant_reference(f),
+    None => match f {
+      // SysML (PerformActionUsage::namingFeature, also exhibit and
+      // include): `perform ActionTree::providePowerFamily;` is named after
+      // the action it performs.
+      _: k.PerformActionUsage => {
+        let performed = variant_reference(f);
+        if performed.notEmpty() { performed } else { feature_naming_features(f) }
+      },
+      _ => feature_naming_features(f)
+    }
+  };
+
+// SysML (Usage::namingFeature): a variant written as a reference
+// (`variant '4cylEngine';`) is named after the feature it references, so
+// `engine::'4cylEngine'` names it.
+fn variant_reference(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.ReferenceSubsetting>(f).first() {
+    Some(r) => match contents::<k.Feature>(r).first() {
+      Some(chain) => Sequence([chain]),
+      None => Sequence([r.referencedFeature])
+    },
+    None => no_features()
+  };
+
+fn feature_naming_features(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.Redefinition>(f).first() {
+    Some(r) => Sequence([redefined_of(r)]).selectByKind::<k.Feature>(),
+    None => match contents::<k.FeatureChaining>(f).last() {
+      Some(c) => Sequence([c.chainingFeature]),
+      None => {
+        let payload = transition_payload(f);
+        if payload.notEmpty() { payload } else {
+          let trigger = transition_trigger(f);
+          if trigger.notEmpty() { trigger } else {
+            let result = implicitly_redefined(f);
+            if result.notEmpty() { result } else { positionally_redefined(f) }
+          }
+        }
+      }
+    }
+  };
+
+// SysML: a transition's trigger action (`accept p via r`) redefines
+// `Actions::TransitionAction::accepter`, as the Pilot adds it, so
+// `aTransition.accepter` names the trigger. Containment and the membership's
+// `kind` only.
+//
+// Likewise a transition's effect action (`do send ...`) redefines
+// `Actions::TransitionAction::effect` (the Pilot's ActionUsageAdapter
+// computed redefinition by kind), so `aTransition.effect.sentMessage` names
+// the effect's own `sentMessage`.
+fn transition_trigger(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.TransitionFeatureMembership>(f) {
+    Some(m) => if m.kind == k.TransitionFeatureKind.trigger {
+      library(f, "Actions::TransitionAction::accepter").selectByKind::<k.Feature>()
+    } else {
+      if m.kind == k.TransitionFeatureKind.effect {
+        match f {
+          _: k.ActionUsage => library(f, "Actions::TransitionAction::effect").selectByKind::<k.Feature>(),
+          _ => no_features()
+        }
+      } else { no_features() }
+    },
+    None => no_features()
+  };
+
+fn no_features()->Sequence<k.Feature> = [];
+
+// SysML (ReferenceUsage::namingFeature): the second parameter of a
+// transition, its payload parameter, is named after the payload parameter of
+// the transition's trigger action, so in `transition t first s accept p : T
+// via r then d;` the transition has a member `p`. Containment reads only.
+fn transition_payload(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.ParameterMembership>(f) {
+    Some(m) => match container::<k.TransitionUsage>(m) {
+      Some(t) => match contents::<k.ParameterMembership>(t).at(1) {
+        Some(second) => if second == m { trigger_payload(t) } else { [] },
+        None => []
+      },
+      None => []
+    },
+    None => []
+  };
+
+pub fn trigger_payload(t:k.TransitionUsage)->Sequence<k.Feature> =
+  Sequence(contents::<k.TransitionFeatureMembership>(t)
+    .flatMap(|m| contents::<k.AcceptActionUsage>(m))
+    .flatMap(|a| first_parameter(a)));
+
+fn first_parameter(a:k.Type)->Sequence<k.Feature> =
+  match contents::<k.ParameterMembership>(a).first() {
+    Some(p) => Sequence(contents::<k.Feature>(p)),
+    None => []
+  };
+
+// A result parameter (owned through a ReturnParameterMembership) implicitly
+// redefines the result parameter of each general of its type, as the Pilot
+// adds it; a type with no owned specialization specializes its library
+// default (a function `Performances::Evaluation`, whose result is `result`).
+fn implicitly_redefined(f:k.Feature)->Sequence<k.Feature> =
+  match ancestors::<k.Relationship>(f).first() {
+    Some(m) => match m {
+      _: k.ReturnParameterMembership => match ancestors::<k.Type>(f).first() {
+        Some(t) => naming_generals(t).flatMap(|g| result_parameter(g, 0)),
+        None => []
+      },
+      _ => []
+    },
+    None => []
+  };
+
+pub fn naming_generals(t:k.Type)->Sequence<k.Type> {
+  let explicit = generals(t).selectByKind::<k.Type>();
+  if explicit.notEmpty() { explicit } else {
+    library(t, implicit.library_default(t)).selectByKind::<k.Type>().reject(|g| g == t)
+  }
+}
+
+// The nearest result parameter of `t` or of its generals.
+fn result_parameter(t:k.Type, depth:Int64)->Sequence<k.Feature> =
+  if depth > 16 { [] } else {
+    let own = Sequence(contents::<k.ReturnParameterMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+    if own.notEmpty() { own } else {
+      naming_generals(t).flatMap(|g| result_parameter(g, depth + 1))
+    }
+  };
+
+// A spelling names a member by its name or short name, written plain or
+// quoted (`'not'`); escapes inside quotes are not decoded.
+fn named(m:k.Membership, name:String)->Bool =
+  match m {
+    owning: k.OwningMembership => contents::<k.Element>(owning)
+      .exists(|e| spells(e.declaredName, name) || spells(e.declaredShortName, name)),
+    _ => spells(m.memberName, name) || spells(m.memberShortName, name)
+  };
+
+fn spells(declared:Option<String>, name:String)->Bool =
+  match declared {
+    Some(d) => d == name || "'" + d + "'" == name,
+    None => false
+  };
+
+// An owning membership's element is its owned related element; any other
+// membership names its element directly.
+pub fn elements_of(m:k.Membership)->Sequence<k.Element> =
+  match m {
+    owning: k.OwningMembership => Sequence(contents::<k.Element>(owning)),
+    _ => Sequence([m.memberElement])
+  };

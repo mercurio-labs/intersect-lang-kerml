@@ -1,0 +1,159 @@
+rcore 1;
+package intersect.kerml.implicitGeneralizations version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+
+// The library type a type of each metaclass implicitly specializes when it
+// has no owned specialization: the "base" entries of the Pilot's
+// ImplicitGeneralizationMap (org.omg.sysml.util), one map for the combined
+// KerML and SysML metamodel. A metaclass without its own entry takes the
+// entry of its nearest general metaclass along the Pilot implementation's
+// superclass chain, so more specific metaclasses are listed first. The map
+// is split by metaclass family to keep each match shallow.
+//
+// The base entries and, for associations, the binary ones are listed: the
+// other kinds (subitem, subaction, ...) add more specific implicit subsettings that the name
+// resolution does not read yet.
+pub fn library_default(t:k.Type)->String =
+  match t {
+    _: k.Definition => definition_default(t),
+    _: k.Usage => usage_default(t),
+    _ => kerml_default(t)
+  };
+
+// The "binary" entries: the library type an association with exactly two
+// owned ends implicitly specializes, in addition to any explicit general;
+// empty for every other metaclass.
+pub fn binary_default(t:k.Type)->String =
+  match t {
+    _: k.InterfaceDefinition => "Interfaces::BinaryInterface",
+    _: k.AllocationDefinition => "Allocations::Allocation",
+    _: k.ConnectionDefinition => "Connections::BinaryConnection",
+    _: k.FlowDefinition => "Flows::Message",
+    _: k.AssociationStructure => "Objects::BinaryLinkObject",
+    _: k.Association => "Links::BinaryLink",
+    _ => ""
+  };
+
+fn definition_default(t:k.Type)->String =
+  match t {
+    _: k.ConstraintDefinition => constraint_definition_default(t),
+    _: k.ActionDefinition => action_definition_default(t),
+    _: k.PartDefinition => part_definition_default(t),
+    _: k.PortDefinition => "Ports::Port",
+    _: k.MetadataDefinition => "Metadata::MetadataItem",
+    _: k.ItemDefinition => "Items::Item",
+    _: k.OccurrenceDefinition => "Occurrences::Occurrence",
+    _: k.AttributeDefinition => "Base::DataValue",
+    _ => kerml_default(t)
+  };
+
+fn constraint_definition_default(t:k.Type)->String =
+  match t {
+    _: k.ConcernDefinition => "Requirements::ConcernCheck",
+    _: k.ViewpointDefinition => "Views::ViewpointCheck",
+    _: k.RequirementDefinition => "Requirements::RequirementCheck",
+    _ => "Constraints::ConstraintCheck"
+  };
+
+fn action_definition_default(t:k.Type)->String =
+  match t {
+    _: k.UseCaseDefinition => "UseCases::UseCase",
+    _: k.VerificationCaseDefinition => "VerificationCases::VerificationCase",
+    _: k.AnalysisCaseDefinition => "AnalysisCases::AnalysisCase",
+    _: k.CaseDefinition => "Cases::Case",
+    _: k.CalculationDefinition => "Calculations::Calculation",
+    _: k.StateDefinition => "States::StateAction",
+    _: k.FlowDefinition => "Flows::MessageAction",
+    _ => "Actions::Action"
+  };
+
+fn part_definition_default(t:k.Type)->String =
+  match t {
+    _: k.InterfaceDefinition => "Interfaces::Interface",
+    _: k.AllocationDefinition => "Allocations::Allocation",
+    _: k.ConnectionDefinition => "Connections::Connection",
+    _: k.RenderingDefinition => "Views::Rendering",
+    _: k.ViewDefinition => "Views::View",
+    _ => "Parts::Part"
+  };
+
+fn usage_default(t:k.Type)->String =
+  match t {
+    _: k.ConstraintUsage => constraint_usage_default(t),
+    _: k.ActionUsage => action_usage_default(t),
+    _: k.PartUsage => part_usage_default(t),
+    _: k.BindingConnectorAsUsage => "Links::selfLinks",
+    _: k.SuccessionAsUsage => "Occurrences::happensBeforeLinks",
+    _: k.PortUsage => "Ports::ports",
+    _: k.MetadataUsage => "Metadata::metadataItems",
+    _: k.ItemUsage => "Items::items",
+    _: k.OccurrenceUsage => "Occurrences::occurrences",
+    _: k.AttributeUsage => "Base::dataValues",
+    _ => kerml_default(t)
+  };
+
+fn constraint_usage_default(t:k.Type)->String =
+  match t {
+    _: k.SatisfyRequirementUsage => "Requirements::satisfiedRequirementChecks",
+    _: k.ConcernUsage => "Requirements::concernChecks",
+    _: k.ViewpointUsage => "Views::viewpointChecks",
+    _: k.RequirementUsage => "Requirements::requirementChecks",
+    _: k.AssertConstraintUsage => "Constraints::assertedConstraintChecks",
+    _ => "Constraints::constraintChecks"
+  };
+
+fn action_usage_default(t:k.Type)->String =
+  match t {
+    _: k.CalculationUsage => calculation_usage_default(t),
+    _: k.AcceptActionUsage => "Actions::acceptActions",
+    _: k.AssignmentActionUsage => "Actions::assignmentActions",
+    _: k.ForLoopActionUsage => "Actions::forLoopActions",
+    _: k.WhileLoopActionUsage => "Actions::whileLoopActions",
+    _: k.IfActionUsage => "Actions::ifThenActions",
+    _: k.SendActionUsage => "Actions::sendActions",
+    _: k.TerminateActionUsage => "Actions::terminateActions",
+    _: k.TransitionUsage => "Actions::transitionActions",
+    _: k.StateUsage => "States::stateActions",
+    _: k.SuccessionFlowUsage => "Flows::successionFlows",
+    _: k.FlowUsage => "Flows::flows",
+    _ => "Actions::actions"
+  };
+
+fn calculation_usage_default(t:k.Type)->String =
+  match t {
+    _: k.UseCaseUsage => "UseCases::useCases",
+    _: k.VerificationCaseUsage => "VerificationCases::verificationCases",
+    _: k.AnalysisCaseUsage => "AnalysisCases::analysisCases",
+    _: k.CaseUsage => "Cases::cases",
+    _ => "Calculations::calculations"
+  };
+
+fn part_usage_default(t:k.Type)->String =
+  match t {
+    _: k.InterfaceUsage => "Interfaces::interfaces",
+    _: k.AllocationUsage => "Allocations::allocations",
+    _: k.ConnectionUsage => "Connections::connections",
+    _: k.RenderingUsage => "Views::renderings",
+    _: k.ViewUsage => "Views::views",
+    _ => "Parts::parts"
+  };
+
+fn kerml_default(t:k.Type)->String =
+  match t {
+    _: k.BooleanExpression => "Performances::booleanEvaluations",
+    _: k.Expression => "Performances::evaluations",
+    _: k.Step => "Performances::performances",
+    _: k.Connector => "Links::links",
+    _: k.MetadataFeature => "Metaobjects::metaobjects",
+    _: k.Feature => "Base::things",
+    _: k.Predicate => "Performances::BooleanEvaluation",
+    _: k.Function => "Performances::Evaluation",
+    _: k.Behavior => "Performances::Performance",
+    _: k.Metaclass => "Metaobjects::Metaobject",
+    _: k.AssociationStructure => "Objects::ObjectLink",
+    _: k.Association => "Links::Link",
+    _: k.Structure => "Objects::Object",
+    _: k.Class => "Occurrences::Occurrence",
+    _: k.DataType => "Base::DataValue",
+    _ => "Base::Anything"
+  };

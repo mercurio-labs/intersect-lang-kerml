@@ -1,0 +1,31 @@
+[package]
+autotests = false
+name = "intersect-kerml"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+# `xmi`: the XMI export of `sysml_host::export`.
+intersect-model = { workspace = true, features = ["xmi"] }
+intersect-text.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# Digests the KerML binding recipe source (`kerml_bindings::recipe_digest`).
+sha2.workspace = true
+intersect-kpar = { path = "../intersect-kpar" }
+semver = { version = "1.0.28", default-features = false }
+
+# Host-only: hashes the compiler sources into the crate's SOURCE_IDENTITY.
+[build-dependencies]
+intersect-build-support.workspace = true
+
+[features]
+# Milestone-only tests (AGENTS.md test tiers): slow tests compile or run only
+# with this feature.
+milestone-tests = []
+[[test]]
+name = "all"
+path = "tests/all.rs"

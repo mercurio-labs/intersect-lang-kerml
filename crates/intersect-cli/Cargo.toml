@@ -1,0 +1,26 @@
+[package]
+name = "intersect-cli"
+description = "The intersect command: check, evaluate and export KerML/SysML models against the prepared standard library of a language pack"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "intersect"
+path = "src/main.rs"
+
+[dependencies]
+# Features must match the pack builder's (`sysml_pack`): a pack keys on the
+# enabled features of the crates that built it.
+intersect-model.workspace = true
+intersect-text.workspace = true
+intersect-kerml = { path = "../intersect-kerml" }
+intersect-kerml-eval = { path = "../intersect-kerml-eval" }
+# Project archive (.kpar) inputs, library archives and kpar export.
+intersect-kpar = { path = "../intersect-kpar" }
+serde_json.workspace = true
+
+[features]
+milestone-tests = []

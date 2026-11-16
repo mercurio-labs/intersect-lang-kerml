@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-16",
+  "repository": "https://github.com/mercurio-labs/intersect-lang-kerml",
+  "default_branch": "develop",
+  "history": "Independent root; previous commits are not ancestors of this baseline.",
+  "source": {
+    "repository": "https://github.com/mercurio-labs/intersect-lang-kerml-pre-dev",
+    "github_repository_id": 1451847834,
+    "revision": "b5392d1641af92d4274d583aa80c33972062e2df",
+    "tree": "00f2d9912fee3938f49899a63017979bf3e8d8cb"
+  },
+  "scope": {
+    "retained": "All maintained source, tests, fixtures, licenses, dependency pins and lockfiles, byte-for-byte from the source tree.",
+    "changed_files": [".gitattributes", "README.md", "docs/repository-reset.json"],
+    "attributes": "Preserve existing CRLF blobs in ten pinned inputs/historical probe files without normalization during fresh checkout creation.",
+    "readme": "Document the independent history and remove a duplicated Python SDK section.",
+    "runtime_changes": false,
+    "upstream_pin_updates": false
+  },
+  "recovery": {
+    "local_archive": "_archive/2026-11-16-kerml-reset",
+    "bundle": "intersect-lang-kerml-pre-dev.bundle",
+    "bundle_sha256": "33dd1ae2e68d7a3c8d5919429e89b331edcacd6253f80637b777768a4ff866a4",
+    "preservation": "Full original checkout, refs, reflogs, ignored artifacts and linked worktrees are retained; uncommitted worktree changes are inventoried and hashed."
+  },
+  "qualification": "Repository preservation and source identity checks only. No new runtime, language-semantic or performance qualification is claimed. Historical execution receipts retain their original scope."
+}

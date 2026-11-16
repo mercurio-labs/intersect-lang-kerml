@@ -1,0 +1,2030 @@
+rcore 1;
+package intersect.sysml.validation version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+import package intersect.kerml.implicitGeneralizations version "1" as implicit;
+import package intersect.kerml.nameResolution version "1" as resolution;
+
+// SysML validation rules, ported from the Pilot's SysMLValidator
+// (org.omg.sysml.xtext/src/org/omg/sysml/xtext/validation/SysMLValidator.xtend
+// at 692170b71867353b8f90341e61556f49a5beb0e5), layered on the KerML rules
+// (kerml-validation.rcore). Issue codes and messages are the Pilot's,
+// verbatim (quirks included: swapped and borrowed codes, messages used as
+// codes, misspellings); rule ids are the inventory's
+// (docs/pilot-validation-rules.md, tools/pilot-oracle/validation-rules.json).
+//
+// A validation reports on the object it is bound to, so each rule binds to
+// the class of the element the Pilot reports on (an owned feature, a
+// membership, a reference subsetting) and reads its owner from there.
+// Derived properties are read the way the Pilot derives them, from
+// containment: a feature's owning type is the type that owns its feature
+// membership (Feature_owningType), a membership's owning type its owning
+// namespace, a type's owned features those of its owned feature memberships.
+//
+// Batch B2 (SysML structure). Rules of the batch with no binding here are
+// unreachable in the Pilot and recorded in docs/pilot-validation-rules.md:
+// checkSendActionUsage's payload rule tests whether
+// TypeUtil.getFeatureMembershipOf(usg), a list, is a StateSubactionMembership
+// or TransitionFeatureMembership (never), and checkConjugatedPortDefinition's
+// original-port-definition rule compares the port conjugator's original port
+// definition with ConjugatedPortDefinition.originalPortDefinition, which is
+// derived from that same conjugator.
+
+// ---------------------------------------------------------------------------
+// Variations (checkDefinition, checkUsage, checkVariantMembership)
+
+bind validate k.VariantMembership = variant_membership_owning_namespace;
+bind validate k.FeatureMembership = variation_feature_membership;
+bind validate k.Specialization = variation_specialization;
+bind validate k.Usage = usage_variation_is_abstract;
+bind validate k.EnumerationDefinition = enumeration_definition_is_variation;
+
+// SysMLValidator.checkVariantMembership (the code is spelled
+// validateVariationMembershipOwningNamespace, and checkExpose reports the
+// same code, hence the rule id): a variant membership must be owned by a
+// definition or usage that is a variation (SysMLValidator.isVariation).
+fn variant_membership_owning_namespace(m:k.VariantMembership)->Sequence<Issue> =
+  if owned_by_variation(m) { [] } else {
+    [issue_rule("error", "validateVariationMembershipOwningNamespace",
+      "A variant must be an owned member of a variation.", "",
+      "SysML.checkVariantMembership.INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE")]
+  };
+
+fn owned_by_variation(m:k.VariantMembership)->Bool =
+  match container::<k.Definition>(m) {
+    Some(d) => d.isVariation,
+    None => match container::<k.Usage>(m) {
+      Some(u) => u.isVariation,
+      None => false
+    }
+  };
+
+// checkDefinition (validateDefinitionVariationOwnedFeatureMembership): every
+// owned feature membership of a variation definition. checkUsage
+// (validateUsageVariationOwnedFeatureMembership): every owned feature
+// membership of a variation usage other than a parameter or objective
+// membership.
+fn variation_feature_membership(m:k.FeatureMembership)->Sequence<Issue> =
+  match container::<k.Definition>(m) {
+    Some(d) => if d.isVariation {
+      [issue_rule("error", "validateDefinitionVariationMembership",
+        "An owned usage of a variation must be a variant.", "",
+        "SysML.checkDefinition.INVALID_DEFINITION_VARIATION_MEMBERSHIP")]
+    } else { [] },
+    None => match container::<k.Usage>(m) {
+      Some(u) => if u.isVariation && !parameter_or_objective(m) {
+        [issue_rule("error", "validateUsageVariationMembership",
+          "An owned usage of a variation must be a variant.", "",
+          "SysML.checkUsage.INVALID_USAGE_VARIATION_MEMBERSHIP")]
+      } else { [] },
+      None => []
+    }
+  };
+
+fn parameter_or_objective(m:k.FeatureMembership)->Bool =
+  match m {
+    _: k.ParameterMembership => true,
+    _: k.ObjectiveMembership => true,
+    _ => false
+  };
+
+// checkDefinition and checkUsage (validate...VariationSpecialization): an
+// owned specialization of a variation whose general is a variation. The
+// Pilot reports it on the specialization with the feature `general`.
+fn variation_specialization(s:k.Specialization)->Sequence<Issue> =
+  if !is_variation(s.general) { [] } else {
+    match container::<k.Definition>(s) {
+      Some(d) => if d.isVariation {
+        [issue_rule("error", "validateDefinitionVariationSpecialization",
+          "A variation must not specialize another variation.", "general",
+          "SysML.checkDefinition.INVALID_DEFINITION_VARIATION_SPECIALIZATION")]
+      } else { [] },
+      None => match container::<k.Usage>(s) {
+        Some(u) => if u.isVariation {
+          [issue_rule("error", "validateUsageVariationSpecialization",
+            "A variation must not specialize another variation.", "general",
+            "SysML.checkUsage.INVALID_USAGE_VARIATION_SPECIALIZATION")]
+        } else { [] },
+        None => []
+      }
+    }
+  };
+
+// SysMLValidator.isVariation.
+fn is_variation(t:k.Type)->Bool =
+  match t {
+    d: k.Definition => d.isVariation,
+    u: k.Usage => u.isVariation,
+    _ => false
+  };
+
+// checkUsage (validateUsageVariationIsAbstract). The construction defaults
+// make every variation abstract, as the Pilot's parser post-processors do.
+fn usage_variation_is_abstract(u:k.Usage)->Sequence<Issue> =
+  if u.isVariation && !u.isAbstract {
+    [issue_rule("error", "validateUsageVariationIsAbstract",
+      "A variation must be abstract.", "",
+      "SysML.checkUsage.INVALID_USAGE_VARIATION_IS_ABSTRACT")]
+  } else { [] };
+
+// checkEnumerationDefinition (validateEnumerationDefinitionIsVariation); the
+// construction default makes every enumeration definition a variation.
+fn enumeration_definition_is_variation(d:k.EnumerationDefinition)->Sequence<Issue> =
+  if d.isVariation { [] } else {
+    [issue_rule("error", "validateEnumerationDefinitionIsVariation",
+      "An enumeration definition must be a variation.", "",
+      "SysML.checkEnumerationDefinition.INVALID_ENUMERATION_DEFINITION_IS_VARIATION")]
+  };
+
+// ---------------------------------------------------------------------------
+// Referential usages and owned features
+
+bind validate k.ReferenceUsage = reference_usage_is_referential;
+bind validate k.AttributeUsage = attribute_usage_is_reference;
+bind validate k.EventOccurrenceUsage = event_occurrence_usage_is_reference;
+bind validate k.PortUsage = port_usage_is_reference;
+bind validate k.Feature = owned_feature_rules;
+
+// checkReferenceUsage: reported with the attribute-usage code and message
+// (the Pilot's codes of this rule and checkAttributeUsage's are swapped).
+// Usage.isReference is `not isComposite`.
+fn reference_usage_is_referential(u:k.ReferenceUsage)->Sequence<Issue> =
+  if u.isComposite {
+    [issue_rule("error", "validateAttributeUsageIsReferential",
+      "An attribute usage must be referential.", "",
+      "SysML.checkReferenceUsage.INVALID_ATTRIBUTE_USAGE_IS_REFERENTIAL")]
+  } else { [] };
+
+// checkAttributeUsage (validateAttributeUsageIsReference), with the
+// reference-usage code.
+fn attribute_usage_is_reference(u:k.AttributeUsage)->Sequence<Issue> =
+  if u.isComposite {
+    [issue_rule("error", "validateReferenceUsageIsReference",
+      "An attribute usage must be referential.", "",
+      "SysML.checkAttributeUsage.INVALID_REFERENCE_USAGE_IS_REFERENCE")]
+  } else { [] };
+
+// checkEventOccurrenceUsage (validateEventOccurrenceUsageIsReference): the
+// message names the kind, tested in the Pilot's order.
+fn event_occurrence_usage_is_reference(u:k.EventOccurrenceUsage)->Sequence<Issue> =
+  if !u.isComposite { [] } else {
+    [issue_rule("error", "validateEventOccurrenceUsageIsReference",
+      event_reference_message(u), "",
+      "SysML.checkEventOccurrenceUsage.INVALID_EVENT_OCCURRENCE_USAGE_IS_REFERENCE")]
+  };
+
+fn event_reference_message(u:k.EventOccurrenceUsage)->String =
+  match u {
+    _: k.ExhibitStateUsage => "An exhibit state usage must be referential.",
+    _: k.IncludeUseCaseUsage => "An include use case usage must be referential.",
+    _: k.PerformActionUsage => "A perform action usage must be referential.",
+    _ => "An event occurrence usage must be referential."
+  };
+
+// checkPortUsage (validatePortUsageIsReference): a composite port usage
+// whose owning type is not a port definition or usage.
+fn port_usage_is_reference(u:k.PortUsage)->Sequence<Issue> =
+  if !u.isComposite || owned_by_port(u) { [] } else {
+    [issue_rule("error", "validatePortUsageIsReference",
+      "A port usage must be referential.", "",
+      "SysML.checkPortUsage.INVALID_PORT_USAGE_IS_REFERENCE")]
+  };
+
+fn owned_by_port(f:k.Feature)->Bool =
+  match owning_type(f) {
+    Some(t) => match t {
+      _: k.PortDefinition => true,
+      _: k.PortUsage => true,
+      _ => false
+    },
+    None => false
+  };
+
+// Rules the Pilot reports on an owned feature of its owning type:
+// checkAttributeDefinition and checkAttributeUsage (composite owned
+// features), checkPortDefinition and checkPortUsage (composite owned or
+// nested usages other than ports), checkInterfaceDefinitionEnds and
+// checkInterfaceUsageEnds (owned ends that are not ports).
+fn owned_feature_rules(f:k.Feature)->Sequence<Issue> =
+  match owning_type(f) {
+    Some(t) => attribute_feature(f, t).concat(port_feature(f, t)).concat(interface_end(f, t)),
+    None => []
+  };
+
+fn attribute_feature(f:k.Feature, t:k.Type)->Sequence<Issue> =
+  if !f.isComposite { [] } else {
+    match t {
+      _: k.AttributeDefinition => [issue_rule("error", "validateAttributeDefinitionFeatures",
+        "Features of an attribute definition must be referential.", "",
+        "SysML.checkAttributeDefinition.INVALID_ATTRIBUTE_DEFINITION_FEATURES")],
+      _: k.AttributeUsage => [issue_rule("error", "validateAttributeUsageFeatures",
+        "Features of an attribute usage must be referential.", "",
+        "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_FEATURES")],
+      _ => []
+    }
+  };
+
+fn port_feature(f:k.Feature, t:k.Type)->Sequence<Issue> =
+  if !f.isComposite || !non_port_usage(f) { [] } else {
+    match t {
+      _: k.PortDefinition => [issue_rule("error", "validatePortDefinitionOwnedUsagesNotComposite",
+        "Owned usages of a port definition (other than ports) must be referential.", "",
+        "SysML.checkPortDefinition.INVALID_PORT_DEFINITION_OWNED_USAGES_NOT_COMPOSITE")],
+      _: k.PortUsage => [issue_rule("error", "validatePortUsageNestedUsagesNotComposite",
+        "Nested usages in a port usage (other than ports) must be referential.", "",
+        "SysML.checkPortUsage.INVALID_PORT_USAGE_NESTED_USAGES_NOT_COMPOSITE")],
+      _ => []
+    }
+  };
+
+fn non_port_usage(f:k.Feature)->Bool =
+  match f {
+    _: k.PortUsage => false,
+    _: k.Usage => true,
+    _ => false
+  };
+
+fn interface_end(f:k.Feature, t:k.Type)->Sequence<Issue> =
+  if !f.isEnd || is_port_usage(f) { [] } else {
+    match t {
+      _: k.InterfaceDefinition => [issue_rule("error", "validateInterfaceDefinitionEnd_",
+        "An interface definition end must be a port.", "",
+        "SysML.checkInterfaceDefinitionEnds.INVALID_INTERFACE_DEFINITION_END")],
+      _: k.InterfaceUsage => [issue_rule("error", "validateInterfaceUsageEnd_",
+        "An interface end must be a port.", "",
+        "SysML.checkInterfaceUsageEnds.INVALID_INTERFACE_USAGE_END")],
+      _ => []
+    }
+  };
+
+fn is_port_usage(f:k.Feature)->Bool =
+  match f { _: k.PortUsage => true, _ => false };
+
+// ---------------------------------------------------------------------------
+// Referenced features (SysMLValidator.checkReferenceType): the Pilot reports
+// on the usage's owned reference subsetting (its first) when the basic
+// feature (FeatureUtil.getBasicFeatureOf: the last chaining feature of a
+// chain) of the referenced feature is not of the required kind.
+
+bind validate k.ReferenceSubsetting = reference_type_rules;
+
+fn reference_type_rules(rs:k.ReferenceSubsetting)->Sequence<Issue> =
+  match container::<k.Feature>(rs) {
+    Some(f) => if first_reference_subsetting(f, rs) {
+      referenced_kind_rules(f, basic_feature(rs.referencedFeature))
+    } else { [] },
+    None => []
+  };
+
+fn first_reference_subsetting(f:k.Feature, rs:k.ReferenceSubsetting)->Bool =
+  match contents::<k.ReferenceSubsetting>(f).first() {
+    Some(first) => first == rs,
+    None => false
+  };
+
+fn basic_feature(f:k.Feature)->k.Feature =
+  match contents::<k.FeatureChaining>(f).last() {
+    Some(c) => c.chainingFeature,
+    None => f
+  };
+
+fn referenced_kind_rules(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  event_referent(f, target)
+    .concat(perform_reference(f, target))
+    .concat(exhibit_reference(f, target))
+    .concat(assert_reference(f, target))
+    .concat(satisfy_reference(f, target))
+    .concat(include_reference(f, target));
+
+// checkEventOccurrenceUsage (not perform action or include use case usages).
+fn event_referent(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.PerformActionUsage => [],
+    _: k.IncludeUseCaseUsage => [],
+    _: k.EventOccurrenceUsage => match target {
+      _: k.OccurrenceUsage => [],
+      _ => [issue_rule("error", "validateEventOccurrenceUsageReferent",
+        "Must reference an occurrence.", "",
+        "SysML.checkEventOccurrenceUsage.INVALID_EVENT_OCCURRENCE_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+// checkPerformActionUsage (not exhibit state or include use case usages).
+fn perform_reference(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.ExhibitStateUsage => [],
+    _: k.IncludeUseCaseUsage => [],
+    _: k.PerformActionUsage => match target {
+      _: k.ActionUsage => [],
+      _ => [issue_rule("error", "validatePerformActionUsageReference",
+        "Must reference an action.", "",
+        "SysML.checkPerformActionUsage.INVALID_PERFORM_ACTION_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+fn exhibit_reference(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.ExhibitStateUsage => match target {
+      _: k.StateUsage => [],
+      _ => [issue_rule("error", "validateExhibitStateUsageReference",
+        "Must reference a state.", "",
+        "SysML.checkExhibitStateUsage.INVALID_EXHIBIT_STATE_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+// checkAssertConstraintUsage applies to satisfy requirement usages too.
+fn assert_reference(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.AssertConstraintUsage => match target {
+      _: k.ConstraintUsage => [],
+      _ => [issue_rule("error", "validateAssertConstraintUsageReference",
+        "Must reference a constraint.", "",
+        "SysML.checkAssertConstraintUsage.INVALID_ASSERT_CONSTRAINT_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+fn satisfy_reference(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.SatisfyRequirementUsage => match target {
+      _: k.RequirementUsage => [],
+      _ => [issue_rule("error", "validateSatisfyRequirementUsageReference",
+        "Must reference a requirement.", "",
+        "SysML.checkSatisfyRequirementUsage.INVALID_SATISFY_REQUIREMENT_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+fn include_reference(f:k.Feature, target:k.Feature)->Sequence<Issue> =
+  match f {
+    _: k.IncludeUseCaseUsage => match target {
+      _: k.UseCaseUsage => [],
+      _ => [issue_rule("error", "validateIncludeUseCaseUsageReference",
+        "Must reference a use case.", "",
+        "SysML.checkIncludeUseCaseUsage.INVALID_INCLUDE_USE_CASE_USAGE_REFERENCE")]
+    },
+    _ => []
+  };
+
+// ---------------------------------------------------------------------------
+// Occurrences and ports
+
+bind validate k.OccurrenceUsage = portion_rules;
+bind validate k.ConjugatedPortDefinition = conjugated_port_definition_rules;
+bind validate k.PortDefinition = port_definition_conjugated;
+
+// checkOccurrenceUsage (validateOccurrenceUsageIsPortion and
+// validateOccurrenceUsagePortionKind); the codes are the message texts.
+fn portion_rules(u:k.OccurrenceUsage)->Sequence<Issue> =
+  match u.portionKind {
+    Some(_) => portion_flag(u).concat(portion_owner(u)),
+    None => []
+  };
+
+fn portion_flag(u:k.OccurrenceUsage)->Sequence<Issue> =
+  if u.isPortion { [] } else {
+    [issue_rule("error", "Must be a portion.", "Must be a portion.", "",
+      "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_IS_PORTION_MSG")]
+  };
+
+fn portion_owner(u:k.OccurrenceUsage)->Sequence<Issue> =
+  if owned_by_occurrence(u) { [] } else {
+    [issue_rule("error", "Must be owned by an occurrence definition or usage.",
+      "Must be owned by an occurrence definition or usage.", "",
+      "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_PORTION_KIND_MSG")]
+  };
+
+fn owned_by_occurrence(f:k.Feature)->Bool =
+  match owning_type(f) {
+    Some(t) => match t {
+      _: k.OccurrenceDefinition => true,
+      _: k.OccurrenceUsage => true,
+      _ => false
+    },
+    None => false
+  };
+
+// checkConjugatedPortDefinition
+// (validateConjugatedPortDefinitionConjugatedPortDefinition): a conjugated
+// port definition that has a conjugated port definition (an owned member).
+fn conjugated_port_definition_rules(d:k.ConjugatedPortDefinition)->Sequence<Issue> =
+  if owned_conjugates(d).isEmpty() { [] } else {
+    [issue_rule("error", "validateConjugatedPortDefinitionConjugatedPortDefinition",
+      "A conjugated port definition must not have a conjugated port definition.", "",
+      "SysML.checkConjugatedPortDefinition.INVALID_CONJUGATED_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION")]
+  };
+
+// checkPortDefinition (validatePortDefinitionConjugatedPortDefinition): a
+// port definition that is not conjugated owns exactly one conjugated port
+// definition as a member.
+fn port_definition_conjugated(d:k.PortDefinition)->Sequence<Issue> =
+  match d {
+    _: k.ConjugatedPortDefinition => [],
+    _ => if owned_conjugates(d).size() == 1 { [] } else {
+      [issue_rule("error", "validatePortDefinitionConjugatedPortDefinition",
+        "A port definition must have a conjugated port definition.", "",
+        "SysML.checkPortDefinition.INVALID_PORT_DEFINITION_CONJUGATED_PORT_DEFINITION")]
+    }
+  };
+
+fn owned_conjugates(d:k.PortDefinition)->Sequence<k.ConjugatedPortDefinition> =
+  Sequence(contents::<k.OwningMembership>(d).flatMap(|m| contents::<k.ConjugatedPortDefinition>(m)));
+
+// ---------------------------------------------------------------------------
+// Actions
+
+bind validate k.Relationship = assignment_rules;
+bind validate k.ControlNode = control_node_owning_type;
+bind validate k.Expression = send_receiver;
+bind validate k.ForLoopActionUsage = for_loop_variable;
+
+// checkAssignmentActionUsage. Both rules report on the assignment's second
+// owned relationship (`usg.ownedRelationship.get(1)`), whatever it is. The
+// referent (AssignmentActionUsage_referent) is the member of the first owned
+// membership that is not a feature membership and whose member is a feature
+// other than a metadata feature. It must exist
+// (validateAssignmentActionUsageReferent) and its target feature
+// (Feature_featureTarget, the basic feature) must be variable
+// (validateAssignmentActionUsageReferentIsTimeVarying).
+fn assignment_rules(r:k.Relationship)->Sequence<Issue> =
+  match container::<k.AssignmentActionUsage>(r) {
+    Some(a) => match contents::<k.Relationship>(a).at(1) {
+      Some(second) => if second == r { assignment_referent(a) } else { [] },
+      None => []
+    },
+    None => []
+  };
+
+fn assignment_referent(a:k.AssignmentActionUsage)->Sequence<Issue> =
+  match referent_candidates(a).first() {
+    Some(f) => if is_variable(basic_feature(f)) { [] } else {
+      [issue_rule("error", "validateAssignmentActionUsageReferentIsTimeVarying",
+        "Referent must be time varying.", "",
+        "SysML.checkAssignmentActionUsage.INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT_IS_TIME_VARYING")]
+    },
+    None => [issue_rule("error", "validateAssignmentActionUsageReferent",
+      "An assignment must have a referent.", "",
+      "SysML.checkAssignmentActionUsage.INVALID_ASSIGNMENT_ACTION_USAGE_REFERENT")]
+  };
+
+fn referent_candidates(a:k.AssignmentActionUsage)->Sequence<k.Feature> =
+  Sequence(contents::<k.Membership>(a)
+    .reject(|m| is_feature_membership(m))
+    .flatMap(|m| resolution.elements_of(m))
+    .selectByKind::<k.Feature>()
+    .reject(|f| is_metadata_feature(f)));
+
+fn is_feature_membership(m:k.Membership)->Bool =
+  match m { _: k.FeatureMembership => true, _ => false };
+
+fn is_metadata_feature(f:k.Feature)->Bool =
+  match f { _: k.MetadataFeature => true, _ => false };
+
+// Feature.isVariable; for a usage it is Usage.mayTimeVary (UsageImpl), false
+// for succession and binding connector usages
+// (Usage_mayTimeVary_SettingDelegate).
+fn is_variable(f:k.Feature)->Bool =
+  match f {
+    _: k.SuccessionAsUsage => false,
+    _: k.BindingConnectorAsUsage => false,
+    u: k.Usage => may_time_vary(u),
+    _ => f.isVariable
+  };
+
+// UsageAdapter.mayTimeVary, as sysml-construction.rcore's may_time_vary
+// (which that package does not export): the owning type specializes
+// Occurrences::Occurrence, and the usage is not a portion, a self link or
+// happens link, or a composite action.
+fn may_time_vary(u:k.Usage)->Bool =
+  match owning_type(u) {
+    Some(t) => if u.isPortion || !specializes(t, "Occurrences::Occurrence") { false } else {
+      let own = supertypes_of(u);
+      !(reaches(own, u, "Links::SelfLink")
+        || reaches(own, u, "Occurrences::HappensLink")
+        || (u.isComposite && reaches(own, u, "Actions::Action")))
+    },
+    None => false
+  };
+
+fn specializes(t:k.Type, name:String)->Bool = reaches(supertypes_of(t), t, name);
+
+fn reaches(types:Sequence<k.Type>, r:k.Type, name:String)->Bool =
+  resolution.library(r, name).selectByKind::<k.Type>()
+    .exists(|target| types.exists(|g| g == target));
+
+fn supertypes_of(t:k.Type)->Sequence<k.Type> = closure(Sequence([t]), no_types(t), 0);
+
+fn closure(frontier:Sequence<k.Type>, seen:Sequence<k.Type>, depth:Int64)->Sequence<k.Type> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| generals_of(g)).distinct()
+      .reject(|g| known.contains(g)));
+    closure(next, known, depth + 1)
+  };
+
+fn generals_of(t:k.Type)->Sequence<k.Type> =
+  resolution.naming_generals(t)
+    .concat(resolution.library(t, implicit.library_default(t)).selectByKind::<k.Type>()
+      .reject(|g| g == t))
+    .concat(resolution.binary_library(t).selectByKind::<k.Type>())
+    .concat(last_chained(t));
+
+fn last_chained(t:k.Type)->Sequence<k.Type> =
+  match contents::<k.FeatureChaining>(t).last() {
+    Some(c) => Sequence([c.chainingFeature]).selectByKind::<k.Type>(),
+    None => []
+  };
+
+fn no_types(t:k.Type)->Sequence<k.Type> = [];
+
+// checkControlNode (validateControlNodeOwningType).
+fn control_node_owning_type(n:k.ControlNode)->Sequence<Issue> =
+  if owned_by_action(n) { [] } else {
+    [issue_rule("error", "validateControlNodeOwningType",
+      "A control node must be owned by an action definition or usage.", "",
+      "SysML.checkControlNode.INVALID_CONTROL_NODE_OWNING_TYPE")]
+  };
+
+fn owned_by_action(f:k.Feature)->Bool =
+  match owning_type(f) {
+    Some(t) => match t {
+      _: k.ActionUsage => true,
+      _: k.ActionDefinition => true,
+      _ => false
+    },
+    None => false
+  };
+
+// checkSendActionUsage (validateSendActionUsageReceiver_, a warning) on the
+// receiver argument: the value expression of the send action's third owned
+// input parameter (SendActionUsage.argument(3), UsageUtil.getArgumentOf),
+// when it is a feature reference to a port usage or a feature chain whose
+// target feature (its second owned membership's member) has a port usage as
+// its basic feature.
+fn send_receiver(e:k.Expression)->Sequence<Issue> =
+  match container::<k.FeatureValue>(e) {
+    Some(v) => match container::<k.Feature>(v) {
+      Some(p) => match owning_type(p) {
+        Some(t) => match t {
+          s: k.SendActionUsage => if receiver_parameter(s, p) && refers_to_port(e) {
+            [issue_rule("warning", "validateSendActionUsageReceiver_",
+              "Sending to a port should generally use \"via\" instead of \"to\".", "",
+              "SysML.checkSendActionUsage.INVALID_SEND_ACTION_USAGE_RECEIVER")]
+          } else { [] },
+          _ => []
+        },
+        None => []
+      },
+      None => []
+    },
+    None => []
+  };
+
+fn receiver_parameter(s:k.SendActionUsage, p:k.Feature)->Bool =
+  match input_parameters(s).at(2) {
+    Some(third) => third == p,
+    None => false
+  };
+
+fn input_parameters(t:k.Type)->Sequence<k.Feature> =
+  owned_features(t).filter(|f| input_directed(f));
+
+fn input_directed(f:k.Feature)->Bool =
+  match f.direction {
+    Some(d) => d == k.FeatureDirectionKind.`in` || d == k.FeatureDirectionKind.`inout`,
+    None => false
+  };
+
+fn refers_to_port(e:k.Expression)->Bool =
+  match e {
+    r: k.FeatureReferenceExpression => match Sequence(contents::<k.Membership>(r)
+        .reject(|m| is_parameter_membership(m))
+        .flatMap(|m| resolution.elements_of(m))).first() {
+      Some(referent) => match referent { _: k.PortUsage => true, _ => false },
+      None => false
+    },
+    c: k.FeatureChainExpression => match contents::<k.Membership>(c).at(1) {
+      Some(m) => resolution.elements_of(m).selectByKind::<k.Feature>()
+        .exists(|f| is_port_usage(basic_feature(f))),
+      None => false
+    },
+    _ => false
+  };
+
+fn is_parameter_membership(m:k.Membership)->Bool =
+  match m { _: k.ParameterMembership => true, _ => false };
+
+// checkForLoopActionUsage (validateForLoopActionUsageLoopVariable): the first
+// owned feature must be a reference usage.
+fn for_loop_variable(l:k.ForLoopActionUsage)->Sequence<Issue> =
+  match owned_features(l).first() {
+    Some(f) => match f {
+      _: k.ReferenceUsage => [],
+      _ => for_loop_issue()
+    },
+    None => for_loop_issue()
+  };
+
+fn for_loop_issue()->Sequence<Issue> =
+  [issue_rule("error", "validateForLoopActionUsageLoopVariable",
+    "A for loop action must have a loop variable.", "",
+    "SysML.checkForLoopActionUsage.INVALID_FOR_LOOP_ACTION_USAGE_LOOP_VARIABLE")];
+
+// ---------------------------------------------------------------------------
+// States and transitions
+
+bind validate k.StateSubactionMembership = state_subaction_rules;
+bind validate k.TransitionFeatureMembership = transition_feature_rules;
+bind validate k.TransitionUsage = transition_rules;
+bind validate k.Succession = succession_parallel;
+
+// checkStateDefinition and checkStateUsage (checkStateSubactions over
+// UsageUtil.getStateSubactionMembershipsOf, the owned feature memberships):
+// the second and later owned subaction memberships of one kind.
+// checkStateSubactionMembership (code spelled
+// validateStateSubactionMembershioOwningType): the owning type must be a
+// state definition or usage.
+fn state_subaction_rules(m:k.StateSubactionMembership)->Sequence<Issue> =
+  match container::<k.Type>(m) {
+    Some(t) => match t {
+      d: k.StateDefinition => repeated_subaction(d, m, "validateStateDefinitionSubactionKind",
+        "SysML.checkStateDefinition.INVALID_STATE_DEFINITION_SUBACTION_KIND"),
+      u: k.StateUsage => repeated_subaction(u, m, "validateStateUsageSubactionKind",
+        "SysML.checkStateUsage.INVALID_STATE_USAGE_SUBACTION_KIND"),
+      _ => subaction_owning_type()
+    },
+    None => subaction_owning_type()
+  };
+
+fn repeated_subaction(t:k.Type, m:k.StateSubactionMembership, c:String, r:String)->Sequence<Issue> =
+  match contents::<k.StateSubactionMembership>(t).filter(|x| x.kind == m.kind).first() {
+    Some(first) => if first == m { [] } else {
+      [issue_rule("error", c, subaction_message(m), "", r)]
+    },
+    None => []
+  };
+
+fn subaction_message(m:k.StateSubactionMembership)->String =
+  if m.kind == k.StateSubactionKind.`entry` { "A state may have at most one entry action." } else {
+    if m.kind == k.StateSubactionKind.`do` { "A state may have at most one do action." } else {
+      "A state may have at most one exit action."
+    }
+  };
+
+fn subaction_owning_type()->Sequence<Issue> =
+  [issue_rule("error", "validateStateSubactionMembershioOwningType",
+    "Only a state can have an entry, do or exit action.", "",
+    "SysML.checkStateSubactionMembership.INVALID_STATE_SUBACTION_MEMBERSHIP_OWNING_TYPE")];
+
+// checkTransitionFeatureMembership: an effect must be an action, a trigger
+// an accept action (the guard rule needs expression typing, batch B6), and
+// the owning type must be a transition usage.
+fn transition_feature_rules(m:k.TransitionFeatureMembership)->Sequence<Issue> =
+  transition_feature_kind(m).concat(transition_feature_owner(m));
+
+fn transition_feature_owner(m:k.TransitionFeatureMembership)->Sequence<Issue> =
+  match container::<k.TransitionUsage>(m) {
+    Some(_) => [],
+    None => [issue_rule("error", "validateTransitionFeatureMembershipOwningType",
+      "Transition feature membership not allowed.", "",
+      "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+fn transition_feature_kind(m:k.TransitionFeatureMembership)->Sequence<Issue> =
+  if m.kind == k.TransitionFeatureKind.`effect` {
+    if Sequence(contents::<k.ActionUsage>(m)).notEmpty() { [] } else {
+      [issue_rule("error", "validateTransitionFeatureMembershipEffectAction",
+        "Must be an action.", "",
+        "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_EFFECT_ACTION")]
+    }
+  } else {
+    if m.kind == k.TransitionFeatureKind.`trigger` {
+      if Sequence(contents::<k.AcceptActionUsage>(m)).notEmpty() { [] } else {
+        [issue_rule("error", "validateTransitionFeatureMembershipTriggerAction",
+          "Must be an accept action.", "",
+          "SysML.checkTransitionFeatureMembership.INVALID_TRANSITION_FEATURE_MEMBERSHIP_TRIGGER_ACTION")]
+      }
+    } else { [] }
+  };
+
+// checkTransitionUsage: a transition owned by a parallel state
+// (validateStateDefinitionParallelSubactions and
+// validateStateUsageParallelSubactions, the code being the message, the
+// same text for both), and validateTransitionUsageSuccession: the first owned
+// succession member must exist and each of its target features (the
+// referenced features of its ends after the first, the source) must have an
+// action usage as its basic feature.
+fn transition_rules(t:k.TransitionUsage)->Sequence<Issue> =
+  transition_parallel(t).concat(transition_succession(t));
+
+fn transition_parallel(t:k.TransitionUsage)->Sequence<Issue> =
+  if owned_by_parallel_state(t) {
+    [issue_rule("error", "A parallel state cannot have successions or transitions.",
+      "A parallel state cannot have successions or transitions.", "",
+      "SysML.checkTransitionUsage.INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG")]
+  } else { [] };
+
+fn transition_succession(t:k.TransitionUsage)->Sequence<Issue> =
+  match Sequence(contents::<k.OwningMembership>(t).flatMap(|m| contents::<k.Succession>(m))).first() {
+    Some(s) => if succession_targets(s).forAll(|f| is_action_usage(basic_feature(f))) { [] } else {
+      transition_succession_issue()
+    },
+    None => transition_succession_issue()
+  };
+
+fn transition_succession_issue()->Sequence<Issue> =
+  [issue_rule("error", "validateTransitionUsageSuccession",
+    "A transition must own a succession to its target.", "",
+    "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_SUCCESSION")];
+
+fn succession_targets(s:k.Succession)->Sequence<k.Feature> =
+  features_from(owned_features(s).filter(|e| e.isEnd), 1)
+    .flatMap(|e| referenced_features(e));
+
+fn referenced_features(e:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.ReferenceSubsetting>(e).first() {
+    Some(rs) => Sequence([rs.referencedFeature]),
+    None => []
+  };
+
+fn features_from(items:Sequence<k.Feature>, i:Int64)->Sequence<k.Feature> =
+  match items.at(i) {
+    Some(f) => Sequence([f]).concat(features_from(items, i + 1)),
+    None => []
+  };
+
+fn is_action_usage(f:k.Feature)->Bool =
+  match f { _: k.ActionUsage => true, _ => false };
+
+// checkSuccession (the same code as the transition rule).
+fn succession_parallel(s:k.Succession)->Sequence<Issue> =
+  if owned_by_parallel_state(s) {
+    [issue_rule("error", "A parallel state cannot have successions or transitions.",
+      "A parallel state cannot have successions or transitions.", "",
+      "SysML.checkSuccession.INVALID_STATE_USAGE_PARALLEL_SUBACTIONS_MSG")]
+  } else { [] };
+
+// UsageUtil.isParallelState of the owning type.
+fn owned_by_parallel_state(f:k.Feature)->Bool =
+  match owning_type(f) {
+    Some(t) => match t {
+      d: k.StateDefinition => d.isParallel,
+      u: k.StateUsage => u.isParallel,
+      _ => false
+    },
+    None => false
+  };
+
+// ---------------------------------------------------------------------------
+// Requirements, cases and views: memberships and their owning types
+
+bind validate k.ActorMembership = actor_membership_owning_type;
+bind validate k.StakeholderMembership = stakeholder_membership_owning_type;
+bind validate k.SubjectMembership = subject_membership_owning_type;
+bind validate k.FramedConcernMembership = framed_concern_kind;
+bind validate k.RequirementConstraintMembership = requirement_constraint_rules;
+bind validate k.ObjectiveMembership = objective_rules;
+bind validate k.RequirementVerificationMembership = requirement_verification_rules;
+bind validate k.ViewRenderingMembership = view_rendering_owning_type;
+bind validate k.Expose = expose_rules;
+
+fn actor_membership_owning_type(m:k.ActorMembership)->Sequence<Issue> =
+  if owned_by_requirement(m) || owned_by_case(m) { [] } else {
+    [issue_rule("error", "validateActorMembershipOwningType",
+      "Only requirements and cases can have actors.", "",
+      "SysML.checkActorMembership.INVALID_ACTOR_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+fn stakeholder_membership_owning_type(m:k.StakeholderMembership)->Sequence<Issue> =
+  if owned_by_requirement(m) { [] } else {
+    [issue_rule("error", "validateStakeholderMembershipOwningType",
+      "Only requirements can have stakeholders.", "",
+      "SysML.checkStakeholderMembership.INVALID_STAKEHOLDER_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+fn subject_membership_owning_type(m:k.SubjectMembership)->Sequence<Issue> =
+  if owned_by_requirement(m) || owned_by_case(m) { [] } else {
+    [issue_rule("error", "validateSubjectMembershipOwningType",
+      "Only requirements and cases can have subjects.", "",
+      "SysML.checkSubjectMembership.INVALID_SUBJECT_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+// checkFramedConcernUsage; the grammar sets the kind to requirement.
+fn framed_concern_kind(m:k.FramedConcernMembership)->Sequence<Issue> =
+  if m.kind == k.RequirementConstraintKind.`requirement` { [] } else {
+    [issue_rule("error", "validateFramedConcernMembershipConstraintKind",
+      "A framed concern must be a required constraint.", "",
+      "SysML.checkFramedConcernUsage.INVALID_FRAMED_CONCERN_MEMBERSHIP_CONSTRAINT_KIND")]
+  };
+
+// checkRequirementConstraintMembership (also framed concern and requirement
+// verification memberships): the owned constraint must be composite and the
+// owning type a requirement definition or usage.
+fn requirement_constraint_rules(m:k.RequirementConstraintMembership)->Sequence<Issue> =
+  requirement_constraint_composite(m).concat(requirement_constraint_owner(m));
+
+fn requirement_constraint_composite(m:k.RequirementConstraintMembership)->Sequence<Issue> =
+  if owned_member_composite(m) { [] } else {
+    [issue_rule("error", "validateRequirementConstraintMembershipIsComposite",
+      "A requirement constraint must be composite.", "",
+      "SysML.checkRequirementConstraintMembership.INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_IS_COMPOSITE")]
+  };
+
+fn requirement_constraint_owner(m:k.RequirementConstraintMembership)->Sequence<Issue> =
+  if owned_by_requirement(m) { [] } else {
+    [issue_rule("error", "validateRequirementConstraintMembershipOwningType",
+      "Only requirements can have assumed or required constraints.", "",
+      "SysML.checkRequirementConstraintMembership.INVALID_REQUIREMENT_CONSTRAINT_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+// checkObjectiveMembership.
+fn objective_rules(m:k.ObjectiveMembership)->Sequence<Issue> =
+  objective_composite(m).concat(objective_owner(m));
+
+fn objective_composite(m:k.ObjectiveMembership)->Sequence<Issue> =
+  if owned_member_composite(m) { [] } else {
+    [issue_rule("error", "validateObjectiveMembershipIsComposite",
+      "An objective must be composite.", "",
+      "SysML.checkObjectiveMembership.INVALID_OBJECTIVE_MEMBERSHIP_IS_COMPOSITE")]
+  };
+
+fn objective_owner(m:k.ObjectiveMembership)->Sequence<Issue> =
+  if owned_by_case(m) { [] } else {
+    [issue_rule("error", "validateObjectiveMembershipOwningType",
+      "Only cases can have objectives.", "",
+      "SysML.checkObjectiveMembership.INVALID_OBJECTIVE_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+// The owned member feature, when there is one, is composite (the Pilot
+// skips a membership without one).
+fn owned_member_composite(m:k.FeatureMembership)->Bool =
+  Sequence(contents::<k.Feature>(m)).forAll(|f| f.isComposite);
+
+// checkRequirementVerificationMembership: the kind (set to requirement by
+// the grammar) and UsageUtil.isLegalVerification: the owning type is an
+// objective requirement (owned through an objective membership) of a
+// verification case definition or usage.
+fn requirement_verification_rules(m:k.RequirementVerificationMembership)->Sequence<Issue> =
+  verification_kind(m).concat(verification_owner(m));
+
+fn verification_kind(m:k.RequirementVerificationMembership)->Sequence<Issue> =
+  if m.kind == k.RequirementConstraintKind.`requirement` { [] } else {
+    [issue_rule("error", "validateRequirementVerificationMembershipKind",
+      "A requirement verification must be a required constraint.", "",
+      "SysML.checkRequirementVerificationMembership.INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_KIND")]
+  };
+
+fn verification_owner(m:k.RequirementVerificationMembership)->Sequence<Issue> =
+  if legal_verification(m) { [] } else {
+    [issue_rule("error", "validateRequirementVerificationMembershipOwningType",
+      "A requirement verification must be in the objective of a verification case.", "",
+      "SysML.checkRequirementVerificationMembership.INVALID_REQUIREMENT_VERIFICATION_MEMBERSHIP_OWNING_TYPE")]
+  };
+
+fn legal_verification(m:k.RequirementVerificationMembership)->Bool =
+  match container::<k.RequirementUsage>(m) {
+    Some(r) => match container::<k.ObjectiveMembership>(r) {
+      Some(o) => match container::<k.Type>(o) {
+        Some(t) => match t {
+          _: k.VerificationCaseDefinition => true,
+          _: k.VerificationCaseUsage => true,
+          _ => false
+        },
+        None => false
+      },
+      None => false
+    },
+    None => false
+  };
+
+fn view_rendering_owning_type(m:k.ViewRenderingMembership)->Sequence<Issue> =
+  match container::<k.Type>(m) {
+    Some(t) => match t {
+      _: k.ViewDefinition => [],
+      _: k.ViewUsage => [],
+      _ => view_rendering_issue()
+    },
+    None => view_rendering_issue()
+  };
+
+fn view_rendering_issue()->Sequence<Issue> =
+  [issue_rule("error", "validateViewRenderingMembershipOwningType",
+    "Only views can have view renderings.", "",
+    "SysML.checkViewRenderingMembership.INVALID_VIEW_RENDERING_MEMBERSHIP_OWNING_TYPE")];
+
+// checkExpose. validateExposeIsImportAll has no check: MembershipExposeImpl
+// and NamespaceExposeImpl set isImportAll on every expose, so it never fires
+// in the Pilot, while Intersect stores the parsed `false` (name resolution
+// treats an expose as importing all, kerml-name-resolution.rcore
+// `import_all`). The owning-namespace rule is reported with the
+// variant-membership code and message.
+fn expose_rules(e:k.Expose)->Sequence<Issue> =
+  match container::<k.ViewUsage>(e) {
+    Some(_) => [],
+    None => [issue_rule("error", "validateVariationMembershipOwningNamespace",
+      "A variant must be an owned member of a variation.", "",
+      "SysML.checkExpose.INVALID_VARIANT_MEMBERSHIP_OWNING_NAMESPACE")]
+  };
+
+// ---------------------------------------------------------------------------
+// Shared derivations
+
+// Feature_owningType: the owning type of the feature's owning feature
+// membership.
+fn owning_type(f:k.Feature)->Option<k.Type> =
+  match container::<k.FeatureMembership>(f) {
+    Some(m) => container::<k.Type>(m),
+    None => None
+  };
+
+// Type.ownedFeature: the features of the owned feature memberships, in order.
+fn owned_features(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.FeatureMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+
+// FeatureMembership.owningType (the owning namespace, when a type) is a
+// requirement definition or usage, or a case definition or usage.
+fn owned_by_requirement(m:k.Membership)->Bool =
+  match container::<k.Type>(m) {
+    Some(t) => match t {
+      _: k.RequirementDefinition => true,
+      _: k.RequirementUsage => true,
+      _ => false
+    },
+    None => false
+  };
+
+fn owned_by_case(m:k.Membership)->Bool =
+  match container::<k.Type>(m) {
+    Some(t) => match t {
+      _: k.CaseDefinition => true,
+      _: k.CaseUsage => true,
+      _ => false
+    },
+    None => false
+  };
+
+// ---------------------------------------------------------------------------
+// Batch B3 (SysML): "must be typed by" rules over all types of a usage
+// (SysMLValidator.checkAllTypes and checkOneType over
+// FeatureUtil.getAllTypesOf). One binding computes the types once and runs
+// every rule of the usage's class: checkUsage, checkAttributeUsage,
+// checkEnumerationUsage, checkOccurrenceUsage, checkPortUsage,
+// checkConnectionUsage, checkFlowUsage, checkInterfaceUsage,
+// checkAllocationUsage, checkActionUsage, checkStateUsage,
+// checkCalculationUsage, checkConstraintUsage, checkRequirementUsage,
+// checkCaseUsage, checkAnalysisCaseUsage, checkVerificationCaseUsage,
+// checkUseCaseUsage, checkRenderingUsage, checkViewpointUsage, checkViewUsage
+// and checkMetadataUsage. The Pilot reports each on the usage with the
+// usage's derived definition feature (`usage_Definition`, ...).
+
+bind validate k.Usage = usage_type_rules;
+
+fn usage_type_rules(u:k.Usage)->Sequence<Issue> {
+  let types = all_types(u);
+  usage_typed(u, types)
+    .concat(attribute_typed(u, types))
+    .concat(occurrence_typed(u, types))
+    .concat(port_typed(u, types))
+    .concat(connection_typed(u, types))
+    .concat(action_typed(u, types))
+    .concat(calculation_typed(u, types))
+    .concat(constraint_typed(u, types))
+    .concat(case_typed(u, types))
+    .concat(view_typed(u, types))
+}
+
+fn type_issue(ok:Bool, id:String, text:String, slot:String, rule_id:String)->Sequence<Issue> =
+  if ok { [] } else { [issue_rule("error", id, text, slot, rule_id)] };
+
+// checkUsage: usages other than attribute and occurrence usages.
+fn usage_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.AttributeUsage => [],
+    _: k.OccurrenceUsage => [],
+    _ => type_issue(types.forAll(|t| is_classifier(t)), "validateUsageType_",
+      "A usage must be typed by definitions.", "definition",
+      "SysML.checkUsage.INVALID_USAGE_TYPE")
+  };
+
+// checkAttributeUsage (all types data types; a non-enumeration attribute
+// with an enumeration type and another type) and checkEnumerationUsage.
+fn attribute_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.AttributeUsage => type_issue(types.forAll(|t| is_data_type(t)), "validateAttributeUsageType_",
+        "An attribute must be typed by attribute definitions.", "attributeDefinition",
+        "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_TYPE")
+      .concat(enumeration_typed(u, types)),
+    _ => []
+  };
+
+fn enumeration_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.EnumerationUsage => type_issue(one_type(types) && types.exists(|t| is_enumeration(t)),
+      "validateEnumerationUsageType_",
+      "An enumeration must be typed by one enumeration definition.", "enumerationDefinition",
+      "SysML.checkEnumerationUsage.INVALID_ENUMERATION_USAGE_TYPE"),
+    _ => type_issue(!(types.exists(|t| is_enumeration(t)) && types.size() > 1),
+      "validateAttributeUsageEnumerationType_",
+      "An enumeration attribute cannot have more than one type.", "attributeDefinition",
+      "SysML.checkAttributeUsage.INVALID_ATTRIBUTE_USAGE_ENUMERATION_TYPE")
+  };
+
+// checkOccurrenceUsage: all types classes (not for port, connection and
+// metadata usages or steps), then the individual definitions among the
+// occurrence definitions (the types that are classes): at most one, and
+// exactly one for an individual usage.
+fn occurrence_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    o: k.OccurrenceUsage => occurrence_classes(u, types).concat(individual_typed(o, types)),
+    _ => []
+  };
+
+fn occurrence_classes(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.PortUsage => [],
+    _: k.ConnectionUsage => [],
+    _: k.MetadataUsage => [],
+    _: k.Step => [],
+    _ => type_issue(types.forAll(|t| is_class(t)), "validateOccurrenceUsageType_",
+      "An occurrence, item or part must be typed by occurrence definitions.", "occurrenceDefinition",
+      "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_TYPE")
+  };
+
+fn individual_typed(u:k.OccurrenceUsage, types:Sequence<k.Type>)->Sequence<Issue> {
+  let individuals = types.filter(|t| is_individual_definition(t)).size();
+  if individuals > 1 {
+    [issue_rule("error", "At most one individual definition is allowed.",
+      "At most one individual definition is allowed.", "",
+      "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_INDIVIDUAL_DEFINITION_MSG")]
+  } else {
+    type_issue(!u.isIndividual || individuals == 1, "validateOccurrenceUsageIndividualUsage",
+      "An individual must be typed by one individual definition.", "occurrenceDefinition",
+      "SysML.checkOccurrenceUsage.INVALID_OCCURRENCE_USAGE_INDIVIDUAL_USAGE")
+  }
+}
+
+fn port_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.PortUsage => type_issue(types.forAll(|t| is_port_definition(t)), "validatePortUsageType_",
+      "A port must be typed by port definitions.", "portDefinition",
+      "SysML.checkPortUsage.INVALID_PORT_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkConnectionUsage (not flow, interface or allocation usages),
+// checkFlowUsage, checkInterfaceUsage and checkAllocationUsage.
+fn connection_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.FlowUsage => type_issue(types.forAll(|t| is_interaction(t)), "validateFlowUsageType_",
+      "A flow connection must be typed by flow connection definitions.", "flowDefinition",
+      "SysML.checkFlowUsage.INVALID_FLOW_USAGE_TYPE"),
+    _: k.InterfaceUsage => type_issue(types.forAll(|t| is_interface_definition(t)), "validateInterfaceUsageType_",
+      "An interface must be typed by interface definitions.", "interfaceDefinition",
+      "SysML.checkInterfaceUsage.INVALID_INTERFACE_USAGE_TYPE"),
+    _: k.AllocationUsage => type_issue(types.forAll(|t| is_allocation_definition(t)), "validateAllocationUsageType_",
+      "An allocation must be typed by allocation definitions.", "allocationDefinition",
+      "SysML.checkAllocationUsage.INVALID_ALLOCATION_USAGE_TYPE"),
+    _: k.ConnectionUsage => type_issue(types.forAll(|t| is_association(t)), "validateConnectionUsageType_",
+      "A connection must be typed by connection definitions.", "connectionDefinition",
+      "SysML.checkConnectionUsage.INVALID_CONNECTION_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkActionUsage (not state, calculation or flow usages) and
+// checkStateUsage.
+fn action_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.StateUsage => type_issue(types.forAll(|t| is_behavior(t)), "validateStateUsageType_",
+      "A state must be typed by state definitions.", "stateDefinition",
+      "SysML.checkStateUsage.INVALID_STATE_USAGE_TYPE"),
+    _: k.CalculationUsage => [],
+    _: k.FlowUsage => [],
+    _: k.ActionUsage => type_issue(types.forAll(|t| is_behavior(t)), "validateActionUsageType_",
+      "An action must be typed by action definitions.", "actionDefinition",
+      "SysML.checkActionUsage.INVALID_ACTION_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkCalculationUsage (not case usages).
+fn calculation_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.CaseUsage => [],
+    _: k.CalculationUsage => type_issue(one_type(types) && types.exists(|t| is_function(t)),
+      "validateCalculationUsageType_",
+      "A calculation must be typed by one calculation definition.", "calculationDefinition",
+      "SysML.checkCalculationUsage.INVALID_CALCULATION_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkConstraintUsage (not requirement usages), checkRequirementUsage and
+// checkViewpointUsage (a viewpoint is also checked as a requirement).
+fn constraint_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.RequirementUsage => type_issue(one_type(types) && types.exists(|t| is_requirement_definition(t)),
+        "validateRequirementUsageType_",
+        "A requirement must be typed by one requirement definition.", "requirementDefinition",
+        "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_TYPE")
+      .concat(viewpoint_typed(u, types)),
+    _: k.ConstraintUsage => type_issue(one_type(types) && types.exists(|t| is_predicate(t)),
+      "Invalid Constraint Usage - invalid type",
+      "A constraint must be typed by one constraint definition.", "constraintDefinition",
+      "SysML.checkConstraintUsage.INVALID_CONSTRAINT_USAGE_TYPE"),
+    _ => []
+  };
+
+fn viewpoint_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.ViewpointUsage => type_issue(one_type(types) && types.exists(|t| is_viewpoint_definition(t)),
+      "validateViewpointUsageType_",
+      "A viewpoint must be typed by one viewpoint definition.", "viewpointDefinition",
+      "SysML.checkViewpointUsage.INVALID_VIEWPOINT_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkCaseUsage (not analysis, verification or use case usages),
+// checkAnalysisCaseUsage, checkVerificationCaseUsage and checkUseCaseUsage.
+fn case_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.AnalysisCaseUsage => type_issue(one_type(types) && types.exists(|t| is_analysis_case_definition(t)),
+      "validateAnalysisCaseUsageType_",
+      "An analysis case must be typed by one analysis case definition.", "analysisCaseDefinition",
+      "SysML.checkAnalysisCaseUsage.INVALID_ANALYSIS_CASE_USAGE_TYPE"),
+    _: k.VerificationCaseUsage => type_issue(one_type(types) && types.exists(|t| is_verification_case_definition(t)),
+      "validateVerificationCaseUsageType_",
+      "A verification case must be typed by one verification case definition.", "verificationCaseDefinition",
+      "SysML.checkVerificationCaseUsage.INVALID_VERIFICATION_CASE_USAGE_TYPE"),
+    _: k.UseCaseUsage => type_issue(one_type(types) && types.exists(|t| is_use_case_definition(t)),
+      "validateUseCaseUsageType_",
+      "A use case must be typed by one use case definition.", "useCaseDefinition",
+      "SysML.checkUseCaseUsage.INVALID_USE_CASE_USAGE_TYPE"),
+    _: k.CaseUsage => type_issue(one_type(types) && types.exists(|t| is_case_definition(t)),
+      "validateCaseUsageType_",
+      "A case must be typed by one case definition.", "caseDefinition",
+      "SysML.checkCaseUsage.INVALID_CASE_USAGE_TYPE"),
+    _ => []
+  };
+
+// checkRenderingUsage, checkViewUsage and checkMetadataUsage.
+fn view_typed(u:k.Usage, types:Sequence<k.Type>)->Sequence<Issue> =
+  match u {
+    _: k.RenderingUsage => type_issue(one_type(types) && types.exists(|t| is_rendering_definition(t)),
+      "validateRenderingUsageType_",
+      "A rendering must be typed by one rendering definition.", "renderingDefinition",
+      "SysML.checkRenderingUsage.INVALID_RENDERING_USAGE_TYPE"),
+    _: k.ViewUsage => type_issue(one_type(types) && types.exists(|t| is_view_definition(t)),
+      "validateViewUsageType_",
+      "A view must be typed by one view definition.", "viewDefinition",
+      "SysML.checkViewUsage.INVALID_VIEW_USAGE_TYPE"),
+    _: k.MetadataUsage => type_issue(one_type(types) && types.exists(|t| is_metaclass(t)),
+      "validateMetadataUsageType_",
+      "A metadata usage must be typed by one metadata definition.", "metadataDefinition",
+      "SysML.checkMetadataUsage.INVALID_METADATA_USAGE_TYPE"),
+    _ => []
+  };
+
+fn one_type(types:Sequence<k.Type>)->Bool = types.size() == 1;
+
+fn is_classifier(t:k.Type)->Bool = match t { _: k.Classifier => true, _ => false };
+fn is_data_type(t:k.Type)->Bool = match t { _: k.DataType => true, _ => false };
+fn is_enumeration(t:k.Type)->Bool = match t { _: k.EnumerationDefinition => true, _ => false };
+fn is_class(t:k.Type)->Bool = match t { _: k.Class => true, _ => false };
+fn is_individual_definition(t:k.Type)->Bool =
+  match t { d: k.OccurrenceDefinition => d.isIndividual, _ => false };
+fn is_port_definition(t:k.Type)->Bool = match t { _: k.PortDefinition => true, _ => false };
+fn is_association(t:k.Type)->Bool = match t { _: k.Association => true, _ => false };
+fn is_interaction(t:k.Type)->Bool = match t { _: k.Interaction => true, _ => false };
+fn is_interface_definition(t:k.Type)->Bool = match t { _: k.InterfaceDefinition => true, _ => false };
+fn is_allocation_definition(t:k.Type)->Bool = match t { _: k.AllocationDefinition => true, _ => false };
+fn is_behavior(t:k.Type)->Bool = match t { _: k.Behavior => true, _ => false };
+fn is_function(t:k.Type)->Bool = match t { _: k.Function => true, _ => false };
+fn is_predicate(t:k.Type)->Bool = match t { _: k.Predicate => true, _ => false };
+fn is_requirement_definition(t:k.Type)->Bool = match t { _: k.RequirementDefinition => true, _ => false };
+fn is_viewpoint_definition(t:k.Type)->Bool = match t { _: k.ViewpointDefinition => true, _ => false };
+fn is_case_definition(t:k.Type)->Bool = match t { _: k.CaseDefinition => true, _ => false };
+fn is_analysis_case_definition(t:k.Type)->Bool = match t { _: k.AnalysisCaseDefinition => true, _ => false };
+fn is_verification_case_definition(t:k.Type)->Bool = match t { _: k.VerificationCaseDefinition => true, _ => false };
+fn is_use_case_definition(t:k.Type)->Bool = match t { _: k.UseCaseDefinition => true, _ => false };
+fn is_rendering_definition(t:k.Type)->Bool = match t { _: k.RenderingDefinition => true, _ => false };
+fn is_view_definition(t:k.Type)->Bool = match t { _: k.ViewDefinition => true, _ => false };
+fn is_metaclass(t:k.Type)->Bool = match t { _: k.Metaclass => true, _ => false };
+
+// FeatureUtil.getAllTypesOf (FeatureAdapter.getAllTypes): the types of the
+// owned and implicit typings of the feature and of its typing features
+// (Feature.typingFeatures: the features it subsets, redefines or references,
+// other than crossed features, its implicit subsettings, and its last
+// chaining feature), transitively; then without any type another of them
+// specializes (removeRedundantTypes). The list is unique.
+//
+// Implicit subsettings: the metaclass's library default
+// (implicit.library_default; the Pilot's more specific defaults for
+// subobjects, suboccurrences, portions and the like subset the same kind of
+// feature, typed by the same or a more general library type, so they leave
+// the same types once redundant ones are removed) and, for a variant of a
+// variation usage, that usage (UsageAdapter.addVariationTyping). Implicit
+// typing: a variant of a variation definition is typed by it. The library
+// default is taken whether or not an owned specialization makes it
+// unnecessary (TypeAdapter.removeUnnecessaryImplicitGeneralTypes): a general
+// that specializes it has its types, so the result is the same.
+//
+// Not derived (recorded in docs/pilot-validation-rules.md, batch B3 status):
+// computed redefinitions (parameters, ends, subjects and objectives that
+// redefine those of a general), the bound-value subsetting of a feature
+// valued by an expression other than a feature reference (which needs the
+// expression's result types), owned cross features, and conjugated
+// features (KerML only).
+fn all_types(f:k.Feature)->Sequence<k.Type> {
+  let raw = raw_types(f);
+  if raw.size() < 2 { raw } else {
+    Sequence(raw.reject(|b| raw.exists(|o| o != b && specializes_type(o, b))))
+  }
+}
+
+fn raw_types(f:k.Feature)->Sequence<k.Type> =
+  Sequence(typing_closure(Sequence([f]), no_features(f), 0).flatMap(|g| own_types(g)).distinct());
+
+fn typing_closure(frontier:Sequence<k.Feature>, seen:Sequence<k.Feature>, depth:Int64)->Sequence<k.Feature> =
+  if frontier.isEmpty() || depth > 64 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| typing_features(g)).distinct()
+      .reject(|g| known.contains(g)));
+    typing_closure(next, known, depth + 1)
+  };
+
+fn no_features(f:k.Feature)->Sequence<k.Feature> = [];
+
+fn typing_features(f:k.Feature)->Sequence<k.Feature> =
+  Sequence(contents::<k.Subsetting>(f).flatMap(|s| subsetted_of(s)))
+    .concat(default_feature(f))
+    .concat(variation_usage_of(f))
+    .concat(chaining_last(f))
+    .concat(bound_referent(f));
+
+// FeatureAdapter.addBoundValueSubsetting: a feature without owned
+// specializations or direction, valued (not by default) by a feature
+// reference expression, subsets the expression's result, which subsets the
+// referent (FeatureReferenceExpressionAdapter.addResultSubsetting), so the
+// feature has the referent's types (`enum color1 = ColorKind::blue;` is
+// typed by ColorKind). The result of any other expression is typed by its
+// function (expression typing, batch B6) and is not derived here.
+fn bound_referent(f:k.Feature)->Sequence<k.Feature> =
+  if Sequence(contents::<k.Specialization>(f)).notEmpty() || directed(f) { [] } else {
+    match contents::<k.FeatureValue>(f).first() {
+      Some(v) => if v.isDefault { [] } else {
+        Sequence(contents::<k.FeatureReferenceExpression>(v).flatMap(|e| referent_of(e)))
+      },
+      None => []
+    }
+  };
+
+fn directed(f:k.Feature)->Bool =
+  match f.direction { Some(_) => true, None => false };
+
+// The referent of a feature reference expression: the element of its first
+// membership other than its parameters (its result).
+fn referent_of(e:k.FeatureReferenceExpression)->Sequence<k.Feature> =
+  match Sequence(contents::<k.Membership>(e)
+      .reject(|m| is_parameter_membership(m))
+      .flatMap(|m| resolution.elements_of(m))).first() {
+    Some(referent) => Sequence([referent]).selectByKind::<k.Feature>(),
+    None => []
+  };
+
+// An owned subsetting, redefinition or reference subsetting: its owned
+// target chain, or its stored target. Cross subsettings are skipped.
+fn subsetted_of(s:k.Subsetting)->Sequence<k.Feature> =
+  match s {
+    _: k.CrossSubsetting => [],
+    _ => {
+      let chain = Sequence(contents::<k.Feature>(s));
+      if chain.notEmpty() { chain } else { stored_subsetted(s) }
+    }
+  };
+
+fn stored_subsetted(s:k.Subsetting)->Sequence<k.Feature> =
+  match s {
+    r: k.Redefinition => Sequence([r.redefinedFeature]),
+    r: k.ReferenceSubsetting => Sequence([r.referencedFeature]),
+    _ => Sequence([s.subsettedFeature])
+  };
+
+fn default_feature(f:k.Feature)->Sequence<k.Feature> =
+  resolution.library(f, implicit.library_default(f)).selectByKind::<k.Feature>()
+    .reject(|g| g == f);
+
+fn variation_usage_of(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.VariantMembership>(f) {
+    Some(m) => match container::<k.Usage>(m) {
+      Some(u) => if u.isVariation { Sequence([u]).selectByKind::<k.Feature>() } else { [] },
+      None => []
+    },
+    None => []
+  };
+
+fn chaining_last(f:k.Feature)->Sequence<k.Feature> =
+  match contents::<k.FeatureChaining>(f).last() {
+    Some(c) => Sequence([c.chainingFeature]),
+    None => []
+  };
+
+// The types of the feature's owned typings (a conjugated port typing types
+// by its conjugated port definition; a typing written as a chain, by the
+// chain) and, for a variant of a variation definition, that definition.
+fn own_types(f:k.Feature)->Sequence<k.Type> =
+  Sequence(contents::<k.FeatureTyping>(f).flatMap(|t| typing_types(t)))
+    .concat(variation_definition_of(f));
+
+fn typing_types(t:k.FeatureTyping)->Sequence<k.Type> =
+  match t {
+    c: k.ConjugatedPortTyping => Sequence([c.conjugatedPortDefinition]).selectByKind::<k.Type>(),
+    _ => {
+      let chain = Sequence(contents::<k.Feature>(t)).selectByKind::<k.Type>();
+      if chain.notEmpty() { chain } else { Sequence([t.type]) }
+    }
+  };
+
+fn variation_definition_of(f:k.Feature)->Sequence<k.Type> =
+  match container::<k.VariantMembership>(f) {
+    Some(m) => match container::<k.Definition>(m) {
+      Some(d) => if d.isVariation { Sequence([d]).selectByKind::<k.Type>() } else { [] },
+      None => []
+    },
+    None => []
+  };
+
+// TypeUtil.specializes over the generals the B2 rules walk (supertypes_of:
+// owned specializations and conjugation, the library default, binary
+// association defaults, the last chaining feature).
+fn specializes_type(t:k.Type, g:k.Type)->Bool = supertypes_of(t).contains(g);
+
+// ---------------------------------------------------------------------------
+// Batch B4 (SysML): derived feature semantics. checkUsage
+// (validateUsageIsReferential), checkFlowDefinition, the parameter counts of
+// accept, for loop, if, while loop and transition usages, the transition
+// trigger source, and the "at most one" subject, objective and view
+// rendering rules and the subject position rules of requirement, case and
+// view definitions and usages (SysMLValidator.checkAtMostOneFeature and
+// checkSubjectParameter). None needs expression evaluation.
+//
+// The parameter counts read ActionUsage.inputParameters()
+// (UsageUtil.getOwnedInputParametersOf: the owned input-directed features),
+// not inherited ones. The other rules read the type's feature memberships,
+// owned and inherited (TypeUtil.getFeatureMembershipOf), rebuilt below as
+// `b4_relevant_memberships`.
+
+bind validate k.Usage = b4_usage_rules;
+bind validate k.SubjectMembership = b4_subject_membership_count;
+bind validate k.ObjectiveMembership = b4_objective_membership_count;
+bind validate k.ViewRenderingMembership = b4_rendering_membership_count;
+bind validate k.RequirementDefinition = b4_requirement_definition_rules;
+bind validate k.RequirementUsage = b4_requirement_usage_rules;
+bind validate k.CaseDefinition = b4_case_definition_rules;
+bind validate k.CaseUsage = b4_case_usage_rules;
+bind validate k.ViewDefinition = b4_view_definition_rules;
+bind validate k.ViewUsage = b4_view_usage_rules;
+bind validate k.FlowDefinition = b4_flow_definition_ends;
+bind validate k.AcceptActionUsage = b4_accept_parameters;
+bind validate k.ForLoopActionUsage = b4_for_loop_parameters;
+bind validate k.IfActionUsage = b4_if_parameters;
+bind validate k.WhileLoopActionUsage = b4_while_parameters;
+bind validate k.TransitionUsage = b4_transition_parameters;
+bind validate k.TransitionFeatureMembership = b4_transition_trigger_source;
+
+// Rules the Pilot reports on a usage: checkUsage's referential rule, the
+// subject position rule on an owned subject parameter, and
+// checkFlowDefinition on the third and later owned ends of a flow
+// definition.
+fn b4_usage_rules(u:k.Usage)->Sequence<Issue> =
+  b4_usage_is_referential(u).concat(b4_subject_parameter_position(u)).concat(b4_flow_definition_end(u));
+
+// checkUsage (validateUsageIsReferential): a composite usage (Usage.isReference
+// is `not isComposite`) that is directed, an end, or has no featuring type.
+// The construction defaults (sysml-construction.rcore usage_composite) make
+// such usages referential, as the Pilot's parser post-processors do.
+fn b4_usage_is_referential(u:k.Usage)->Sequence<Issue> =
+  if !u.isComposite { [] } else {
+    if directed(u) { [b4_referential_issue("A directed usage must be referential.")] } else {
+      if u.isEnd { [b4_referential_issue("An end usage must be referential.")] } else {
+        if b4_has_featuring_type(u) { [] } else {
+          [b4_referential_issue("A package-level usage must be referential.")]
+        }
+      }
+    }
+  };
+
+fn b4_referential_issue(text:String)->Issue =
+  issue_rule("error", "validateUsageIsReferential", text, "",
+    "SysML.checkUsage.INVALID_USAGE_IS_REFERENTIAL");
+
+// Feature.featuringType is not empty: an owning type, an owned type
+// featuring, or, for a variant of a variation usage, the variation's
+// featuring type (UsageAdapter: checkUsageVariationUsageTypeFeaturing).
+fn b4_has_featuring_type(f:k.Feature)->Bool =
+  match owning_type(f) {
+    Some(_) => true,
+    None => Sequence(contents::<k.TypeFeaturing>(f)).notEmpty() || b4_variant_featured(f)
+  };
+
+fn b4_variant_featured(f:k.Feature)->Bool =
+  match container::<k.VariantMembership>(f) {
+    Some(m) => match container::<k.Usage>(m) {
+      Some(v) => v.isVariation && b4_has_featuring_type(v),
+      None => false
+    },
+    None => false
+  };
+
+// checkSubjectParameter on the owned subject parameter
+// (UsageUtil.getOwnedSubjectParameterOf: the feature of the first owned
+// subject membership) when the first input of its owning type is not a
+// subject parameter.
+fn b4_subject_parameter_position(u:k.Usage)->Sequence<Issue> =
+  match container::<k.SubjectMembership>(u) {
+    Some(m) => match container::<k.Type>(m) {
+      Some(t) => if !b4_checks_subject(t) { [] } else {
+        match b4_owned_subject(t).first() {
+          Some(s) => if b4_same_feature(s, u) && !b4_subject_first(b4_relevant_memberships(t)) {
+            b4_subject_position_issue(t)
+          } else { [] },
+          None => []
+        }
+      },
+      None => []
+    },
+    None => []
+  };
+
+fn b4_same_feature(a:k.Feature, b:k.Feature)->Bool = a == b;
+
+fn b4_checks_subject(t:k.Type)->Bool =
+  match t {
+    _: k.RequirementDefinition => true,
+    _: k.RequirementUsage => true,
+    _: k.CaseDefinition => true,
+    _: k.CaseUsage => true,
+    _ => false
+  };
+
+fn b4_owned_subject(t:k.Type)->Sequence<k.Feature> =
+  Sequence(contents::<k.SubjectMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+
+// The first input (TypeUtil.getInputOf: the input-directed features of all
+// feature memberships, owned first) is a subject parameter.
+fn b4_subject_first(ms:Sequence<k.FeatureMembership>)->Bool =
+  match ms.filter(|m| b4_member_features(m).exists(|f| input_directed(f))).first() {
+    Some(m) => b4_is_subject_membership(m),
+    None => false
+  };
+
+fn b4_is_subject_membership(m:k.FeatureMembership)->Bool =
+  match m { _: k.SubjectMembership => true, _ => false };
+
+fn b4_is_objective_membership(m:k.FeatureMembership)->Bool =
+  match m { _: k.ObjectiveMembership => true, _ => false };
+
+fn b4_is_rendering_membership(m:k.FeatureMembership)->Bool =
+  match m { _: k.ViewRenderingMembership => true, _ => false };
+
+fn b4_subject_position_issue(t:k.Type)->Sequence<Issue> =
+  match t {
+    _: k.RequirementDefinition => [issue_rule("error", "validateRequirementDefinitionSubjectParameterPosition",
+      "Subject must be first parameter.", "",
+      "SysML.checkRequirementDefinition.INVALID_REQUIREMENT_DEFINITION_SUBJECT_PARAMETER_POSITION")],
+    _: k.RequirementUsage => [issue_rule("error", "validateRequirementUsageSubjectParameterPosition",
+      "Subject must be first parameter.", "",
+      "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_SUBJECT_PARAMETER_POSITION")],
+    _: k.CaseDefinition => [issue_rule("error", "validateCaseDefinitionSubjectParameterPosition",
+      "Subject must be first parameter.", "",
+      "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_SUBJECT_PARAMETER_POSITION")],
+    _: k.CaseUsage => [issue_rule("error", "validateCaseUsageSubjectParameterPosition",
+      "Subject must be first parameter.", "",
+      "SysML.checkCaseUsage.INVALID_CASE_USAGE_SUBJECT_PARAMETER_POSITION")],
+    _ => []
+  };
+
+fn b4_subject_count_issue(t:k.Type)->Sequence<Issue> =
+  match t {
+    _: k.RequirementDefinition => [issue_rule("error", "validateRequirementDefinitionOnlyOneSubject",
+      "Only one subject is allowed.", "",
+      "SysML.checkRequirementDefinition.INVALID_REQUIREMENT_DEFINITION_ONLY_ONE_SUBJECT")],
+    _: k.RequirementUsage => [issue_rule("error", "validateRequirementUsageOnlyOneSubject",
+      "Only one subject is allowed.", "",
+      "SysML.checkRequirementUsage.INVALID_REQUIREMENT_USAGE_ONLY_ONE_SUBJECT")],
+    _: k.CaseDefinition => [issue_rule("error", "validateCaseDefinitionOnlyOneSubject",
+      "Only one subject is allowed.", "",
+      "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_ONLY_ONE_SUBJECT")],
+    _: k.CaseUsage => [issue_rule("error", "validateCaseUsageOnlyOneSubject",
+      "Only one subject is allowed.", "",
+      "SysML.checkCaseUsage.INVALID_CASE_USAGE_ONLY_ONE_SUBJECT")],
+    _ => []
+  };
+
+fn b4_objective_count_issue(t:k.Type)->Sequence<Issue> =
+  match t {
+    _: k.CaseDefinition => [issue_rule("error", "validateCaseDefinitionOnlyOneObjective",
+      "Only one objective is allowed.", "",
+      "SysML.checkCaseDefinition.INVALID_CASE_DEFINITION_ONLY_ONE_OBJECTIVE")],
+    _: k.CaseUsage => [issue_rule("error", "validateCaseUsageOnlyOneObjective",
+      "Only one objective is allowed.", "",
+      "SysML.checkCaseUsage.INVALID_CASE_USAGE_ONLY_ONE_OBJECTIVE")],
+    _ => []
+  };
+
+// The code of the view definition rule is spelled
+// validateViewDefinitionOnlyOnvViewRendering.
+fn b4_rendering_count_issue(t:k.Type)->Sequence<Issue> =
+  match t {
+    _: k.ViewDefinition => [issue_rule("error", "validateViewDefinitionOnlyOnvViewRendering",
+      "A view definition may have at most one view rendering.", "",
+      "SysML.checkViewDefinition.INVALID_VIEW_DEFINITION_ONLY_ONE_VIEW_RENDERING")],
+    _: k.ViewUsage => [issue_rule("error", "validateViewUsageOnlyOneRendering",
+      "A view may have at most one view rendering.", "",
+      "SysML.checkViewUsage.INVALID_VIEW_USAGE_ONLY_ONE_RENDERING")],
+    _ => []
+  };
+
+// SysMLValidator.checkAtMostOneRelationship over the memberships of one kind
+// among the type's feature memberships (owned first): with more than one,
+// it reports the type when none is owned, the owned ones after the first
+// when all are owned, and every owned one otherwise.
+fn b4_too_many_on_type(ms:Sequence<k.FeatureMembership>, t:k.Type)->Bool =
+  ms.size() > 1 && !ms.exists(|m| b4_owned_by(m, t));
+
+fn b4_too_many_on_membership(ms:Sequence<k.FeatureMembership>, t:k.Type, m:k.FeatureMembership)->Bool =
+  if ms.size() < 2 || !ms.contains(m) { false } else {
+    let owned = ms.filter(|x| b4_owned_by(x, t));
+    if owned.size() == ms.size() {
+      match owned.first() { Some(head) => head != m, None => false }
+    } else { true }
+  };
+
+fn b4_owned_by(m:k.FeatureMembership, t:k.Type)->Bool =
+  match container::<k.Type>(m) { Some(o) => o == t, None => false };
+
+// The type-level reports: checkRequirementDefinition,
+// checkRequirementUsage, checkCaseDefinition, checkCaseUsage,
+// checkViewDefinition and checkViewUsage.
+fn b4_requirement_definition_rules(d:k.RequirementDefinition)->Sequence<Issue> = b4_subject_type_rules(d);
+fn b4_requirement_usage_rules(u:k.RequirementUsage)->Sequence<Issue> = b4_subject_type_rules(u);
+fn b4_case_definition_rules(d:k.CaseDefinition)->Sequence<Issue> = b4_subject_type_rules(d);
+fn b4_case_usage_rules(u:k.CaseUsage)->Sequence<Issue> = b4_subject_type_rules(u);
+
+fn b4_subject_type_rules(t:k.Type)->Sequence<Issue> {
+  let ms = b4_relevant_memberships(t);
+  let objectives = if b4_too_many_on_type(ms.filter(|m| b4_is_objective_membership(m)), t) {
+    b4_objective_count_issue(t)
+  } else { [] };
+  let subjects = if b4_too_many_on_type(ms.filter(|m| b4_is_subject_membership(m)), t) {
+    b4_subject_count_issue(t)
+  } else { [] };
+  let position = if b4_subject_first(ms) || b4_owned_subject(t).notEmpty() { [] } else {
+    b4_subject_position_issue(t)
+  };
+  objectives.concat(subjects).concat(position)
+}
+
+fn b4_view_definition_rules(d:k.ViewDefinition)->Sequence<Issue> = b4_rendering_type_rules(d);
+fn b4_view_usage_rules(u:k.ViewUsage)->Sequence<Issue> = b4_rendering_type_rules(u);
+
+fn b4_rendering_type_rules(t:k.Type)->Sequence<Issue> =
+  if b4_too_many_on_type(b4_relevant_memberships(t).filter(|m| b4_is_rendering_membership(m)), t) {
+    b4_rendering_count_issue(t)
+  } else { [] };
+
+// The membership-level reports of the same rules.
+fn b4_subject_membership_count(m:k.SubjectMembership)->Sequence<Issue> =
+  match container::<k.Type>(m) {
+    Some(t) => {
+      let found = b4_subject_count_issue(t);
+      if found.isEmpty() { found } else {
+        if b4_too_many_on_membership(b4_relevant_memberships(t).filter(|x| b4_is_subject_membership(x)), t, m) {
+          found
+        } else { [] }
+      }
+    },
+    None => []
+  };
+
+fn b4_objective_membership_count(m:k.ObjectiveMembership)->Sequence<Issue> =
+  match container::<k.Type>(m) {
+    Some(t) => {
+      let found = b4_objective_count_issue(t);
+      if found.isEmpty() { found } else {
+        if b4_too_many_on_membership(b4_relevant_memberships(t).filter(|x| b4_is_objective_membership(x)), t, m) {
+          found
+        } else { [] }
+      }
+    },
+    None => []
+  };
+
+fn b4_rendering_membership_count(m:k.ViewRenderingMembership)->Sequence<Issue> =
+  match container::<k.Type>(m) {
+    Some(t) => {
+      let found = b4_rendering_count_issue(t);
+      if found.isEmpty() { found } else {
+        if b4_too_many_on_membership(b4_relevant_memberships(t).filter(|x| b4_is_rendering_membership(x)), t, m) {
+          found
+        } else { [] }
+      }
+    },
+    None => []
+  };
+
+// checkFlowDefinition (validateFlowDefinitionConnectionEnds): more than two
+// end features (Type.endFeature, inherited included). The Pilot reports the
+// definition when it owns at most two ends, else every end after the
+// second; owned ends come first, so those are the owned ends after the
+// second (an inherited end beyond them, which would be reported on the
+// inherited feature, is not).
+fn b4_flow_definition_ends(d:k.FlowDefinition)->Sequence<Issue> =
+  if b4_owned_ends(d).size() > 2 { [] } else {
+    if b4_relevant_features(d, no_types(d)).filter(|e| e.isEnd).size() > 2 { [b4_flow_end_issue()] } else { [] }
+  };
+
+fn b4_flow_definition_end(u:k.Usage)->Sequence<Issue> =
+  if !u.isEnd { [] } else {
+    match owning_type(u) {
+      Some(t) => match t {
+        d: k.FlowDefinition => match b4_index_of_feature(b4_owned_ends(d), u, 0) {
+          Some(i) => if i >= 2 { [b4_flow_end_issue()] } else { [] },
+          None => []
+        },
+        _ => []
+      },
+      None => []
+    }
+  };
+
+fn b4_flow_end_issue()->Issue =
+  issue_rule("error", "validateFlowDefinitionConnectionEnds",
+    "A flow connection definition can have at most two ends.", "",
+    "SysML.checkFlowDefinition.INVALID_FLOW_DEFINITION_END");
+
+fn b4_owned_ends(t:k.Type)->Sequence<k.Feature> = owned_features(t).filter(|e| e.isEnd);
+
+// Parameter counts over the owned input parameters (`input_parameters`:
+// owned input-directed features). The grammar always writes them, so these
+// rules agree with the Pilot by construction.
+fn b4_accept_parameters(a:k.AcceptActionUsage)->Sequence<Issue> =
+  if input_parameters(a).notEmpty() { [] } else {
+    [issue_rule("error", "validateAcceptActionUsageParameters",
+      "An accept action must have a payload parameter.", "",
+      "SysML.checkAcceptActionUsage.INVALID_ACCEPT_ACTION_USAGE_PARAMETERS")]
+  };
+
+fn b4_for_loop_parameters(l:k.ForLoopActionUsage)->Sequence<Issue> =
+  if input_parameters(l).size() == 2 { [] } else {
+    [issue_rule("error", "validateForLoopActionUsageParameters",
+      "A for loop action must have two parameters.", "",
+      "SysML.checkForLoopActionUsage.INVALID_FOR_LOOP_ACTION_USAGE_PARAMETERS")]
+  };
+
+fn b4_if_parameters(a:k.IfActionUsage)->Sequence<Issue> =
+  if input_parameters(a).size() >= 2 { [] } else {
+    [issue_rule("error", "validateIfActionUsageParameters",
+      "An if action must have at least two parameters.", "",
+      "SysML.checkIfActionUsage.INVALID_IF_ACTION_USAGE_PARAMETERS")]
+  };
+
+fn b4_while_parameters(l:k.WhileLoopActionUsage)->Sequence<Issue> =
+  if input_parameters(l).size() >= 2 { [] } else {
+    [issue_rule("error", "validateWhileLoopActionUsageParameters",
+      "A while loop action must have at least two parameters.", "",
+      "SysML.checkWhileLoopActionUsage.INVALID_WHILE_LOOP_ACTION_USAGE_PARAMETERS")]
+  };
+
+// checkTransitionUsage (validateTransitionUsageParameters): without a
+// trigger action (TransitionUsage.triggerAction: the accept actions of the
+// owned trigger memberships), at least one input parameter; with one, two.
+fn b4_transition_parameters(t:k.TransitionUsage)->Sequence<Issue> {
+  let n = input_parameters(t).size();
+  if b4_trigger_actions(t).isEmpty() {
+    if n >= 1 { [] } else {
+      [issue_rule("error", "validateTransitionUsageParameters", "Must have an input parameter.", "",
+        "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_PARAMETERS")]
+    }
+  } else {
+    if n >= 2 { [] } else {
+      [issue_rule("error", "validateTransitionUsageParameters", "Must have two input parameters.", "",
+        "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_PARAMETERS")]
+    }
+  }
+}
+
+fn b4_trigger_memberships(t:k.TransitionUsage)->Sequence<k.TransitionFeatureMembership> =
+  Sequence(contents::<k.TransitionFeatureMembership>(t)
+    .filter(|m| m.kind == k.TransitionFeatureKind.`trigger`));
+
+fn b4_trigger_actions(t:k.TransitionUsage)->Sequence<k.AcceptActionUsage> =
+  Sequence(b4_trigger_memberships(t).flatMap(|m| contents::<k.AcceptActionUsage>(m)));
+
+// checkTransitionUsage (validateTransitionUsageTriggerActions), on the first
+// owned trigger membership: the transition's source (TransitionUsage.source,
+// the feature target of UsageUtil.getSourceFeatureOf) exists and is not a
+// state usage.
+fn b4_transition_trigger_source(m:k.TransitionFeatureMembership)->Sequence<Issue> =
+  if m.kind != k.TransitionFeatureKind.`trigger` { [] } else {
+    match container::<k.TransitionUsage>(m) {
+      Some(t) => match b4_trigger_memberships(t).first() {
+        Some(head) => if head != m { [] } else {
+          match b4_transition_source(t).first() {
+            Some(s) => match s {
+              _: k.StateUsage => [],
+              _ => [issue_rule("error", "validateTransitionUsageTriggerActions",
+                "A transition with an accepter must have a state as its source.", "",
+                "SysML.checkTransitionUsage.INVALID_TRANSITION_USAGE_TRIGGER_ACTIONS")]
+            },
+            None => []
+          }
+        },
+        None => []
+      },
+      None => []
+    }
+  };
+
+// UsageUtil.getSourceFeatureOf: the first feature named by an owned
+// membership that is not a feature membership whose basic feature is an
+// action usage, after TransitionUsageAdapter.computeSource has inserted a
+// membership for the previous feature (UsageUtil.getPreviousFeature) in
+// front of a transition that starts with a parameter (a target transition
+// such as `accept A then S;`). Its feature target is the basic feature.
+fn b4_transition_source(t:k.TransitionUsage)->Sequence<k.Feature> {
+  let own = Sequence(contents::<k.Membership>(t));
+  let named = Sequence(own.reject(|m| is_feature_membership(m))
+    .flatMap(|m| resolution.elements_of(m)).selectByKind::<k.Feature>());
+  let inserted = match own.first() {
+    Some(head) => match head {
+      _: k.ParameterMembership => b4_previous_feature(t),
+      _ => no_features(t)
+    },
+    None => b4_previous_feature(t)
+  };
+  match inserted.concat(named).filter(|f| is_action_usage(basic_feature(f))).first() {
+    Some(f) => Sequence([basic_feature(f)]),
+    None => []
+  }
+}
+
+// UsageUtil.getPreviousFeature: the nearest feature named by an earlier owned
+// membership of the owning namespace that is not a parameter, a transition,
+// or a connector other than a message (a flow usage without owned ends).
+fn b4_previous_feature(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.Membership>(f) {
+    Some(m) => match container::<k.Type>(m) {
+      Some(o) => {
+        let ms = Sequence(contents::<k.Membership>(o));
+        match b4_index_of_membership(ms, m, 0) {
+          Some(i) => b4_previous_from(ms, i - 1),
+          None => []
+        }
+      },
+      None => []
+    },
+    None => []
+  };
+
+fn b4_previous_from(ms:Sequence<k.Membership>, i:Int64)->Sequence<k.Feature> =
+  if i < 0 { [] } else {
+    match ms.at(i) {
+      Some(m) => {
+        let found = Sequence(resolution.elements_of(m).selectByKind::<k.Feature>()
+          .filter(|e| b4_previous_candidate(e)));
+        if found.notEmpty() { found } else { b4_previous_from(ms, i - 1) }
+      },
+      None => []
+    }
+  };
+
+fn b4_previous_candidate(e:k.Feature)->Bool =
+  if b4_is_parameter(e) { false } else {
+    match e {
+      _: k.TransitionUsage => false,
+      c: k.Connector => b4_is_message(c),
+      _ => true
+    }
+  };
+
+// FeatureUtil.isParameter: a directed feature of a behavior or step.
+fn b4_is_parameter(f:k.Feature)->Bool =
+  if !directed(f) { false } else {
+    match owning_type(f) {
+      Some(o) => b4_behavior_or_step(o),
+      None => false
+    }
+  };
+
+fn b4_behavior_or_step(t:k.Type)->Bool =
+  match t { _: k.Behavior => true, _: k.Step => true, _ => false };
+
+fn b4_is_message(c:k.Connector)->Bool =
+  match c {
+    _: k.FlowUsage => !owned_features(c).exists(|e| e.isEnd),
+    _ => false
+  };
+
+fn b4_index_of_membership(items:Sequence<k.Membership>, x:k.Membership, i:Int64)->Option<Int64> =
+  match items.at(i) {
+    Some(y) => if y == x { Some(i) } else { b4_index_of_membership(items, x, i + 1) },
+    None => None
+  };
+
+fn b4_index_of_feature(items:Sequence<k.Feature>, x:k.Feature, i:Int64)->Option<Int64> =
+  match items.at(i) {
+    Some(y) => if y == x { Some(i) } else { b4_index_of_feature(items, x, i + 1) },
+    None => None
+  };
+
+fn b4_at_index(items:Sequence<k.Feature>, i:Int64)->Sequence<k.Feature> =
+  match items.at(i) { Some(x) => Sequence([x]), None => [] };
+
+fn b4_member_features(m:k.FeatureMembership)->Sequence<k.Feature> = Sequence(contents::<k.Feature>(m));
+
+// ---------------------------------------------------------------------------
+// Feature memberships, owned and inherited (TypeAdapter.getFeatureMembership
+// over getInheritedMembership), restricted to the memberships these rules
+// read: subject, objective and view rendering memberships, directed
+// features (parameters, which include subjects, actors and stakeholders)
+// and end features. Owned memberships come first, in order; then, for each
+// general (`b4_generals`), its public and then protected owned memberships
+// followed by its own inherited ones (getNonPrivateMembership), without
+// duplicates. TypeAdapter.removeRedefinedFeatures then drops an inherited
+// membership whose feature, or a feature it (transitively) redefines, is
+// redefined by an owned feature of the type, and one whose feature another
+// inherited membership's feature (transitively) redefines.
+//
+// Redefinitions include the Pilot's computed ones
+// (FeatureAdapter.addRedefinitions, getRelevantFeatures): an end redefines
+// the end at its position among the ends of each general; a parameter of a
+// behavior or step (other than the result) the parameter at its position
+// among the (non-result) parameters of each general, and a result parameter
+// the result parameter of each general (TypeUtil.getResultParameterOf); the
+// first owned objective of a type the objective of each general
+// (RequirementUsageAdapter).
+//
+// Approximations (recorded in docs/pilot-validation-rules.md, batch B4
+// (SysML) status): only the memberships above are walked, so a feature of
+// another kind that redefines one of them hides it only when owned by the
+// type itself; the library default is taken even when an owned general
+// makes it redundant (its memberships then also come through that
+// general, and are dropped the same way); directions are the stored ones (Type.directionOf's
+// conjugation is not applied); state and transition subaction
+// redefinitions are not computed. The walk carries the types on its path
+// and does not revisit them, which also stops at circular specializations.
+
+fn b4_relevant_memberships(t:k.Type)->Sequence<k.FeatureMembership> = b4_relevant_at(t, no_types(t));
+
+fn b4_relevant_at(t:k.Type, path:Sequence<k.Type>)->Sequence<k.FeatureMembership> =
+  b4_owned_relevant(t).concat(b4_inherited_relevant(t, path));
+
+fn b4_relevant_features(t:k.Type, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  Sequence(b4_relevant_at(t, path).flatMap(|m| b4_member_features(m)));
+
+fn b4_owned_relevant(t:k.Type)->Sequence<k.FeatureMembership> =
+  Sequence(contents::<k.FeatureMembership>(t).filter(|m| b4_relevant_membership(m)));
+
+fn b4_relevant_membership(m:k.FeatureMembership)->Bool =
+  match m {
+    _: k.ObjectiveMembership => true,
+    _: k.ViewRenderingMembership => true,
+    _ => contents::<k.Feature>(m).exists(|f| directed(f) || f.isEnd)
+  };
+
+// TypeUtil.getGeneralTypesOf: the owned generals, then the implicit ones.
+// The library default is always taken (the Pilot drops it only when an
+// owned general specializes it, and then its memberships come through that
+// general as well): `case c2 : A;` typed by a part definition still
+// inherits Case::subj through `Cases::cases`.
+fn b4_generals(t:k.Type, path:Sequence<k.Type>)->Sequence<k.Type> =
+  Sequence(resolution.naming_generals(t)
+    .concat(resolution.library(t, implicit.library_default(t)).selectByKind::<k.Type>())
+    .concat(resolution.binary_library(t).selectByKind::<k.Type>())
+    .concat(last_chained(t))
+    .distinct()
+    .reject(|g| g == t || path.contains(g)));
+
+fn b4_inherited_relevant(t:k.Type, path:Sequence<k.Type>)->Sequence<k.FeatureMembership> =
+  if path.size() > 32 { [] } else {
+    let inner = path.concat(Sequence([t]));
+    let candidates = Sequence(b4_generals(t, inner).flatMap(|g| b4_non_private(g, inner)).distinct());
+    if candidates.isEmpty() { candidates } else {
+      let by_type = Sequence(owned_features(t).flatMap(|f| b4_direct_redefined(f, inner)));
+      let redefined = Sequence(candidates.flatMap(|m| b4_member_features(m)
+        .flatMap(|f| b4_all_redefined(f, inner).excluding(f))));
+      Sequence(candidates.reject(|m| b4_member_features(m).exists(|f| redefined.contains(f)
+        || (by_type.notEmpty() && b4_all_redefined(f, inner).exists(|r| by_type.contains(r))))))
+    }
+  };
+
+fn b4_non_private(g:k.Type, path:Sequence<k.Type>)->Sequence<k.FeatureMembership> {
+  let own = b4_owned_relevant(g);
+  own.filter(|m| m.visibility == k.VisibilityKind.`public`)
+    .concat(own.filter(|m| m.visibility == k.VisibilityKind.`protected`))
+    .concat(b4_inherited_relevant(g, path))
+}
+
+// Feature.allRedefinedFeatures: the feature and every feature it redefines,
+// transitively, computed redefinitions included.
+fn b4_all_redefined(f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  b4_redefinition_closure(Sequence([f]), no_features(f), path, 0);
+
+fn b4_redefinition_closure(frontier:Sequence<k.Feature>, seen:Sequence<k.Feature>, path:Sequence<k.Type>, steps:Int64)->Sequence<k.Feature> =
+  if frontier.isEmpty() || steps > 16 { seen } else {
+    let known = seen.concat(frontier);
+    let next = Sequence(frontier.flatMap(|g| b4_direct_redefined(g, path)).distinct()
+      .reject(|g| known.contains(g)));
+    b4_redefinition_closure(next, known, path, steps + 1)
+  };
+
+// FeatureAdapter.getRedefinedFeaturesWithComputed: the owned redefinitions'
+// targets (a chain target is the chain) and the computed redefinitions.
+fn b4_direct_redefined(f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  Sequence(contents::<k.Redefinition>(f).map(|r| b4_redefinition_target(r)))
+    .concat(b4_computed_redefined(f, path));
+
+fn b4_redefinition_target(r:k.Redefinition)->k.Feature =
+  match contents::<k.Feature>(r).first() { Some(chain) => chain, None => r.redefinedFeature };
+
+fn b4_computed_redefined(f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  if path.size() > 32 { [] } else {
+    match owning_type(f) {
+      Some(o) => {
+        let inner = path.concat(Sequence([o]));
+        let positional = if b4_is_objective(f) { b4_objective_redefined(o, f, inner) } else {
+          if f.isEnd { b4_end_redefined(o, f, inner) } else {
+            if b4_is_parameter(f) { b4_parameter_redefined(o, f, inner) } else { no_features(f) }
+          }
+        };
+        positional.concat(b4_view_rendering_redefined(f))
+      },
+      None => []
+    }
+  };
+
+// RenderingUsageAdapter.addRedefinitions: a view rendering also redefines
+// Views::View::viewRendering, so an owned view rendering hides every
+// inherited one.
+fn b4_view_rendering_redefined(f:k.Feature)->Sequence<k.Feature> =
+  match container::<k.ViewRenderingMembership>(f) {
+    Some(_) => resolution.library(f, "Views::View::viewRendering").selectByKind::<k.Feature>(),
+    None => []
+  };
+
+fn b4_is_objective(f:k.Feature)->Bool =
+  match container::<k.ObjectiveMembership>(f) { Some(_) => true, None => false };
+
+fn b4_objective_redefined(o:k.Type, f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  match b4_first_objective(b4_owned_relevant(o)).first() {
+    Some(head) => if head != f { [] } else {
+      Sequence(b4_generals(o, path).flatMap(|g| b4_first_objective(b4_relevant_at(g, path))))
+    },
+    None => []
+  };
+
+fn b4_first_objective(ms:Sequence<k.FeatureMembership>)->Sequence<k.Feature> =
+  match ms.filter(|m| b4_is_objective_membership(m)).first() {
+    Some(m) => b4_member_features(m),
+    None => []
+  };
+
+fn b4_end_redefined(o:k.Type, f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  match b4_index_of_feature(b4_owned_ends(o), f, 0) {
+    Some(i) => Sequence(b4_generals(o, path)
+      .flatMap(|g| b4_at_index(b4_relevant_features(g, path).filter(|e| e.isEnd), i))),
+    None => []
+  };
+
+fn b4_parameter_redefined(o:k.Type, f:k.Feature, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  if b4_is_result(f) {
+    Sequence(b4_generals(o, path).flatMap(|g| b4_result_of(g, path)))
+  } else {
+    match b4_index_of_feature(owned_features(o).filter(|p| directed(p) && !b4_is_result(p)), f, 0) {
+      Some(i) => Sequence(b4_generals(o, path).flatMap(|g| b4_at_index(
+        b4_relevant_features(g, path).filter(|p| directed(p) && !b4_is_result(p)), i))),
+      None => []
+    }
+  };
+
+fn b4_is_result(f:k.Feature)->Bool =
+  match container::<k.ReturnParameterMembership>(f) { Some(_) => true, None => false };
+
+// TypeUtil.getResultParameterOf: the owned result parameter, else the first
+// found among the generals.
+fn b4_result_of(t:k.Type, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  if path.size() > 32 { [] } else {
+    let own = Sequence(contents::<k.ReturnParameterMembership>(t).flatMap(|m| contents::<k.Feature>(m)));
+    if own.notEmpty() { own } else {
+      b4_first_result(b4_generals(t, path), 0, path.concat(Sequence([t])))
+    }
+  };
+
+fn b4_first_result(gs:Sequence<k.Type>, i:Int64, path:Sequence<k.Type>)->Sequence<k.Feature> =
+  match gs.at(i) {
+    Some(g) => {
+      let found = b4_result_of(g, path);
+      if found.notEmpty() { found } else { b4_first_result(gs, i + 1, path) }
+    },
+    None => []
+  };

@@ -1,0 +1,604 @@
+{
+  "schema": "intersect.native-pilot.six-example-assertion-plan.v1",
+  "status": "source_verified_plan_not_runtime_results",
+  "pilot_commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "inspected_root_checkpoint": "8192025fdb6a4937d7e823501c0e802989fcfb25",
+  "observer_patches": [
+    "4e5dc82c",
+    "db5e93fe",
+    "7667eb17"
+  ],
+  "source_manifest": "fixtures/native-pilot/v1/manifest.json",
+  "input_counts": {
+    "libraries": 94,
+    "examples": 6,
+    "total_model_resources": 100,
+    "kerml": 38,
+    "sysml": 62
+  },
+  "sources": {
+    "Types.kerml": {
+      "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+      "resource_uri": "pilot:/kerml/src/examples/Simple%20Tests/Types.kerml",
+      "sha256": "842b5b8053eb80142e8e90e58d7cd5ac5df9dc1c3699ab7dff4e79f6c69198a7",
+      "bytes": 999
+    },
+    "Expressions.kerml": {
+      "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+      "resource_uri": "pilot:/kerml/src/examples/Simple%20Tests/Expressions.kerml",
+      "sha256": "bde514f7236c6206848574ca416688c1ee34b6e12d2dc522db166b8977f8b041",
+      "bytes": 1883
+    },
+    "PartTest.sysml": {
+      "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+      "resource_uri": "pilot:/sysml/src/examples/Simple%20Tests/PartTest.sysml",
+      "sha256": "66ce667ad118527436537c952fb24fd5f9843005a30a8b07084974c6711da38e",
+      "bytes": 1005
+    },
+    "ConnectionTest.sysml": {
+      "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+      "resource_uri": "pilot:/sysml/src/examples/Simple%20Tests/ConnectionTest.sysml",
+      "sha256": "81dea0d21c6ea696da006f2cae5f4851d7ba66cad050aab81de428cd72ac5a64",
+      "bytes": 991
+    },
+    "RequirementTest.sysml": {
+      "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+      "resource_uri": "pilot:/sysml/src/examples/Simple%20Tests/RequirementTest.sysml",
+      "sha256": "8f05d2d8c8c3d1f9fa0e2886eec173b15859ff1a1992092e0dffb453a5cdff55",
+      "bytes": 646
+    },
+    "ConstraintTest.sysml": {
+      "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+      "resource_uri": "pilot:/sysml/src/examples/Simple%20Tests/ConstraintTest.sysml",
+      "sha256": "513d1bf9ae1a503bb8e7248242fdbafc819498a0af36163de49ef772760527c6",
+      "bytes": 2566
+    }
+  },
+  "target_sources": {
+    "ISQ.sysml": {
+      "source_uri": "sysml.library/Domain Libraries/Quantities and Units/ISQ.sysml",
+      "resource_uri": "pilot:/sysml.library/Domain%20Libraries/Quantities%20and%20Units/ISQ.sysml",
+      "sha256": "7c67aa8b16201bea752d26943388304a5d8c97d101e14d4663150f6984dfd563",
+      "bytes": 2138
+    },
+    "ISQBase.sysml": {
+      "source_uri": "sysml.library/Domain Libraries/Quantities and Units/ISQBase.sysml",
+      "resource_uri": "pilot:/sysml.library/Domain%20Libraries/Quantities%20and%20Units/ISQBase.sysml",
+      "sha256": "82f91f99155e1ee9fa23acb3e9cea4bec39d86138ad95b54a3a7ea9d7e692b89",
+      "bytes": 12425
+    },
+    "SI.sysml": {
+      "source_uri": "sysml.library/Domain Libraries/Quantities and Units/SI.sysml",
+      "resource_uri": "pilot:/sysml.library/Domain%20Libraries/Quantities%20and%20Units/SI.sysml",
+      "sha256": "c6af4b72d6d098b7655f737ee162e7bae58089e8bcf7b9209e71041707c1e4e0",
+      "bytes": 31302
+    },
+    "ScalarValues.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Data Type Library/ScalarValues.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Data%20Type%20Library/ScalarValues.kerml",
+      "sha256": "399ab6eea810f3cd9ea7b6f03b7b45cccebe9000069e6f8ac12c76e922157398",
+      "bytes": 885
+    },
+    "BaseFunctions.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Function Library/BaseFunctions.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/BaseFunctions.kerml",
+      "sha256": "728420cf580a119310f319b142e7d38932e556745a2508e6ce9453d243bc6a54",
+      "bytes": 2123
+    },
+    "ControlFunctions.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Function Library/ControlFunctions.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/ControlFunctions.kerml",
+      "sha256": "dd66d4577d44750707b4017d789345295fce6c2d1d03fc10e0c47459ddd18d6a",
+      "bytes": 3719
+    },
+    "DataFunctions.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Function Library/DataFunctions.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/DataFunctions.kerml",
+      "sha256": "8c219a2becac038dcbf101ddf64eee57b568dcd95b204be26c2ed3a83ec510af",
+      "bytes": 2383
+    },
+    "NumericalFunctions.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Function Library/NumericalFunctions.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/NumericalFunctions.kerml",
+      "sha256": "702ab0f027b46621c31e316de0d0108538da4b87e959a41fad464ada153acf58",
+      "bytes": 2829
+    },
+    "ScalarFunctions.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Function Library/ScalarFunctions.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/ScalarFunctions.kerml",
+      "sha256": "4432f9d2eb9d871934e467d89b9a657ab9139897c85baf6ae60e971341e1de98",
+      "bytes": 2627
+    },
+    "Base.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Semantic%20Library/Base.kerml",
+      "sha256": "0a684334290742602432b9e8cf44203fa9b3fd61d04888863923b80223fcfd2e",
+      "bytes": 2432
+    },
+    "Performances.kerml": {
+      "source_uri": "sysml.library/Kernel Libraries/Kernel Semantic Library/Performances.kerml",
+      "resource_uri": "pilot:/sysml.library/Kernel%20Libraries/Kernel%20Semantic%20Library/Performances.kerml",
+      "sha256": "52d100591c7bdf455c95b145d54bbc6ea8a68c6f9a0b583a07af337d5f17a1ae",
+      "bytes": 9217
+    },
+    "Constraints.sysml": {
+      "source_uri": "sysml.library/Systems Library/Constraints.sysml",
+      "resource_uri": "pilot:/sysml.library/Systems%20Library/Constraints.sysml",
+      "sha256": "a8085cadbaa9bc4e4f1b2460c2facfbea8cb7ea3e0436e1ce9a6230daa16b757",
+      "bytes": 1306
+    },
+    "Parts.sysml": {
+      "source_uri": "sysml.library/Systems Library/Parts.sysml",
+      "resource_uri": "pilot:/sysml.library/Systems%20Library/Parts.sysml",
+      "sha256": "127a820928b34628c5cdb34444debab9bc93a63284ba5e6dd6bb2c8707ea9b2c",
+      "bytes": 1962
+    },
+    "Ports.sysml": {
+      "source_uri": "sysml.library/Systems Library/Ports.sysml",
+      "resource_uri": "pilot:/sysml.library/Systems%20Library/Ports.sysml",
+      "sha256": "a5d0e567124a734437648c986e71b6a892557711f5643c429d2c7cf4598805be",
+      "bytes": 1647
+    },
+    "Requirements.sysml": {
+      "source_uri": "sysml.library/Systems Library/Requirements.sysml",
+      "resource_uri": "pilot:/sysml.library/Systems%20Library/Requirements.sysml",
+      "sha256": "e6b715b569bb99629990ad554c51e0094a1de6c6fa2439093ab9a830d635b10f",
+      "bytes": 5659
+    }
+  },
+  "api_recipes": {
+    "stored": "ModelRead::resource_record/query(Query::Resource)/inspect/value and schema.identity(actual); reciprocal authored containment plus actual ReferenceView::Resolved(resident_handle). Qualified names label actual graph IDs, never replace a resolver.",
+    "selector": "Use Schema::effective_feature(actual,field) canonical owner/identity/Feature in SAME scoped StructuralValueSelector::select. Require Some, resident source-qualified returned IDs and absent aliases; do not materialize computed data.",
+    "invocation": "instantiation_reads::native_invocation_instantiated_type(genuine_owner,store,object,budget). Ordinary stored first non-FeatureMembership target; no invocation execution. Full host needs current scoped genuine-owner handoff to call it directly.",
+    "feature_type": "NativeAssociationTypeStructuralValues::get_type reuses bound private admitted roots and shared NativeTypeGraph. Full NativeCohortServices currently exposes structural/snapshot traits only; add narrow language-owned callback, no ResourceRecord-to-authority rebinding.",
+    "usage_reference": "Existing source-bound UsageReferenceSettings::DerivedValues requires actual ComputedSettingContract. Not currently composed as prepared semantic-read/full cohort selector; no host !isComposite substitute.",
+    "arithmetic": "KerMLCurrentReads current-text native_operator_signature supports14 DataFunctions binary families; evaluate_root_integer supports selected EInt +/* root Features. No broad same-ResourceSet evaluator facade.",
+    "validator": "K01ValidationSlice lists 42 applicability rows; only physical checkElement/checkImport are implemented in this slice. language_validated and publication_permitted remain false."
+  },
+  "example_plans": [
+    {
+      "source": "Types.kerml",
+      "observations": [
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "abstract type A specializes Base::Anything;",
+            "utf8_start": 18,
+            "utf8_end": 61
+          },
+          "id": "T01"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "type all x specializes A, Base::things;",
+            "utf8_start": 64,
+            "utf8_end": 103
+          },
+          "id": "T02"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "protected feature f : P::Sub;",
+            "utf8_start": 319,
+            "utf8_end": 348
+          },
+          "id": "T03"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "specialization Gen subtype A specializes B;",
+            "utf8_start": 389,
+            "utf8_end": 432
+          },
+          "id": "T04"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "conjugation c1 conjugate Conjugate1 conjugates Original;",
+            "utf8_start": 648,
+            "utf8_end": 704
+          },
+          "id": "T05"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Types.kerml",
+          "anchor": {
+            "text": "type D :> Base::Anything unions A, B;",
+            "utf8_start": 870,
+            "utf8_end": 907
+          },
+          "id": "T06"
+        }
+      ],
+      "apis": [
+        "stored",
+        "selector"
+      ],
+      "expected_positive_assertions": "A is abstract and its authored general is genuine Base::Anything. Sufficient x preserves ordered authored general IDs [Types::A, Base::things]. Super::f targets private P::Sub with protected visibility; Sub targets Super. Gen keeps A/B subjects. Four Conjugation identities and all owned type-relation targets remain exact.",
+      "current_implementation": "T01/T03 and original Conjugation host checks exist; other stored/getter comparisons reuse existing exact providers.",
+      "separate_semantic_outcomes": "No type-set algebra, complete inheritance/conformance or all-zero diagnostic baseline.",
+      "original_runtime": "pending"
+    },
+    {
+      "source": "Expressions.kerml",
+      "observations": [
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "private import BaseFunctions::ToString;",
+            "utf8_start": 61,
+            "utf8_end": 100
+          },
+          "id": "E01"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "aa : Boolean;",
+            "utf8_start": 158,
+            "utf8_end": 171
+          },
+          "id": "E02"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "x = ToString(a * a + 3 == 4);",
+            "utf8_start": 174,
+            "utf8_end": 203
+          },
+          "id": "E03"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "y = NumericalFunctions::'+'(1,2);",
+            "utf8_start": 206,
+            "utf8_end": 239
+          },
+          "id": "E04"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "c1 = x.{in xx; xx + 1};",
+            "utf8_start": 455,
+            "utf8_end": 478
+          },
+          "id": "E05"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "var count : ScalarValues::Integer := 0;",
+            "utf8_start": 1599,
+            "utf8_end": 1638
+          },
+          "id": "E06"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "feature count : ScalarValues::Integer =  c#(1).count;",
+            "utf8_start": 1775,
+            "utf8_end": 1828
+          },
+          "id": "E07"
+        },
+        {
+          "source_uri": "kerml/src/examples/Simple Tests/Expressions.kerml",
+          "anchor": {
+            "text": "feature l = new L();",
+            "utf8_start": 1838,
+            "utf8_end": 1858
+          },
+          "id": "E08"
+        }
+      ],
+      "apis": [
+        "stored",
+        "invocation",
+        "arithmetic"
+      ],
+      "expected_positive_assertions": "Real ScalarFunctions/ScalarValues imports; a/aa and C/L.count bind actual scalar targets. Preserve initial zero. x calls BaseFunctions::ToString; y calls NumericalFunctions::+. Inspect declared returns, collect/select constructors, indexed C.count chain and new L target.",
+      "current_implementation": "Existing observer has twelve binding records plus separate native naming/signature checks. Ordinary Invocation and index-relative declared-receiver scope exist; extend stored comparisons.",
+      "separate_semantic_outcomes": "Bindings differ from values. Explicit NumericalFunctions::+ differs from generic infix DataFunctions::+. General equality, conditional, collection, identity and constructor evaluation is outside the narrow integer evaluator.",
+      "original_runtime": "pending"
+    },
+    {
+      "source": "PartTest.sysml",
+      "observations": [
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "part f: A;",
+            "utf8_start": 24,
+            "utf8_end": 34
+          },
+          "id": "P01"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "protected port c: C;",
+            "utf8_start": 82,
+            "utf8_end": 102
+          },
+          "id": "P02"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "derived constant ref attribute y :> x;",
+            "utf8_start": 137,
+            "utf8_end": 175
+          },
+          "id": "P03"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "ref z : ScalarValues::Integer;",
+            "utf8_start": 179,
+            "utf8_end": 209
+          },
+          "id": "P04"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "timeslice part B1;",
+            "utf8_start": 463,
+            "utf8_end": 481
+          },
+          "id": "P05"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "port x: ~C {",
+            "utf8_start": 382,
+            "utf8_end": 394
+          },
+          "id": "P06"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/PartTest.sysml",
+          "anchor": {
+            "text": "part p4 :> p4;",
+            "utf8_start": 985,
+            "utf8_end": 999
+          },
+          "id": "P07"
+        }
+      ],
+      "apis": [
+        "stored",
+        "selector",
+        "usage_reference",
+        "feature_type"
+      ],
+      "expected_positive_assertions": "f targets local A; A.c targets local C; A.z targets genuine Integer. Preserve y modifiers and subsetting, canonical timeslice enum, B.x generated conjugated definition tied to C, and four authored cyclic/self-subsetting references.",
+      "current_implementation": "P01/P02/P04 checks exist. Port postprocessing, tilde scope, CPT and PortConjugation endpoint readers exist. Existing CPT seed already delegates type.",
+      "separate_semantic_outcomes": "CPD effective long name is explicitly unsupported; derived CPT.portDefinition is outside the endpoint slice. Active portion/timeslice defaults refuse when demanded. Do not infer an intentional-negative cycle baseline.",
+      "original_runtime": "pending"
+    },
+    {
+      "source": "ConnectionTest.sysml",
+      "observations": [
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+          "anchor": {
+            "text": "connect p1.x.x1 to y;",
+            "utf8_start": 172,
+            "utf8_end": 193
+          },
+          "id": "C01"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+          "anchor": {
+            "text": "binding ab bind a = b;",
+            "utf8_start": 242,
+            "utf8_end": 264
+          },
+          "id": "C02"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+          "anchor": {
+            "text": "succession s first a then b;",
+            "utf8_start": 323,
+            "utf8_end": 351
+          },
+          "id": "C03"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+          "anchor": {
+            "text": "connection bus : C connect (d1, d2, d3, d4);",
+            "utf8_start": 532,
+            "utf8_end": 576
+          },
+          "id": "C04"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+          "anchor": {
+            "text": "end [1] item a : A {",
+            "utf8_start": 901,
+            "utf8_end": 921
+          },
+          "id": "C05"
+        }
+      ],
+      "apis": [
+        "stored",
+        "selector"
+      ],
+      "expected_positive_assertions": "C01 source is the actual owned Feature-chain helper. Separately verify its chain targets [P::p1, p::x, p::x::x1] and target [P::y]. ab/s keep ordered direct [P::a,P::b]. bus targets local C and four end referents. AB.a retains end/multiplicity/type and metadata links.",
+      "current_implementation": "C01 observer/data corrected in db5e93fe; twelve connector classes use shared source-backed selectors. Existing C05 checks end flag and typing.",
+      "separate_semantic_outcomes": "Do not substitute terminal identity for helper. No execution ordering, metadata application or presumed validity of three declared versus four supplied ends.",
+      "original_runtime": "pending"
+    },
+    {
+      "source": "RequirementTest.sysml",
+      "observations": [
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+          "anchor": {
+            "text": "private import q::**;",
+            "utf8_start": 68,
+            "utf8_end": 89
+          },
+          "id": "R01"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+          "anchor": {
+            "text": "assume constraint c1 : C;",
+            "utf8_start": 115,
+            "utf8_end": 140
+          },
+          "id": "R02"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+          "anchor": {
+            "text": "assert not satisfy r1 by q;",
+            "utf8_start": 473,
+            "utf8_end": 500
+          },
+          "id": "R03"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+          "anchor": {
+            "text": "frame c3[0..*];",
+            "utf8_start": 624,
+            "utf8_end": 639
+          },
+          "id": "R04"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+          "anchor": {
+            "text": "subject s;",
+            "utf8_start": 248,
+            "utf8_end": 258
+          },
+          "id": "R05"
+        }
+      ],
+      "apis": [
+        "stored",
+        "selector"
+      ],
+      "expected_positive_assertions": "Private recursive import targets actual q. Preserve assumption kind/type C, negated satisfaction references to r1 and subject q, framed concern c3, and nested R::A reqId/effective alias plus subject ownership.",
+      "current_implementation": "Native recursive import worker is enabled. R02 observer exists; R05 uses the current bound selector. Membership, reference-subsetting and identifier providers exist.",
+      "separate_semantic_outcomes": "No invented isAsserted field, satisfaction truth or blanket unsupported-import claim. Specialized RequirementUsage defaults remain outside the current ordinary usage table when demanded.",
+      "original_runtime": "pending"
+    },
+    {
+      "source": "ConstraintTest.sysml",
+      "observations": [
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+          "anchor": {
+            "text": "private import ISQ::MassValue;",
+            "utf8_start": 27,
+            "utf8_end": 57
+          },
+          "id": "K01"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+          "anchor": {
+            "text": "attribute componentMasses: MassValue[0..*];",
+            "utf8_start": 198,
+            "utf8_end": 241
+          },
+          "id": "K02"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+          "anchor": {
+            "text": "constraint def MassAnalysis {",
+            "utf8_start": 130,
+            "utf8_end": 159
+          },
+          "id": "K03"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+          "anchor": {
+            "text": "part vehicle : Component {",
+            "utf8_start": 352,
+            "utf8_end": 378
+          },
+          "id": "K04"
+        },
+        {
+          "source_uri": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+          "anchor": {
+            "text": "assert not massLimitation { :>> mass = vehicle3.mass; :>> massLimit = vehicle4.mass; }",
+            "utf8_start": 2477,
+            "utf8_end": 2563
+          },
+          "id": "K05"
+        }
+      ],
+      "apis": [
+        "stored",
+        "selector",
+        "invocation"
+      ],
+      "expected_positive_assertions": "ISQ::MassValue reaches actual ISQBase::MassValue. SI::kg reaches actual kilogram. sum is the real NumericalFunctions function. Verify MassValue typings, vehicle/children Component typings, authored sum signature and negated assertion target.",
+      "current_implementation": "Component.mass/componentMasses checks exist. Imports, declared signatures and negated structure use existing stored links and the ordinary invocation service.",
+      "separate_semantic_outcomes": "No component masses are assigned. sum, quantities, units, equality and negation truth need broader language evaluation; current generic operator signature explicitly refuses ==.",
+      "original_runtime": "pending"
+    }
+  ],
+  "supported_native_operator_signatures": [
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "**",
+    "^",
+    "xor",
+    "|",
+    "&",
+    "<",
+    ">",
+    "<=",
+    ">="
+  ],
+  "identity_policy": "Capture actual resident IDs and resolved handles from exactsource/ownership. Do not freezeUUIDs, replacehelperwithterminal, inferlibrarytargetsfromnames alone, or rebuild store from receipts.",
+  "whole_example_zero_diagnostics_asserted": false,
+  "whole_language_semantics_verified": false,
+  "cohort_or_host_executed_by_this_review": false,
+  "java_executed": false,
+  "inspected_implementation_sha256": {
+    "crates/intersect-kerml/examples/native_pilot.rs": "7f633ddd3d9720526a1c203fa0b72ad3113e0b41bb6b0ec59d2948f669fcc74f",
+    "crates/intersect-kerml/examples/native_pilot_checks/kerml.rs": "fc08591078b4247c9077cab61cce3eb123897ec5f5c03c8e4510e4e73d2c41f3",
+    "crates/intersect-kerml/src/sysml_native_snapshot_initializers.rs": "8ae3abd69f2ac4e7590c91ba854456e169ba1db8be823b694ddc59d284d9e3f9",
+    "crates/intersect-kerml/src/native_structural_values.rs": "2cf8ea81ac8b02697fffd8aa0d072dfdc2941d96975996c258331efa66cafc83",
+    "crates/intersect-kerml/src/instantiation_reads.rs": "93a320972c97e1664e0f2c985da2352acfd562bdf061683efc1b383e3ee830ee",
+    "crates/intersect-kerml/src/k01_expression_relative_scope.rs": "80d3ae3d92f4970a4c98fe52eda9230efbad4cc8152866a806a067b8c1d437cd",
+    "crates/intersect-kerml/src/k01_operator_selection_walk.rs": "f90d87d048cc03b9de1c056d64421834184c1d39a6bb95586bac7ce5fedb90c4",
+    "crates/intersect-kerml/src/k01_root_value.rs": "7f9d113fe216389979d50493b19df7feb544aa2207cc5e010bdb4d5ec8d38269",
+    "crates/intersect-kerml/src/k01_root_arithmetic.rs": "9e937af4bdf06907efee821fdb7f805c2b708ecf0e80069dfcbef7d7ba238e7a",
+    "crates/intersect-kerml/src/k01_validation.rs": "dadfdf42f3cf7df5905c4edfb8a05e27987cfcbff6e59fd14f6d31e4a517bdae",
+    "crates/intersect-kerml/src/sysml_usage.rs": "6778f7a5eb330f6b21f77bd0d449a28f956952808a64d7538b1e4a39e803abc8",
+    "crates/intersect-kerml/src/sysml_port_postprocess.rs": "4261c2009543428b052b5dced42b2a68b6436923497406ce33e85ef28c955385",
+    "crates/intersect-kerml/src/native_membership_name_reads.rs": "7c90761a1c9f36bd4b51a594947506b5dbd55fffb3f2b278054c137650970764",
+    "crates/intersect-kerml/src/native_type_general_policy.rs": "f70f0fa0f5ffef4cacbe0242456d466ef104b6de1395f6999d1dd4605a9a64ba"
+  },
+  "implementation_review_boundary": "Individual current worktree file hashes are source observations, may include scoped uncommitted work, and are not a compiled/runtime snapshot."
+}

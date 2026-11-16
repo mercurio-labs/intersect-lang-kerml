@@ -1,0 +1,42 @@
+rcore 1;
+package intersect.sysml.nameResolution version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+import package intersect.kerml.nameResolution version "1" as resolution;
+
+// SysML name resolution, layered on the KerML name resolution
+// (kerml-name-resolution.rcore), which binds every KerML cross reference.
+
+bind scope k.ConjugatedPortTyping.conjugatedPortDefinition = conjugated_port_definition;
+
+// `port x : ~C` names the conjugated port definition that port definition C
+// owns (the implicit `~C`): the name after `~` is resolved like any type,
+// then its owned conjugated port definition is taken.
+// The spelling keeps any space after `~` (`port p : ~ FuelPort`), which is
+// not part of the name.
+fn conjugated_port_definition(r:k.ConjugatedPortTyping, name:String)->Sequence<k.ConjugatedPortDefinition> =
+  match name.split("~").at(1) {
+    Some(original) => resolution.resolve(r, trim_leading(original))
+      .flatMap(|m| resolution.elements_of(m).selectByKind::<k.PortDefinition>())
+      .flatMap(|p| contents::<k.OwningMembership>(p).flatMap(|o| contents::<k.ConjugatedPortDefinition>(o))),
+    None => []
+  };
+
+fn trim_leading(s:String)->String {
+  let parts = s.split(" ");
+  join_from(parts, first_nonempty(parts, 0))
+}
+
+fn first_nonempty(parts:Sequence<String>, i:Int64)->Int64 =
+  match parts.at(i) {
+    Some(p) => if p == "" { first_nonempty(parts, i + 1) } else { i },
+    None => i
+  };
+
+fn join_from(parts:Sequence<String>, i:Int64)->String =
+  match parts.at(i) {
+    Some(p) => match parts.at(i + 1) {
+      Some(_) => p + " " + join_from(parts, i + 1),
+      None => p
+    },
+    None => ""
+  };

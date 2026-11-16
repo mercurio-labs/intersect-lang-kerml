@@ -1,0 +1,916 @@
+{
+  "schema": "intersect.sysml.pilot-observations.v1",
+  "pilot_commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "status": "source_grounded_expectations_not_native_results",
+  "sources": {
+    "parts": {
+      "path": "sysml/src/examples/Simple Tests/PartTest.sysml",
+      "bytes": 1005,
+      "sha256": "66ce667ad118527436537c952fb24fd5f9843005a30a8b07084974c6711da38e",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml/src/examples/Simple%20Tests/PartTest.sysml"
+    },
+    "connections": {
+      "path": "sysml/src/examples/Simple Tests/ConnectionTest.sysml",
+      "bytes": 991,
+      "sha256": "81dea0d21c6ea696da006f2cae5f4851d7ba66cad050aab81de428cd72ac5a64",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml/src/examples/Simple%20Tests/ConnectionTest.sysml"
+    },
+    "requirements": {
+      "path": "sysml/src/examples/Simple Tests/RequirementTest.sysml",
+      "bytes": 646,
+      "sha256": "8f05d2d8c8c3d1f9fa0e2886eec173b15859ff1a1992092e0dffb453a5cdff55",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml/src/examples/Simple%20Tests/RequirementTest.sysml"
+    },
+    "constraints": {
+      "path": "sysml/src/examples/Simple Tests/ConstraintTest.sysml",
+      "bytes": 2566,
+      "sha256": "513d1bf9ae1a503bb8e7248242fdbafc819498a0af36163de49ef772760527c6",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml/src/examples/Simple%20Tests/ConstraintTest.sysml"
+    }
+  },
+  "target_sources": {
+    "scalar_values": {
+      "path": "sysml.library/Kernel Libraries/Kernel Data Type Library/ScalarValues.kerml",
+      "bytes": 885,
+      "sha256": "399ab6eea810f3cd9ea7b6f03b7b45cccebe9000069e6f8ac12c76e922157398",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Kernel%20Libraries/Kernel%20Data%20Type%20Library/ScalarValues.kerml",
+      "declaration_anchor": {
+        "text": "datatype Integer specializes Rational;",
+        "utf8_start": 755,
+        "utf8_end": 793
+      }
+    },
+    "isq": {
+      "path": "sysml.library/Domain Libraries/Quantities and Units/ISQ.sysml",
+      "bytes": 2138,
+      "sha256": "7c67aa8b16201bea752d26943388304a5d8c97d101e14d4663150f6984dfd563",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Quantities%20and%20Units/ISQ.sysml",
+      "declaration_anchor": {
+        "text": "public import ISQBase::*;",
+        "utf8_start": 253,
+        "utf8_end": 278
+      }
+    },
+    "isq_base": {
+      "path": "sysml.library/Domain Libraries/Quantities and Units/ISQBase.sysml",
+      "bytes": 12425,
+      "sha256": "82f91f99155e1ee9fa23acb3e9cea4bec39d86138ad95b54a3a7ea9d7e692b89",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Quantities%20and%20Units/ISQBase.sysml",
+      "declaration_anchor": {
+        "text": "attribute def MassValue :> ScalarQuantityValue {",
+        "utf8_start": 2673,
+        "utf8_end": 2721
+      }
+    },
+    "si": {
+      "path": "sysml.library/Domain Libraries/Quantities and Units/SI.sysml",
+      "bytes": 31302,
+      "sha256": "c6af4b72d6d098b7655f737ee162e7bae58089e8bcf7b9209e71041707c1e4e0",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Quantities%20and%20Units/SI.sysml",
+      "declaration_anchor": {
+        "text": "attribute <kg> kilogram : MassUnit",
+        "utf8_start": 690,
+        "utf8_end": 724
+      }
+    },
+    "numerical_functions": {
+      "path": "sysml.library/Kernel Libraries/Kernel Function Library/NumericalFunctions.kerml",
+      "bytes": 2829,
+      "sha256": "702ab0f027b46621c31e316de0d0108538da4b87e959a41fad464ada153acf58",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/NumericalFunctions.kerml",
+      "declaration_anchor": {
+        "text": "abstract function sum { in collection: ScalarValue[0..*]; return : ScalarValue[1]; }",
+        "utf8_start": 2295,
+        "utf8_end": 2379
+      }
+    }
+  },
+  "identity_policy": "Observation IDs are stable labels; capture actual graph object IDs in receipts and compare resolved target identities. Preserve original source locators separately from canonical resource URIs; never invent runtime UUIDs or match targets only by leaf name.",
+  "whole_example_zero_diagnostics_asserted": false,
+  "whole_language_semantics_verified": false,
+  "java_execution": "not_run",
+  "observations": [
+    {
+      "id": "P01",
+      "source": "parts",
+      "anchor": {
+        "text": "part f: A;",
+        "utf8_start": 24,
+        "utf8_end": 34
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::f",
+          "owner": "PartTest",
+          "owning_relationship": "OwningMembership",
+          "class": "PartUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "PartTest::f",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "PartTest::A",
+          "target_class": "PartDefinition"
+        }
+      ]
+    },
+    {
+      "id": "P02",
+      "source": "parts",
+      "anchor": {
+        "text": "protected port c: C;",
+        "utf8_start": 82,
+        "utf8_end": 102
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::A::c",
+          "owning_membership_visibility": "protected",
+          "class": "PortUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "PartTest::A::c",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "PartTest::C",
+          "target_class": "PortDefinition"
+        }
+      ]
+    },
+    {
+      "id": "P03",
+      "source": "parts",
+      "anchor": {
+        "text": "derived constant ref attribute y :> x;",
+        "utf8_start": 137,
+        "utf8_end": 175
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::A::y",
+          "stored": {
+            "isDerived": true,
+            "isConstant": true
+          },
+          "class": "AttributeUsage"
+        },
+        {
+          "phase": "computed_setting",
+          "object": "PartTest::A::y",
+          "feature": "isReference",
+          "value": true,
+          "backing_stored": {
+            "isComposite": false
+          },
+          "provider": "intersect.sysml.pilot.usage-reference"
+        },
+        {
+          "phase": "linking",
+          "owner": "PartTest::A::y",
+          "relationship": "Subsetting",
+          "reference": "subsettedFeature",
+          "target": "PartTest::A::x"
+        }
+      ]
+    },
+    {
+      "id": "P04",
+      "source": "parts",
+      "anchor": {
+        "text": "ref z : ScalarValues::Integer;",
+        "utf8_start": 179,
+        "utf8_end": 209
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::A::z",
+          "class": "ReferenceUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "PartTest::A::z",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ScalarValues::Integer",
+          "target_class": "DataType",
+          "target_source": "sysml.library/Kernel Libraries/Kernel Data Type Library/ScalarValues.kerml"
+        }
+      ]
+    },
+    {
+      "id": "P05",
+      "source": "parts",
+      "anchor": {
+        "text": "timeslice part B1;",
+        "utf8_start": 463,
+        "utf8_end": 481
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::B::B1",
+          "stored_enumerations": {
+            "portionKind": {
+              "enumeration": "PortionKind",
+              "literal": "timeslice"
+            }
+          },
+          "class": "PartUsage"
+        }
+      ]
+    },
+    {
+      "id": "P06",
+      "source": "parts",
+      "anchor": {
+        "text": "port x: ~C {",
+        "utf8_start": 382,
+        "utf8_end": 394
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "PartTest::B::x",
+          "typing_relationship": "ConjugatedPortTyping",
+          "class": "PortUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "PartTest::B::x",
+          "reference": "conjugatedPortDefinition",
+          "target_class": "ConjugatedPortDefinition",
+          "target_original_port_definition": "PartTest::C",
+          "requires": "actual source-bound conjugation postprocessing and target identities; no tilde-string substitution"
+        }
+      ]
+    },
+    {
+      "id": "P07",
+      "source": "parts",
+      "anchor": {
+        "text": "part p4 :> p4;",
+        "utf8_start": 985,
+        "utf8_end": 999
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "linking",
+          "relationship": "Subsetting",
+          "reference": "subsettedFeature",
+          "edges": [
+            [
+              "PartTest::p1",
+              "PartTest::p2"
+            ],
+            [
+              "PartTest::p2",
+              "PartTest::p3"
+            ],
+            [
+              "PartTest::p3",
+              "PartTest::p1"
+            ],
+            [
+              "PartTest::p4",
+              "PartTest::p4"
+            ]
+          ]
+        },
+        {
+          "phase": "deferred_validation",
+          "does_not_assert": "cyclic or self-subsetting is an intentional negative example; exact-example diagnostic baseline remains unverified"
+        }
+      ]
+    },
+    {
+      "id": "C01",
+      "source": "connections",
+      "anchor": {
+        "text": "connect p1.x.x1 to y;",
+        "utf8_start": 172,
+        "utf8_end": 193
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "ConnectionTest::P",
+          "owned_endpoint_membership_class": "EndFeatureMembership",
+          "owned_endpoint_class": "ReferenceUsage",
+          "owned_endpoint_count": 2,
+          "class": "ConnectionUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::P",
+          "reference": "referencedFeature",
+          "ordered_endpoint_referents": [
+            {
+              "kind": "actual OwnedFeatureChain helper",
+              "class": "Feature",
+              "owned_by": "first endpoint ReferenceSubsetting"
+            },
+            {
+              "object": "ConnectionTest::P::y",
+              "class": "PartUsage"
+            }
+          ],
+          "helper_ordered_feature_chaining_targets": [
+            "ConnectionTest::P::p1",
+            "ConnectionTest::p::x",
+            "ConnectionTest::p::x::x1"
+          ],
+          "helper_terminal_target": "ConnectionTest::p::x::x1",
+          "requires": "actual p1 subsets p, chained feature scope and the original last-ownedRelatedElement parser repair; retain helper identity separately from its terminal target"
+        },
+        {
+          "phase": "effective_endpoints",
+          "class": "ConnectionUsage",
+          "source": "actual first endpoint OwnedFeatureChain helper identity",
+          "target": [
+            "ConnectionTest::P::y"
+          ],
+          "provider": "intersect.kerml.pilot.native-connector-endpoints",
+          "does_not_assert": "runtime feature-chain evaluation or identity equivalence between helper and terminal feature"
+        }
+      ]
+    },
+    {
+      "id": "C02",
+      "source": "connections",
+      "anchor": {
+        "text": "binding ab bind a = b;",
+        "utf8_start": 242,
+        "utf8_end": 264
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConnectionTest::P::ab",
+          "owner": "ConnectionTest::P",
+          "class": "BindingConnectorAsUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::P::ab",
+          "reference": "referencedFeature",
+          "ordered_endpoint_targets": [
+            "ConnectionTest::P::a",
+            "ConnectionTest::P::b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C03",
+      "source": "connections",
+      "anchor": {
+        "text": "succession s first a then b;",
+        "utf8_start": 323,
+        "utf8_end": 351
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConnectionTest::P::s",
+          "class": "SuccessionAsUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::P::s",
+          "reference": "referencedFeature",
+          "ordered_endpoint_targets": [
+            "ConnectionTest::P::a",
+            "ConnectionTest::P::b"
+          ],
+          "does_not_assert": "execution ordering has been simulated"
+        }
+      ]
+    },
+    {
+      "id": "C04",
+      "source": "connections",
+      "anchor": {
+        "text": "connection bus : C connect (d1, d2, d3, d4);",
+        "utf8_start": 532,
+        "utf8_end": 576
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConnectionTest::bus",
+          "owned_endpoint_membership_class": "EndFeatureMembership",
+          "owned_endpoint_count": 4,
+          "class": "ConnectionUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::bus",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ConnectionTest::C",
+          "target_class": "ConnectionDefinition"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::bus",
+          "reference": "referencedFeature",
+          "ordered_endpoint_targets": [
+            "ConnectionTest::d1",
+            "ConnectionTest::d2",
+            "ConnectionTest::d3",
+            "ConnectionTest::d4"
+          ],
+          "does_not_assert": "the declared three-end C and four supplied endpoints pass all connection semantic constraints"
+        }
+      ]
+    },
+    {
+      "id": "C05",
+      "source": "connections",
+      "anchor": {
+        "text": "end [1] item a : A {",
+        "utf8_start": 901,
+        "utf8_end": 921
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConnectionTest::AB::a",
+          "stored": {
+            "isEnd": true
+          },
+          "multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "class": "ItemUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::AB::a",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ConnectionTest::A"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConnectionTest::AB::a",
+          "annotation_class": "MetadataUsage",
+          "annotation_type": "ConnectionTest::M",
+          "annotation_type_class": "MetadataDefinition",
+          "does_not_assert": "metadata evaluation or semantic application has run"
+        }
+      ]
+    },
+    {
+      "id": "R01",
+      "source": "requirements",
+      "anchor": {
+        "text": "private import q::**;",
+        "utf8_start": 68,
+        "utf8_end": 89
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "RequirementTest",
+          "stored_visibility": "private",
+          "stored": {
+            "isRecursive": true
+          },
+          "class": "NamespaceImport"
+        },
+        {
+          "phase": "linking",
+          "owner": "RequirementTest",
+          "reference": "importedNamespace",
+          "target": "RequirementTest::q",
+          "target_class": "PartUsage",
+          "requires": "forward local namespace reference, recursive import scope and actual q identity"
+        }
+      ]
+    },
+    {
+      "id": "R02",
+      "source": "requirements",
+      "anchor": {
+        "text": "assume constraint c1 : C;",
+        "utf8_start": 115,
+        "utf8_end": 140
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "RequirementTest::R::c1",
+          "owning_relationship": "RequirementConstraintMembership",
+          "owning_relationship_enumerations": {
+            "kind": {
+              "enumeration": "RequirementConstraintKind",
+              "literal": "assumption"
+            }
+          },
+          "class": "ConstraintUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "RequirementTest::R::c1",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "RequirementTest::C",
+          "target_class": "ConstraintDefinition"
+        }
+      ]
+    },
+    {
+      "id": "R03",
+      "source": "requirements",
+      "anchor": {
+        "text": "assert not satisfy r1 by q;",
+        "utf8_start": 473,
+        "utf8_end": 500
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "RequirementTest",
+          "stored": {
+            "isNegated": true
+          },
+          "subject_membership_class": "SubjectMembership",
+          "subject_parameter_class": "ReferenceUsage",
+          "class": "SatisfyRequirementUsage"
+        },
+        {
+          "phase": "linking",
+          "relationship": "ReferenceSubsetting",
+          "reference": "referencedFeature",
+          "target": "RequirementTest::r1",
+          "target_class": "RequirementUsage"
+        },
+        {
+          "phase": "linking",
+          "subject_value_class": "FeatureReferenceExpression",
+          "subject_target": "RequirementTest::q",
+          "requires": "actual SubjectMembership / ReferenceUsage / FeatureValue ownership chain"
+        },
+        {
+          "phase": "deferred_validation",
+          "does_not_assert": "r1 is satisfied, unsatisfied, asserted true, or evaluated; optional assert keyword is not an invented isAsserted storage field"
+        }
+      ]
+    },
+    {
+      "id": "R04",
+      "source": "requirements",
+      "anchor": {
+        "text": "frame c3[0..*];",
+        "utf8_start": 624,
+        "utf8_end": 639
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "RequirementTest::R2",
+          "owning_relationship": "FramedConcernMembership",
+          "owned_usage_class": "ConcernUsage",
+          "owning_relationship_enumerations": {
+            "kind": {
+              "enumeration": "RequirementConstraintKind",
+              "literal": "requirement"
+            }
+          }
+        },
+        {
+          "phase": "linking",
+          "relationship": "ReferenceSubsetting",
+          "reference": "referencedFeature",
+          "target": "RequirementTest::c3",
+          "target_class": "ConcernUsage"
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "source": "requirements",
+      "anchor": {
+        "text": "subject s;",
+        "utf8_start": 248,
+        "utf8_end": 258
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "RequirementTest::R::A::s",
+          "owner": "RequirementTest::R::A",
+          "owning_relationship": "SubjectMembership",
+          "class": "ReferenceUsage"
+        },
+        {
+          "phase": "construction",
+          "object": "RequirementTest::R::A",
+          "stored": {
+            "reqId": "1"
+          },
+          "class": "RequirementDefinition",
+          "raw_absent": [
+            "declaredShortName"
+          ]
+        },
+        {
+          "phase": "effective_identifier",
+          "object": "RequirementTest::R::A",
+          "class": "RequirementDefinition",
+          "member": "declaredShortName",
+          "expected": "1",
+          "provider": "intersect.kerml.pilot.native-requirement-identifier-alias",
+          "does_not_assert": "Requirement satisfaction or whole-language validation; consume the actual bound getter, not metadata default or a mirrored alias."
+        }
+      ]
+    },
+    {
+      "id": "K01",
+      "source": "constraints",
+      "anchor": {
+        "text": "private import ISQ::MassValue;",
+        "utf8_start": 27,
+        "utf8_end": 57
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "ConstraintTest",
+          "stored_visibility": "private",
+          "class": "MembershipImport"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest",
+          "reference": "importedMembership",
+          "source_spelling": "ISQ::MassValue",
+          "target_member_element": "ISQBase::MassValue",
+          "target_class": "AttributeDefinition",
+          "target_source": "sysml.library/Domain Libraries/Quantities and Units/ISQBase.sysml",
+          "requires": "actual public ISQBase import of the ISQ package"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest",
+          "source_spelling": "SI::kg",
+          "target_member_element": "SI::kilogram",
+          "target_declared_short_name": "kg",
+          "target_class": "AttributeUsage",
+          "target_source": "sysml.library/Domain Libraries/Quantities and Units/SI.sysml"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest",
+          "source_spelling": "NumericalFunctions::sum",
+          "target_member_element": "NumericalFunctions::sum",
+          "target_class": "Function",
+          "target_source": "sysml.library/Kernel Libraries/Kernel Function Library/NumericalFunctions.kerml"
+        }
+      ]
+    },
+    {
+      "id": "K02",
+      "source": "constraints",
+      "anchor": {
+        "text": "attribute componentMasses: MassValue[0..*];",
+        "utf8_start": 198,
+        "utf8_end": 241
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConstraintTest::MassAnalysis::componentMasses",
+          "multiplicity": {
+            "lower": 0,
+            "upper": "*"
+          },
+          "class": "AttributeUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest::MassAnalysis::componentMasses",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ISQBase::MassValue",
+          "target_source": "sysml.library/Domain Libraries/Quantities and Units/ISQBase.sysml"
+        }
+      ]
+    },
+    {
+      "id": "K03",
+      "source": "constraints",
+      "anchor": {
+        "text": "constraint def MassAnalysis {",
+        "utf8_start": 130,
+        "utf8_end": 159
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "ConstraintTest::MassAnalysis",
+          "result_value_class": "OperatorExpression",
+          "operator": "==",
+          "operand_invocation_class": "InvocationExpression"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest::MassAnalysis",
+          "invoked_function": "NumericalFunctions::sum",
+          "argument_feature": "ConstraintTest::MassAnalysis::componentMasses"
+        },
+        {
+          "phase": "declared_signature",
+          "function": "NumericalFunctions::sum",
+          "parameter": {
+            "name": "collection",
+            "type": "ScalarValues::ScalarValue",
+            "lower": 0,
+            "upper": "*"
+          },
+          "return_type": "ScalarValues::ScalarValue",
+          "return_multiplicity": {
+            "lower": 1,
+            "upper": 1
+          },
+          "does_not_assert": "sum has been evaluated or the constraint has a truth value"
+        }
+      ]
+    },
+    {
+      "id": "K04",
+      "source": "constraints",
+      "anchor": {
+        "text": "part vehicle : Component {",
+        "utf8_start": 352,
+        "utf8_end": 378
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "object": "ConstraintTest::vehicle",
+          "owned_features": [
+            "ConstraintTest::vehicle::engine",
+            "ConstraintTest::vehicle::frontAxleAssembly",
+            "ConstraintTest::vehicle::rearAxleAssembly"
+          ],
+          "class": "PartUsage"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest::vehicle",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ConstraintTest::Component",
+          "target_class": "PartDefinition"
+        },
+        {
+          "phase": "linking",
+          "owner": "ConstraintTest::Component::mass",
+          "relationship": "FeatureTyping",
+          "reference": "type",
+          "target": "ISQBase::MassValue"
+        }
+      ]
+    },
+    {
+      "id": "K05",
+      "source": "constraints",
+      "anchor": {
+        "text": "assert not massLimitation { :>> mass = vehicle3.mass; :>> massLimit = vehicle4.mass; }",
+        "utf8_start": 2477,
+        "utf8_end": 2563
+      },
+      "native_verification": "pending",
+      "checks": [
+        {
+          "phase": "construction",
+          "owner": "ConstraintTest",
+          "stored": {
+            "isNegated": true
+          },
+          "class": "AssertConstraintUsage"
+        },
+        {
+          "phase": "linking",
+          "relationship": "ReferenceSubsetting",
+          "reference": "referencedFeature",
+          "target": "ConstraintTest::massLimitation",
+          "target_class": "ConstraintUsage"
+        },
+        {
+          "phase": "deferred_evaluation",
+          "does_not_assert": "mass values, unit arithmetic or negated constraint truth are known; no assigned numeric component masses occur in the example"
+        }
+      ]
+    }
+  ],
+  "diagnostic_review_candidates": [
+    {
+      "source": "parts",
+      "objects": [
+        "PartTest::p1",
+        "PartTest::p2",
+        "PartTest::p3",
+        "PartTest::p4"
+      ],
+      "reason": "Preserve authored cycle/self-subsetting references. Related upstream Xpect noErrors fixture retains them, so intentional-negative status is not established; full exact-example semantic diagnostics remain pending."
+    },
+    {
+      "source": "connections",
+      "objects": [
+        "ConnectionTest::bus",
+        "ConnectionTest::C",
+        "ConnectionTest::AB::a"
+      ],
+      "reason": "A four-end bus types a definition declaring three ends; original metadata usage is absent from the related Xpect fixture. Preserve both structures and defer exact connection/metadata validation expectations."
+    },
+    {
+      "source": "requirements",
+      "objects": [
+        "RequirementTest::q",
+        "RequirementTest::r1"
+      ],
+      "reason": "Recursive import q::** and positive/negative satisfaction syntax require actual scoping and requirement validators. Neither keyword syntax nor construction proves satisfaction or an expected error."
+    },
+    {
+      "source": "constraints",
+      "objects": [
+        "ConstraintTest::MassAnalysis",
+        "ConstraintTest::massLimitation"
+      ],
+      "reason": "Quantity typing, inherited redefinitions, abstract NumericalFunctions::sum and unassigned component masses require semantic providers; no numeric sum or Boolean truth is asserted."
+    }
+  ],
+  "upstream_context": [
+    {
+      "path": "org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/PartTest.sysml.xt",
+      "bytes": 1698,
+      "sha256": "cb626562e75a51215108887e97a749e4b4a52fef39067e6959c963f464b48926",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/PartTest.sysml.xt",
+      "expectation": "XPECT noErrors",
+      "exact_original_body": false,
+      "observation": "Retains the same p1/p2/p3 cycle and p4 self-subsetting, but omits multiplicities, ScalarValues typing, timeslice ports/parts, action and state bodies. Not an exact-file baseline or proof cycles are intentional errors."
+    },
+    {
+      "path": "org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/ConnectionTest.sysml.xt",
+      "bytes": 2407,
+      "sha256": "14f2aa90492d60edb6ed21447061e86584f34f1dda03477685999aef2d1caae7",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/ConnectionTest.sysml.xt",
+      "expectation": "XPECT noErrors",
+      "exact_original_body": false,
+      "observation": "Omits the original end-a @M metadata body and metadata definition M. Not an exact-file baseline."
+    },
+    {
+      "path": "org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/RequirementTest.sysml.xt",
+      "bytes": 2957,
+      "sha256": "2c4431b30a100c9833c9c6aff24a1cdadc65360dbdc29c0ec4218158ac541dee",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/RequirementTest.sysml.xt",
+      "expectation": "XPECT noErrors",
+      "exact_original_body": false,
+      "observation": "Omits the original private import q::**. Not an exact-file baseline."
+    },
+    {
+      "path": "org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/ConstraintTest.sysml.xt",
+      "bytes": 6864,
+      "sha256": "9a584a0eb7c7d1e4bbcc2fc7a3d2559424f08546b3f84b2a6c5e4d32bfce0f80",
+      "upstream": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/org.omg.sysml.xpect.tests/src/org/omg/sysml/xpect/tests/simpletests/ConstraintTest.sysml.xt",
+      "expectation": "XPECT noErrors",
+      "exact_original_body": false,
+      "observation": "Changes private imports to public imports and expands vehicle1a inherited redefinitions. Not an exact-file baseline."
+    }
+  ],
+  "upstream_test_driver": {
+    "path": "org.omg.kerml.xpect.tests/src/org/omg/kerml/xpect/KerMLXtextTests.java",
+    "observation": "SysMLTests subclasses KerMLXtextTests, which subclasses external XtextTests and registers real derived-setting and operation delegates. Source inspection only; Java/Xpect execution was not run."
+  }
+}

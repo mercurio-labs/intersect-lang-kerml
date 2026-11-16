@@ -1,0 +1,289 @@
+rcore 1;
+package intersect.kerml.construction version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+
+// KerML values that the textual notation leaves implicit. Each default fills
+// a stored feature only when the parsed model leaves it unassigned or empty.
+//
+// The specific end of an owned specialization is the element that owns it:
+// `x : T` types the feature x, `C :> B` specializes the classifier C. The
+// crossed feature of a cross subsetting is the feature chain it owns.
+//
+// A target written as a feature chain (`:> a.b`, `from a.b`) is the chain
+// the relationship owns; the textual notation leaves the target reference
+// itself empty. Subclasses that redefine the target feature get their own
+// default, so the general one skips them.
+//
+// A relationship declared as a member (`subset a.b subsets c.d;`,
+// `disjoint a.b from c.d;`) may write either end as a chain. It owns its
+// chains in source-then-target order: with two, the first is the source and
+// the last the target; with one, it is taken as the target (see
+// `source_chain`).
+//
+// Fields that a subclass redefines (Specialization.general by
+// FeatureTyping.type, Subsetting.subsettingFeature by
+// Redefinition.redefiningFeature, ...) need no default: the metamodel's
+// redefinitions make them read as the redefining feature.
+//
+// Element identity is Intersect's deterministic native element identity v1
+// (the Pilot draws a random UUID instead). Feature.direction starts null, as
+// the Pilot constructor leaves it, except on parameters (below).
+
+bind default k.FeatureTyping.typedFeature = typed_feature;
+bind default k.Subclassification.subclassifier = subclassifier;
+bind default k.Specialization.specific = specialized_type;
+bind default k.Subsetting.subsettingFeature = subsetting_feature;
+bind default k.Redefinition.redefiningFeature = redefining_feature;
+bind default k.CrossSubsetting.crossedFeature = crossed_feature;
+bind default k.FeatureTyping.type = typing_chain;
+bind default k.Subsetting.subsettedFeature = subsetting_chain;
+bind default k.Redefinition.redefinedFeature = redefinition_chain;
+bind default k.ReferenceSubsetting.referencedFeature = reference_chain;
+bind default k.Specialization.general = specialization_chain;
+bind default k.Conjugation.originalType = conjugation_chain;
+bind default k.Disjoining.disjoiningType = disjoining_chain;
+bind default k.FeatureInverting.invertingFeature = inverting_chain;
+bind default k.Disjoining.typeDisjoined = type_disjoined;
+bind default k.FeatureInverting.featureInverted = feature_inverted;
+bind default k.OperatorExpression.operator = implied_operator;
+bind default k.Element.elementId = element_id;
+bind default k.Feature.direction = parameter_direction;
+bind default k.Feature.isEnd = end_feature;
+bind default k.Annotation.annotatedElement = owning_annotated;
+bind default k.Conjugation.conjugatedType = conjugated_type;
+bind default k.TypeFeaturing.featureOfType = featured_feature;
+bind default k.Unioning.unioningType = unioning_chain;
+bind default k.Intersecting.intersectingType = intersecting_chain;
+bind default k.Differencing.differencingType = differencing_chain;
+bind default k.NamespaceImport.importedNamespace = filter_package;
+
+// `feature h unions f, b.f`: a target written as a chain is the chain the
+// relationship owns, as for the other relationship ends.
+fn unioning_chain(r:k.Unioning)->Sequence<k.Type> = target_chain(r).selectByKind::<k.Type>();
+fn intersecting_chain(r:k.Intersecting)->Sequence<k.Type> = target_chain(r).selectByKind::<k.Type>();
+fn differencing_chain(r:k.Differencing)->Sequence<k.Type> = target_chain(r).selectByKind::<k.Type>();
+
+// `import P::*[cond]` imports the filter package it owns.
+fn filter_package(r:k.NamespaceImport)->Sequence<k.Namespace> =
+  match contents::<k.Namespace>(r).first() { Some(p) => Sequence([p]), None => [] };
+
+// `feature f featured by T`: the featured feature is the feature that owns
+// the featuring (the metamodel's owningFeatureOfType). One written as a
+// member (`featuring of f by T`) names it explicitly.
+fn featured_feature(r:k.TypeFeaturing)->Sequence<k.Feature> = owning_feature(r);
+
+// An annotation written in a relationship body (`alias A for B { doc /*
+// ... */ }`) annotates the relationship that owns it, its
+// owningAnnotatedElement. An annotation an annotating element owns (`comment
+// about X`) names its target, so it gets no default.
+fn owning_annotated(r:k.Annotation)->Sequence<k.Element> =
+  match r.owningRelatedElement {
+    Some(e) => match e {
+      _: k.AnnotatingElement => [],
+      _ => Sequence([e])
+    },
+    None => []
+  };
+
+// An owned conjugation's conjugated type is the type that owns it (the
+// metamodel's owningType), as for SysML's implicit `PortConjugation`.
+fn conjugated_type(r:k.Conjugation)->Sequence<k.Type> =
+  match r.owningRelatedElement {
+    Some(e) => match asType::<k.Type>(e) { Some(t) => Sequence([t]), None => [] },
+    None => []
+  };
+
+fn typed_feature(r:k.FeatureTyping)->Sequence<k.Feature> = owning_feature(r);
+fn subsetting_feature(r:k.Subsetting)->Sequence<k.Feature> =
+  source_feature(r);
+fn redefining_feature(r:k.Redefinition)->Sequence<k.Feature> =
+  source_feature(r);
+
+// A plain specialization a type owns (`type A specializes B`) specializes
+// that type; one written as a member (`specialization Gen subtype A
+// specializes B;`) names its specific type explicitly.
+fn specialized_type(r:k.Specialization)->Sequence<k.Type> =
+  match r.owningRelatedElement {
+    Some(e) => match asType::<k.Type>(e) { Some(t) => Sequence([t]), None => source_chain(r).selectByKind::<k.Type>() },
+    None => source_chain(r).selectByKind::<k.Type>()
+  };
+
+fn subclassifier(r:k.Subclassification)->Sequence<k.Classifier> =
+  match r.owningRelatedElement {
+    Some(e) => match asType::<k.Classifier>(e) { Some(c) => Sequence([c]), None => [] },
+    None => []
+  };
+
+fn crossed_feature(r:k.CrossSubsetting)->Sequence<k.Feature> =
+  match first(contents::<k.Feature>(r)) { Some(f) => Sequence([f]), None => [] };
+
+fn typing_chain(r:k.FeatureTyping)->Sequence<k.Type> =
+  target_chain(r).selectByKind::<k.Type>();
+fn subsetting_chain(r:k.Subsetting)->Sequence<k.Feature> =
+  match r {
+    _: k.Redefinition => [],
+    _: k.ReferenceSubsetting => [],
+    _: k.CrossSubsetting => [],
+    _ => target_chain(r)
+  };
+fn redefinition_chain(r:k.Redefinition)->Sequence<k.Feature> =
+  target_chain(r);
+fn reference_chain(r:k.ReferenceSubsetting)->Sequence<k.Feature> = owned_chain(r);
+fn specialization_chain(r:k.Specialization)->Sequence<k.Type> =
+  match r {
+    _: k.Subclassification => [],
+    _: k.FeatureTyping => [],
+    _: k.Subsetting => [],
+    _ => target_chain(r).selectByKind::<k.Type>()
+  };
+fn conjugation_chain(r:k.Conjugation)->Sequence<k.Type> =
+  target_chain(r).selectByKind::<k.Type>();
+fn disjoining_chain(r:k.Disjoining)->Sequence<k.Type> =
+  target_chain(r).selectByKind::<k.Type>();
+fn inverting_chain(r:k.FeatureInverting)->Sequence<k.Feature> =
+  target_chain(r);
+
+// `T disjoint from U` and `f inverse of g`: the owning end is the type or
+// feature that owns the relationship; in a member relationship, the source
+// chain.
+fn type_disjoined(r:k.Disjoining)->Sequence<k.Type> =
+  match r.owningRelatedElement {
+    Some(e) => match e {
+      t: k.Type => Sequence([t]),
+      _ => source_chain(r).selectByKind::<k.Type>()
+    },
+    None => source_chain(r).selectByKind::<k.Type>()
+  };
+fn feature_inverted(r:k.FeatureInverting)->Sequence<k.Feature> =
+  source_feature(r);
+
+// The source end: the feature that owns the relationship, or in a member
+// relationship (owned through its membership, so without an owning related
+// element) its source chain.
+fn source_feature(r:k.Relationship)->Sequence<k.Feature> =
+  match r.owningRelatedElement {
+    Some(e) => match e {
+      f: k.Feature => Sequence([f]),
+      _: k.Type => [],
+      _ => source_chain(r)
+    },
+    None => source_chain(r)
+  };
+
+// A member relationship that owns two chains wrote both ends as chains; the
+// first is the source. With one chain, the chain is taken as the target:
+// whether the other end's reference was written cannot be read here, so a
+// source chain with a target reference (`subset a.b subsets c;`, not in the
+// standard library) leaves the source unset, and validation reports it.
+//
+// A default is computed only for an end the parsed model left unassigned,
+// so with a single owned chain the source end being defaulted is that chain
+// (`inverting Invert inverse B::g.f of A::h;`, `subtype g.g specializes
+// b.f.a;`): a source written as a name would already be assigned.
+fn source_chain(r:k.Relationship)->Sequence<k.Feature> = owned_chain(r);
+
+// The target end written as a chain: the last owned chain.
+fn target_chain(r:k.Relationship)->Sequence<k.Feature> =
+  match contents::<k.Feature>(r).last() { Some(f) => Sequence([f]), None => [] };
+
+// Operator expressions whose notation carries no operator token; the Pilot
+// implementation classes supply these.
+fn implied_operator(e:k.OperatorExpression)->Sequence<String> =
+  match e {
+    _: k.FeatureChainExpression => Sequence(["."]),
+    _: k.IndexExpression => Sequence(["#"]),
+    _: k.CollectExpression => Sequence(["collect"]),
+    _: k.SelectExpression => Sequence(["select"]),
+    _ => []
+  };
+
+fn owned_chain(r:k.Relationship)->Sequence<k.Feature> =
+  match contents::<k.Feature>(r).first() { Some(f) => Sequence([f]), None => [] };
+
+fn owning_feature(r:k.Relationship)->Sequence<k.Feature> =
+  match r.owningRelatedElement {
+    Some(e) => match asType::<k.Feature>(e) { Some(f) => Sequence([f]), None => [] },
+    None => []
+  };
+
+// urn:intersect:native-element:v1:<hex resource URI>:<hex identity>, hex of
+// the UTF-8 bytes.
+fn element_id(e:k.Element)->Sequence<String> =
+  Sequence(["urn:intersect:native-element:v1:" + hex(resource(e)) + ":" + hex(identity(e))]);
+
+// A parameter without a declared direction gets its membership's: `out` for
+// the result a `ReturnParameterMembership` owns, `in` for any other
+// `ParameterMembership`, as the Pilot stores them. Other features stay null.
+fn parameter_direction(f:k.Feature)->Sequence<k.FeatureDirectionKind> =
+  match container::<k.ReturnParameterMembership>(f) {
+    Some(_) => Sequence([k.FeatureDirectionKind.`out`]),
+    None => match container::<k.ParameterMembership>(f) {
+      Some(_) => Sequence([k.FeatureDirectionKind.`in`]),
+      None => flow_end_direction(f)
+    }
+  };
+
+fn no_direction(f:k.Feature)->Sequence<k.FeatureDirectionKind> = [];
+
+// FlowEndAdapter: the feature a flow end owns (`to a1.aa.receiver`) takes
+// the direction of the feature it redefines (`AcceptAction::receiver`, in).
+fn flow_end_direction(f:k.Feature)->Sequence<k.FeatureDirectionKind> =
+  match ancestors::<k.Type>(f).first() {
+    Some(t) => match t {
+      _: k.FlowEnd => match contents::<k.Redefinition>(f).first() {
+        Some(r) => match r.redefinedFeature.direction {
+          Some(d) => Sequence([d]),
+          None => no_direction(f)
+        },
+        None => no_direction(f)
+      },
+      _ => no_direction(f)
+    },
+    None => no_direction(f)
+  };
+
+// A feature an `EndFeatureMembership` owns (a connector end, or an `end`
+// feature) is an end feature; any other keeps the metamodel default, false
+// (an empty result would store no value).
+fn end_feature(f:k.Feature)->Sequence<Bool> =
+  match container::<k.EndFeatureMembership>(f) {
+    Some(_) => Sequence([true]),
+    None => Sequence([false])
+  };
+
+// Implicit elements, as the Pilot adds them. A feature reference or
+// instantiation expression without a declared result gets a
+// ReturnParameterMembership owning a result Feature; `parameter_direction`
+// then makes it `out`.
+bind implicit k.FeatureReferenceExpression.ownedRelationship = reference_result;
+bind implicit k.InstantiationExpression.ownedRelationship = instantiation_result;
+// The source parameter of a feature chain expression owns an unnamed feature,
+// the target of the chain.
+bind implicit k.Feature.ownedRelationship = chain_target;
+
+fn reference_result(e:k.FeatureReferenceExpression)->Sequence<k.Relationship> = implicit_result(e);
+fn instantiation_result(e:k.InstantiationExpression)->Sequence<k.Relationship> = implicit_result(e);
+
+fn implicit_result(e:k.Expression)->Sequence<k.Relationship> =
+  if e.ownedRelationship.selectByKind::<k.ReturnParameterMembership>().notEmpty() {
+    no_relationships(e)
+  } else {
+    Sequence([result_membership(e)])
+  };
+
+fn result_membership(e:k.Expression)->k.Relationship =
+  new k.ReturnParameterMembership { ownedRelatedElement: [new k.Feature { }] };
+
+fn chain_target(f:k.Feature)->Sequence<k.Relationship> =
+  match container::<k.ParameterMembership>(f) {
+    Some(m) => match container::<k.FeatureChainExpression>(m) {
+      Some(_) => Sequence([target_membership(f)]),
+      None => no_relationships(f)
+    },
+    None => no_relationships(f)
+  };
+
+fn target_membership(f:k.Feature)->k.Relationship =
+  new k.FeatureMembership { ownedRelatedElement: [new k.Feature { declaredName: "" }] };
+
+fn no_relationships(e:k.Element)->Sequence<k.Relationship> = [];

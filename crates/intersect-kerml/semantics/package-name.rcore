@@ -1,0 +1,8 @@
+rcore 1;
+package intersect.kerml.packageName version "1";
+
+// Exact Package receiver binding selects Element.effectiveName's base branch.
+// Other effective-name implementations require their own checked selection.
+fn package_name(declared_name: Option<String>) -> Option<String> {
+    declared_name
+}

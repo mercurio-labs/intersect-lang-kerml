@@ -1,0 +1,55 @@
+{
+  "pilot_commit": "692170b71867353b8f90341e61556f49a5beb0e5",
+  "projects": [
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Analysis/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Analysis-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Cause%20and%20Effect/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Cause-and-Effect-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Geometry/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Geometry-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Metadata/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Metadata-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Quantities%20and%20Units/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Quantities-and-Units-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Domain%20Libraries/Requirement%20Derivation/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Requirement-Derivation-Domain-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Kernel%20Libraries/Kernel%20Data%20Type%20Library/.project.json",
+      "uri": "https://www.omg.org/spec/KerML/20250201/Data-Type-Library.kpar",
+      "version": "1.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Kernel%20Libraries/Kernel%20Function%20Library/.project.json",
+      "uri": "https://www.omg.org/spec/KerML/20250201/Function-Library.kpar",
+      "version": "1.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Kernel%20Libraries/Kernel%20Semantic%20Library/.project.json",
+      "uri": "https://www.omg.org/spec/KerML/20250201/Semantic-Library.kpar",
+      "version": "1.1.0-dev.20260801"
+    },
+    {
+      "source": "https://github.com/Systems-Modeling/SysML-v2-Pilot-Implementation/blob/692170b71867353b8f90341e61556f49a5beb0e5/sysml.library/Systems%20Library/.project.json",
+      "uri": "https://www.omg.org/spec/SysML/20250201/Systems-Library.kpar",
+      "version": "2.1.0-dev.20260801"
+    }
+  ]
+}

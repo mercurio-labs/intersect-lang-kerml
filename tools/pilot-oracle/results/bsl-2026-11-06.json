@@ -1,0 +1,388 @@
+{
+ "pilot_objects": 266,
+ "frozen_objects": 266,
+ "paired_objects": 266,
+ "unpaired_pilot": 0,
+ "unpaired_frozen": 0,
+ "fields_compared": 2673,
+ "fields_equal": 2673,
+ "differences": {},
+ "examples": {},
+ "diagnostics": {
+  "pilot": 28,
+  "intersect": 0,
+  "pilot_targets_paired": 28,
+  "matched": 0,
+  "pilot_only": 28,
+  "intersect_only": 0,
+  "matches": [],
+  "pilot_only_diagnostics": [
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 343,
+    "end": 344,
+    "offset": 343,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 921,
+    "end": 922,
+    "offset": 921,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 924,
+    "end": 925,
+    "offset": 924,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1043,
+    "end": 1044,
+    "offset": 1043,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1337,
+    "end": 1338,
+    "offset": 1337,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1340,
+    "end": 1341,
+    "offset": 1340,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.5/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1527,
+    "end": 1528,
+    "offset": 1527,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.5/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1530,
+    "end": 1531,
+    "offset": 1530,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.6/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1852,
+    "end": 1853,
+    "offset": 1852,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.6/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1855,
+    "end": 1856,
+    "offset": 1855,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1994,
+    "end": 1995,
+    "offset": 1994,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1997,
+    "end": 1998,
+    "offset": 1997,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.8/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 2137,
+    "end": 2138,
+    "offset": 2137,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.8/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 2140,
+    "end": 2141,
+    "offset": 2140,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.9/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 2280,
+    "end": 2281,
+    "offset": 2280,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Base.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.9/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 2283,
+    "end": 2284,
+    "offset": 2283,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 437,
+    "end": 438,
+    "offset": 437,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 440,
+    "end": 441,
+    "offset": 440,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.2/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 753,
+    "end": 754,
+    "offset": 753,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 851,
+    "end": 852,
+    "offset": 851,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.4/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 913,
+    "end": 914,
+    "offset": 913,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.5/@ownedRelatedElement.0/@ownedRelationship.3/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1289,
+    "end": 1290,
+    "offset": 1289,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.6/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1407,
+    "end": 1408,
+    "offset": 1407,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.6/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1410,
+    "end": 1411,
+    "offset": 1410,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1613,
+    "end": 1614,
+    "offset": 1613,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.7/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1616,
+    "end": 1617,
+    "offset": 1616,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.8/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.0/@ownedRelatedElement.0"
+    },
+    "start": 1822,
+    "end": 1823,
+    "offset": 1822,
+    "length": 1
+   },
+   {
+    "severity": "error",
+    "code": "validateFeatureHasType_",
+    "message": "Features must have at least one type",
+    "target": {
+     "resource": "sysml.library/Kernel Libraries/Kernel Semantic Library/Links.kerml",
+     "fragment": "//@ownedRelationship.0/@ownedRelatedElement.0/@ownedRelationship.8/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0/@ownedRelationship.1/@ownedRelatedElement.0"
+    },
+    "start": 1825,
+    "end": 1826,
+    "offset": 1825,
+    "length": 1
+   }
+  ],
+  "intersect_only_diagnostics": []
+ },
+ "frozen_graph_stage": "validated"
+}

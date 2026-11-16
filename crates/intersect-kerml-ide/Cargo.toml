@@ -1,0 +1,27 @@
+[package]
+autotests = false
+name = "intersect-kerml-ide"
+description = "Bounded KerML/SysML project IDE and visualization facade"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+intersect-views.workspace = true
+intersect-kerml.workspace = true
+intersect-kerml-eval = { path = "../intersect-kerml-eval" }
+intersect-kpar.workspace = true
+intersect-model = { workspace = true, features = ["xmi"] }
+intersect-text.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64 = "0.22"
+sha2 = "0.10"
+
+[features]
+milestone-tests = []
+
+[[test]]
+name = "all"
+path = "tests/all.rs"

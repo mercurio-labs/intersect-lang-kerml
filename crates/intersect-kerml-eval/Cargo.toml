@@ -1,0 +1,21 @@
+[package]
+autotests = false
+name = "intersect-kerml-eval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+intersect-model.workspace = true
+intersect-kerml = { path = "../intersect-kerml" }
+serde_json.workspace = true
+# Source is the host-loaded expression wrapper; evaluation itself never parses.
+intersect-text.workspace = true
+
+[features]
+milestone-tests = []
+
+[[test]]
+name = "all"
+path = "tests/all.rs"

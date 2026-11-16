@@ -1,0 +1,182 @@
+{
+  "baseline_revision": "2fa19fd257fd74e2a733182d297fa51887702af0",
+  "migration": "Canonical independent Model/Text sources, direct intersect_text imports, Model-owned build support, installed Text compiler composition; original archive keys retained.",
+  "quick_pair": {
+    "model": "05fc0e09bf07b79a6980f9e498097f8e6e38d958",
+    "text": "499d85870c4cb497c4a990b6d073ca176ce3d100"
+  },
+  "quick_report": "http://localhost:8765/downstream/20261112-123633/",
+  "quick": {
+    "passed": 316,
+    "failed": 0,
+    "existing_ignored": 39,
+    "build_seconds": 429.0,
+    "test_seconds": 16.9
+  },
+  "static_rust_test_functions": {
+    "baseline": 301,
+    "retained": 301,
+    "missing": []
+  },
+  "wasm_workspace_check": "pass",
+  "native_python_sdk_check": "pass",
+  "strict_all_target_clippy": "pass",
+  "legacy_standalone_baseline_failures": [
+    {
+      "baseline": "2fa19fd257fd74e2a733182d297fa51887702af0",
+      "log": "target/baseline-read-policy-only.log",
+      "exit_code": 101,
+      "probe": "read-policy-only",
+      "log_sha256": "60c3ef607017475d1e55f3e418f42db9b738811256270615508ee43c26161fce"
+    },
+    {
+      "baseline": "2fa19fd257fd74e2a733182d297fa51887702af0",
+      "log": "target/baseline-package-name-only.log",
+      "exit_code": 101,
+      "probe": "package-name-only",
+      "log_sha256": "452d9ce17a8a2b09fdf3d60f55025942f4fbb31244aa195fc75c8ae32c39341e"
+    },
+    {
+      "baseline": "2fa19fd257fd74e2a733182d297fa51887702af0",
+      "log": "target/baseline-member-name-only.log",
+      "exit_code": 101,
+      "probe": "member-name-only",
+      "log_sha256": "c71c3dc2e42a4ff4bd5a45fe1e66d972d65e4c3dc00197375e172423590d1b0e"
+    }
+  ],
+  "legacy_scope": "These three retained probes already fail on the unchanged supported downstream head because language read-policy exports/callback controls are absent. No new language policy implementation or passing qualification is claimed. Their source cases remain present.",
+  "final_pair": {
+    "model": "6ba0a1cfacfc6e0f28314bd38bc025e53bf12acf",
+    "text": "3a9f0f4effb124cdf364cc4aec6f8ae9e1078089"
+  },
+  "final_pair_acceptance": {
+    "platform": "Windows native and WASM compilation; hosted CI explicitly skipped",
+    "runtime_consumer_revision": "dc488530ae46e0ebb32fe3689f598a863af825d6",
+    "full_workspace": {
+      "summary": "http://localhost:8765/downstream/20261112-180556/",
+      "summary_sha256": "e2f04f2de2202650f712622bbc7d81b321a82890685fb4685392fb2afbb70a15",
+      "totals": {
+        "passed": 355,
+        "failed": 0,
+        "ignored": 2,
+        "binaries": 15,
+        "binaries_built_not_run": 21,
+        "binaries_done": 15,
+        "binaries_crashed": 0,
+        "test_seconds": 1731.1,
+        "build_seconds": 374.5,
+        "crates_built": 119
+      },
+      "equivalence_tests": [
+        {
+          "package": "intersect-kerml",
+          "binary": "test all",
+          "test": "language_pack_equivalence::pack_loaded_sessions_equal_a_fresh_preparation",
+          "status": "pass"
+        },
+        {
+          "package": "intersect-kerml",
+          "binary": "test all",
+          "test": "project_package_equivalence::fixed_user_files_and_six_pilot_examples_match_the_pre_slice_load",
+          "status": "pass"
+        },
+        {
+          "package": "intersect-kerml",
+          "binary": "test all",
+          "test": "project_package_equivalence::full_pinned_pilot_corpus_matches_the_pre_slice_load",
+          "status": "pass"
+        }
+      ],
+      "project_reports": {
+        "fixed-set": {
+          "files": 8,
+          "folders": 4,
+          "receipt": "project-equivalence/fixed-set.json",
+          "sha256": "c2d007d2a998ef594513a763ea6f6d058a665e37c6c4ae21b72d51e39302007e",
+          "equivalence": {
+            "baseline": "pre-slice FrozenStore::from_model + host.load",
+            "enabled": true,
+            "failed": 0,
+            "normalization": "resource.package only",
+            "verified_folders": 4
+          },
+          "totals": {
+            "clean": 3,
+            "problems": 1
+          }
+        },
+        "pilot-corpus": {
+          "files": 157,
+          "folders": 37,
+          "receipt": "project-equivalence/pilot-corpus.json",
+          "sha256": "45b0222634b6e502794b44aad8da0130c3e8df616d7ef579e041ff1d0cd059ff",
+          "equivalence": {
+            "baseline": "pre-slice FrozenStore::from_model + host.load",
+            "enabled": true,
+            "failed": 0,
+            "normalization": "resource.package only",
+            "verified_folders": 37
+          },
+          "totals": {
+            "clean": 37
+          }
+        }
+      },
+      "fixed_negative_control": "Expected unresolved DoesNotExist input retained and equivalent, not a clean-model claim."
+    },
+    "native_python_sdk_check": "passed at final runtime pair",
+    "release_build": "passed: workspace libraries, binaries and examples with all owning milestone features",
+    "build_provenance": "passed:510 source inputs including directory membership; canonical Cargo Git dependencies included",
+    "pack": {
+      "bytes": 272901431,
+      "sha256": "549b7cd085c62b2fd37ce224858b8ca51fee672d8bc7910a04eea6a56e65f207",
+      "producer_binary_sha256": "6a0cbba9b0edc84cb10e9a8beaa6134d871e1251242ff77ceef94adc9f79be28",
+      "producer_source": "dc488530ae46e0ebb32fe3689f598a863af825d6",
+      "own_self_check": "passed",
+      "model_text_runtime_pins": "6ba0a1cf /3a9f0f4e; full hashes in frozen_sources"
+    },
+    "pack_gates": {
+      "pack-build": {
+        "exit_code": 0,
+        "seconds": 2498.6,
+        "log_sha256": "de27cac22d028d80782bf340f3cd725a9fb776f212a5ca2a2ab6fbab2aca207d"
+      },
+      "pack-refusals": {
+        "exit_code": 0,
+        "seconds": 185.8,
+        "log_sha256": "4651fbcfa903929cf21957dc03c9175342b9251da7c1611a187e98fcacc04fe8"
+      },
+      "pack-recompile": {
+        "exit_code": 0,
+        "seconds": 5122.6,
+        "log_sha256": "1811f4c2cc0937d0435d7efb6dbee448a39b1dd7fb6b121387731992144234c7"
+      },
+      "pack-library-d9": {
+        "exit_code": 0,
+        "seconds": 663.8,
+        "log_sha256": "b1d822c516e56418c10ff2ff1af1d4755fca9db800c06152f19f815344456522"
+      }
+    },
+    "native_library_plus_D9": "passed strict original100-input audit, no reduced graph; all references resolved",
+    "native_scope_receipt_sha256": "eb1ed6491764f2d6b01c291bcac0c605e9ea5a201dcece0b7b3de6df9220fd35",
+    "pilot_scope": {
+      "paired_objects": 112174,
+      "unpaired_pilot": 0,
+      "unpaired_native": 0,
+      "unexplained_differences": 0,
+      "existing_allowlisted_differences": 1065,
+      "diagnostics": "not compared, as in original G5 scope",
+      "audit_sha256": "9b8c7a358c399011af90d08a7bd97b5a0af5cd87bb8a3a1eb1996a617fff7b80"
+    },
+    "oracle": "Reused independent Java output only after original100 input/source/JAR/output hashes matched; Java is verification-only",
+    "canonical_matrix": "https://github.com/mercurio-labs/intersect-text/blob/develop/docs/repository-split/acceptance-matrix.json",
+    "post_freeze_delta": "Only build provenance Python tooling, its controls, workflow configuration, README and this evidence record; Rust/Cargo runtime pins unchanged",
+    "unverified": [
+      "hosted CI execution",
+      "Linux",
+      "strict physically unavailable original-checkout execution",
+      "three retained baseline standalone probes listed separately"
+    ]
+  },
+  "CI": "explicitly user-skipped, not passed"
+}
