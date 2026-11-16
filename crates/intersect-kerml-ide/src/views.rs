@@ -228,6 +228,9 @@ impl Projection<'_> {
         Ok(by_name.into_values().collect())
     }
     fn general_node(&mut self, o: Obj<'_>) -> Result<Node, String> {
+        if is(self.model, o, "PartUsage") && !is(self.model, o, "ViewUsage") {
+            return self.structure_node(o, &[], 0);
+        }
         self.check_budget(0)?;
         let binding = self.binding(o, &[])?;
         let mut groups: BTreeMap<&str, Vec<Field>> = BTreeMap::new();
@@ -339,6 +342,26 @@ impl Projection<'_> {
         } else {
             format!("{} : {}", name(o).unwrap_or(""), self.type_label(o))
         };
+        self.connections(o, &context)?;
+        Ok(Node {
+            id,
+            notation: "structure".into(),
+            title,
+            subtitle: o.class_key().into(),
+            binding,
+            compartments: if rows.is_empty() {
+                vec![]
+            } else {
+                vec![Compartment {
+                    label: "attributes".into(),
+                    rows,
+                }]
+            },
+            children: nodes,
+            ports,
+        })
+    }
+    fn connections(&mut self, o: Obj<'_>, context: &[String]) -> Result<(), String> {
         // Endpoints are engine-resolved feature chains in the usage context.
         // Children must be projected first so every visible endpoint is known.
         for ty in closure(self.model, o)? {
@@ -366,7 +389,7 @@ impl Projection<'_> {
                     if chain.is_empty() {
                         chain.push(target);
                     }
-                    let mut ctx = context.clone();
+                    let mut ctx = context.to_vec();
                     let last = chain.pop().ok_or("Empty connection chain")?;
                     for part in chain {
                         if !is(self.model, part, "PartUsage") {
@@ -392,37 +415,21 @@ impl Projection<'_> {
                 match (resolve(ends[0]), resolve(ends[1])) {
                     (Ok(source), Ok(target)) => self.edges.push(Edge {
                         id: self.symbol_id(
-                            &self.binding(connection, &context)?.key,
-                            &context,
+                            &self.binding(connection, context)?.key,
+                            context,
                             "connection",
                         ),
                         notation: "connection".into(),
                         label: name(connection).unwrap_or("").into(),
                         source,
                         target,
-                        binding: self.binding(connection, &context)?,
+                        binding: self.binding(connection, context)?,
                     }),
                     (a, b) => self.problems.push(a.err().or(b.err()).unwrap_or_default()),
                 }
             }
         }
-        Ok(Node {
-            id,
-            notation: "structure".into(),
-            title,
-            subtitle: o.class_key().into(),
-            binding,
-            compartments: if rows.is_empty() {
-                vec![]
-            } else {
-                vec![Compartment {
-                    label: "attributes".into(),
-                    rows,
-                }]
-            },
-            children: nodes,
-            ports,
-        })
+        Ok(())
     }
 }
 
@@ -522,6 +529,27 @@ impl Host {
                 vec![]
             });
             let mut owners = BTreeMap::new();
+            // A namespace exposure also exposes its writable creation scope.
+            // New declarations then become visible without rewriting the view.
+            for ty in closure(model, view)? {
+                for relation in refs(ty, "ownedRelationship") {
+                    if is(model, relation, "NamespaceExpose") {
+                        for namespace in refs(relation, "importedNamespace") {
+                            if is(model, namespace, "Package")
+                                && self.editable.contains(namespace.resource())
+                            {
+                                owners.insert(
+                                    key(namespace)?,
+                                    Owner {
+                                        key: key(namespace)?,
+                                        label: qualified(namespace)?,
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
             let mut details = Vec::new();
             for ty in closure(model, view)? {
                 for child in children(model, ty).into_iter().filter(|c| {
@@ -548,6 +576,7 @@ impl Host {
                     .iter()
                     .any(|c| is(model, *o, c))
                     && !is(model, *o, "ViewUsage")
+                    && !is(model, *o, "ConnectionUsage")
                     && self.editable.contains(o.resource())
                 {
                     owners.insert(
@@ -559,12 +588,20 @@ impl Host {
                     );
                 }
             }
+            let mut owners: Vec<_> = owners.into_values().collect();
+            owners.sort_by(|a, b| {
+                a.label
+                    .matches("::")
+                    .count()
+                    .cmp(&b.label.matches("::").count())
+                    .then_with(|| a.label.cmp(&b.label))
+            });
             result.push(View {
                 key: key(view)?,
                 name: name(view).unwrap_or("").into(),
                 kind,
                 binding: p.binding(view, &[])?,
-                owners: owners.into_values().collect(),
+                owners,
                 details,
                 problems,
             });
@@ -580,9 +617,9 @@ impl Host {
     pub(super) fn views_scene(&self, params: &Value) -> Result<Value, String> {
         self.check_revision(params)?;
         let requested = params["viewKey"].as_str().ok_or("Missing view key")?;
-        let catalog = self.views_catalog()?;
+        let view_catalog = self.views_catalog()?;
         let view: View = serde_json::from_value(
-            catalog["views"]
+            view_catalog["views"]
                 .as_array()
                 .ok_or("Invalid view catalog")?
                 .iter()
@@ -605,6 +642,25 @@ impl Host {
         }
         .map_err(|e| format!("Invalid palette: {e}"))?;
         palette.validate()?;
+        let names: BTreeSet<_> = model.objects().filter_map(name).collect();
+        for tool in palette
+            .groups
+            .iter_mut()
+            .flat_map(|group| &mut group.entries)
+        {
+            if matches!(
+                tool.command.as_str(),
+                "sysml.createPartUsage" | "sysml.createPortUsage" | "sysml.createConnectionUsage"
+            ) && let Some(input) = tool.inputs.iter_mut().find(|input| input.id == "name")
+            {
+                let base = input.default.clone();
+                let mut suffix = 2;
+                while names.contains(input.default.as_str()) {
+                    input.default = format!("{base}{suffix}");
+                    suffix += 1;
+                }
+            }
+        }
         // Unknown language commands remain visible and disabled in capabilities.
         let mut p = Projection {
             host: self,
@@ -617,7 +673,7 @@ impl Host {
         };
         let mut nodes = Vec::new();
         for o in exposed(model, object)? {
-            if name(o).is_none() {
+            if name(o).is_none() || is(model, o, "ConnectionUsage") {
                 continue;
             }
             if view.kind == "general" {
@@ -629,6 +685,15 @@ impl Host {
                     "{} is not a part usage supported by the interconnection profile",
                     name(o).unwrap_or(o.class_key())
                 ));
+            }
+        }
+        // General-view namespace roots can have connections between sibling parts.
+        for owner in &view.owners {
+            if let Some(id) = catalog(model, &self.editable)?.get(&owner.key)
+                && let Some(namespace) = model.lookup(id)
+                && is(model, namespace, "Package")
+            {
+                p.connections(namespace, &[])?;
             }
         }
         if view.kind == "general" {
@@ -670,7 +735,7 @@ impl Host {
         // Declaration of a command is not proof of implementation. Capabilities
         // make unsupported profile commands explicit before any gesture.
         let capabilities:Vec<_>=palette.groups.iter_mut().flat_map(|g|g.entries.iter_mut()).map(|t|{
-            let supported=matches!(t.command.as_str(),"presentation.select"|"presentation.fit"|"presentation.layout"|"sysml.createPartUsage"|"sysml.createPortUsage");
+            let supported=matches!(t.command.as_str(),"presentation.select"|"presentation.fit"|"presentation.layout"|"sysml.createPartUsage"|"sysml.createPortUsage"|"sysml.createConnectionUsage");
             json!({"toolId":t.id,"enabled":supported&&(!t.command.starts_with("sysml.")||!view.owners.is_empty()),"reason":if !supported {"Command is not implemented by the language service"}else if t.command.starts_with("sysml.")&&view.owners.is_empty(){"This view has no writable supported owner"}else{""}})
         }).collect();
         let layout = LayoutHints {
@@ -726,6 +791,84 @@ impl Host {
 }
 
 pub(super) type Command = intersect_views::PrepareCommand;
+
+/// Resolve displayed occurrence IDs to source paths in their common scope.
+/// Never accept a client-authored source fragment as a connection endpoint.
+fn connection_paths(
+    model: &Model,
+    scene: &Scene,
+    declarations: &BTreeMap<String, String>,
+    source: &str,
+    target: &str,
+) -> Result<(String, String, String), String> {
+    fn find<'a>(nodes: &'a [Node], id: &str) -> Option<&'a Binding> {
+        for n in nodes {
+            if n.id == id {
+                return Some(&n.binding);
+            }
+            if let Some(p) = n.ports.iter().find(|p| p.id == id) {
+                return Some(&p.binding);
+            }
+            if let Some(b) = find(&n.children, id) {
+                return Some(b);
+            }
+        }
+        None
+    }
+    let endpoint = |id| -> Result<Vec<String>, String> {
+        let b = find(&scene.nodes, id).ok_or("Endpoint is outside this view")?;
+        let object = model
+            .lookup(&b.element_id)
+            .ok_or("Endpoint no longer exists")?;
+        if (!is(model, object, "PartUsage") || is(model, object, "ViewUsage"))
+            && !is(model, object, "PortUsage")
+        {
+            return Err("Only parts and ports can be connected".into());
+        }
+        let mut path = b.context.clone();
+        if path.last() != Some(&b.key) {
+            path.push(b.key.clone());
+        }
+        Ok(path)
+    };
+    let a = endpoint(source)?;
+    let b = endpoint(target)?;
+    let common = a.iter().zip(&b).take_while(|(a, b)| a == b).count();
+    if common == a.len() || common == b.len() {
+        return Err("Choose distinct endpoints in sibling scopes".into());
+    }
+    let lookup = |key: &String| {
+        declarations
+            .get(key)
+            .and_then(|id| model.lookup(id))
+            .ok_or("Endpoint scope is not writable or supported")
+    };
+    let owner = if common > 0 {
+        lookup(&a[common - 1])?
+    } else {
+        let parent = declared_parent(lookup(&a[0])?).ok_or("Endpoint has no source scope")?;
+        let other = declared_parent(lookup(&b[0])?).ok_or("Endpoint has no source scope")?;
+        if parent.identity() != other.identity() || !is(model, parent, "Package") {
+            return Err("Endpoints need a common visible part or package".into());
+        }
+        parent
+    };
+    let reference = |path: &[String]| -> Result<String, String> {
+        path[common..]
+            .iter()
+            .map(|k| {
+                let object = lookup(k)?;
+                // Quoting preserves source names, including reserved words and spaces.
+                name(object)
+                    .map(|n| format!("'{}'", n.replace('\\', "\\\\").replace('\'', "\\'")))
+                    .ok_or_else(|| "An endpoint is unnamed".into())
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(|v| v.join("."))
+    };
+    Ok((key(owner)?, reference(&a)?, reference(&b)?))
+}
+
 pub(super) fn prepare_patch(
     host: &Host,
     command: &Command,
@@ -752,6 +895,7 @@ pub(super) fn prepare_patch(
     let keyword = match tool.command.as_str() {
         "sysml.createPartUsage" => "part",
         "sysml.createPortUsage" => "port",
+        "sysml.createConnectionUsage" => "connection",
         _ => return Err("This tool is not a supported model-editing command".into()),
     };
     if requested_name.len() > 128
@@ -769,7 +913,8 @@ pub(super) fn prepare_patch(
         return Err("Use a simple identifier of at most 128 ASCII letters, digits or underscores, starting with a letter or underscore".into());
     }
     let model = host.current.as_ref().ok_or("No accepted model")?;
-    let owner_id = catalog(model, &host.editable)?
+    let declarations = catalog(model, &host.editable)?;
+    let owner_id = declarations
         .get(&command.owner_key)
         .cloned()
         .ok_or("Owner no longer exists")?;
@@ -784,12 +929,34 @@ pub(super) fn prepare_patch(
     if !allowed
         || !host.editable.contains(owner.resource())
         || is(model, owner, "ViewUsage")
+        || is(model, owner, "ConnectionUsage")
         || !["Package", "PartDefinition", "PartUsage"]
             .iter()
             .any(|c| is(model, owner, c))
     {
         return Err("Owner is read-only, outside this view or unsupported for creation".into());
     }
+    if keyword == "port" && is(model, owner, "Package") {
+        return Err("Drop a port on a part or part definition".into());
+    }
+    let declaration = if keyword == "connection" {
+        let source_id = command
+            .arguments
+            .get("source")
+            .ok_or("Choose a source endpoint")?;
+        let target_id = command
+            .arguments
+            .get("target")
+            .ok_or("Choose a target endpoint")?;
+        let (connection_owner, source, target) =
+            connection_paths(model, &scene, &declarations, source_id, target_id)?;
+        if connection_owner != command.owner_key {
+            return Err("Connection must be owned by the endpoints' common visible scope".into());
+        }
+        format!("connection {requested_name} connect {source} to {target};")
+    } else {
+        format!("{keyword} {requested_name};")
+    };
     if closure(model, owner)?
         .into_iter()
         .flat_map(|o| children(model, o))
@@ -822,7 +989,6 @@ pub(super) fn prepare_patch(
     } else {
         "\n"
     };
-    let declaration = format!("{keyword} {requested_name};");
     let (patch_start, original, replacement) = if last.text == ";" {
         (
             anchor,

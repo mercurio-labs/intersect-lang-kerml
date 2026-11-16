@@ -69,7 +69,7 @@ fn compiled_views_and_source_commands_share_one_model() -> Result<(), String> {
         .ok_or("Missing structure")?;
     let general = host.view_scene(1, &overview.key, None)?;
     assert_eq!(general.scene.nodes.len(), 5);
-    assert_eq!(general.scene.edges.len(), 1);
+    assert_eq!(general.scene.edges.len(), 2);
     assert_eq!(general.scene.layout.direction, "DOWN");
     let response = host.view_scene(1, &structure.key, None)?;
     response.validate()?;
@@ -188,5 +188,104 @@ fn compiled_views_and_source_commands_share_one_model() -> Result<(), String> {
     let parallel = host.view_scene(4, &structure.key, None)?;
     assert_eq!(parallel.scene.edges.len(), 2);
     assert_ne!(parallel.scene.edges[0].id, parallel.scene.edges[1].id);
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "milestone-tests"), ignore = "milestone")]
+fn general_view_creates_connections_from_visible_occurrences() -> Result<(), String> {
+    let path = std::env::var("INTERSECT_IDE_TEST_PACK").map_err(|e| e.to_string())?;
+    let mut host = Host::default();
+    host.load_pack_for_analysis(std::fs::read(path).map_err(|e| e.to_string())?)?;
+    let mut sources = vec![Source {
+        uri: "file:///project/general.sysml".into(),
+        text: "package Equipment { part left { port p; } part right { port p; } }\npackage Diagrams { private import StandardViewDefinitions::*; view general : GeneralView { expose Equipment::*; } }".into(),
+    }];
+    let analysis = request(
+        &mut host,
+        "workspace/analyze",
+        json!({"sources":sources,"revision":1,"projectNodesOnly":true}),
+    )?;
+    assert_eq!(analysis["clean"], true, "{analysis}");
+    let view = host
+        .view_catalog(1)?
+        .views
+        .into_iter()
+        .find(|v| v.name == "general")
+        .ok_or("Missing general view")?;
+    let scene = host.view_scene(1, &view.key, None)?.scene;
+    assert_eq!(scene.nodes.len(), 2);
+    let left = scene
+        .nodes
+        .iter()
+        .find(|n| n.title == "left")
+        .ok_or("Missing left")?;
+    let right = scene
+        .nodes
+        .iter()
+        .find(|n| n.title == "right")
+        .ok_or("Missing right")?;
+    let owner_key = view
+        .owners
+        .iter()
+        .find(|o| o.label == "Equipment")
+        .ok_or("Missing namespace owner")?
+        .key
+        .clone();
+    let mut command = PrepareCommand {
+        revision: 1,
+        view_key: view.key.clone(),
+        owner_key,
+        tool_id: "connection".into(),
+        arguments: BTreeMap::from([
+            ("name".into(), "wire".into()),
+            ("source".into(), left.ports[0].id.clone()),
+            ("target".into(), right.ports[0].id.clone()),
+        ]),
+        palette: None,
+    };
+    let valid = command.clone();
+    command
+        .arguments
+        .insert("target".into(), "right.p; part injected;".into());
+    assert!(host.prepare_view_command(command.clone()).is_err());
+    command = valid.clone();
+    command
+        .arguments
+        .insert("target".into(), left.ports[0].id.clone());
+    assert!(host.prepare_view_command(command.clone()).is_err());
+    command = valid.clone();
+    command.owner_key = left.binding.key.clone();
+    assert!(host.prepare_view_command(command).is_err());
+    let prepared = host.prepare_view_command(valid.clone())?;
+    assert!(
+        prepared.patches[0]
+            .replacement
+            .contains("connection wire connect 'left'.'p' to 'right'.'p';")
+    );
+    assert_eq!(host.view_scene(1, &view.key, None)?.scene.edges.len(), 0);
+    let patch = &prepared.patches[0];
+    let start = offset(&sources[0].text, &patch.range.start)?;
+    let end = offset(&sources[0].text, &patch.range.end)?;
+    sources[0]
+        .text
+        .replace_range(start..end, &patch.replacement);
+    let accepted = host.commit_view_command(1, &prepared.token, &sources)?;
+    assert_eq!(accepted["clean"], true);
+    let next = host.view_scene(2, &view.key, None)?.scene;
+    assert!(
+        next.view
+            .owners
+            .iter()
+            .all(|owner| owner.label != "Equipment::wire")
+    );
+    assert_eq!(next.view.owners[0].label, "Equipment");
+    assert_eq!(next.edges.len(), 1);
+    assert_eq!(next.edges[0].source, left.ports[0].id);
+    assert_eq!(next.edges[0].target, right.ports[0].id);
+    assert!(
+        host.prepare_view_command(valid).is_err(),
+        "stale commands must fail"
+    );
     Ok(())
 }

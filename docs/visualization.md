@@ -40,8 +40,20 @@ identity contract. Occurrence keys include view and usage context. Unnamed
 relationship bindings include source offsets and are snapshot-local; parallel
 connections get distinct identities. Never persist model element IDs.
 
-Creation supports simple named part/port declarations under supported writable
-owners. Preparation anchors patches with the core lexer, validates a candidate
+Creation supports simple named part/port declarations and binary connections
+under supported writable owners. General views expand part usages into nested
+parts and border ports. Namespace exposes provide writable package creation
+scopes so new sibling parts become visible without editing the view declaration.
+ConnectionUsage objects are excluded from creation owners. Default names skip
+existing declarations; explicitly supplied duplicate names still fail.
+
+The connection command accepts two visible occurrence IDs. The provider resolves
+their contextual part/port paths and checks the common writable part/package
+scope. It quotes reference segments itself and rejects hidden, identical,
+ancestor/descendant and unsupported endpoints. The client supplies no source
+fragments. Other relationship kinds remain unsupported.
+
+Preparation anchors patches with the core lexer, validates a candidate
 through the native loader and retains it privately. Only commit with its token,
 base revision and exact complete editable-buffer receipt publishes the candidate
 model/source epoch. Reanalysis invalidates pending commands. Clients own applying
