@@ -505,6 +505,9 @@ pub struct FrozenLoad {
     pub references: usize,
     /// Of those, the ones that resolved to exactly one element.
     pub resolved: usize,
+    /// Exact authored occurrences and uniquely linked targets. Never inferred
+    /// from an element's enclosing span or from a global name search.
+    pub navigation: Vec<intersect_text::Reference>,
 }
 
 impl FrozenLoad {
@@ -546,9 +549,21 @@ pub fn load_frozen(
 ) -> Result<FrozenLoad, String> {
     let metamodel = store.metamodel().clone();
     let mut diagnostics = Vec::new();
+    let mut occurrences =
+        BTreeMap::<(String, String, String), Vec<intersect_text::UnresolvedReference>>::new();
     for source in sources {
         match parse(source, &mut store) {
             Ok((evaluation, _, _)) => {
+                for reference in evaluation.unresolved_references {
+                    occurrences
+                        .entry((
+                            reference.owner.clone(),
+                            reference.feature.clone(),
+                            reference.spelling.clone(),
+                        ))
+                        .or_default()
+                        .push(reference);
+                }
                 diagnostics.extend(evaluation.diagnostics.into_iter().map(|d| LoadDiagnostic {
                     resource: Some(source.uri.clone()),
                     start: Some(d.start),
@@ -578,6 +593,7 @@ pub fn load_frozen(
     };
     let outcomes = RefCell::new(Vec::<LoadDiagnostic>::new());
     let counts = RefCell::new((0usize, 0usize));
+    let navigation = RefCell::new(Vec::new());
     let resolve = |view: &LinkView<'_>,
                    owner: ObjId,
                    feature: FeatureId,
@@ -592,6 +608,21 @@ pub fn load_frozen(
         };
         if unique.is_some() {
             counts.1 += 1;
+            if let Some(target) = unique.and_then(|id| view.identity(id)) {
+                let key = (
+                    view.identity(owner).unwrap_or("").to_owned(),
+                    metamodel.feature_name(feature).to_owned(),
+                    spelling.to_owned(),
+                );
+                for reference in occurrences.get(&key).into_iter().flatten() {
+                    navigation.borrow_mut().push(intersect_text::Reference {
+                        uri: reference.uri.clone(),
+                        start: reference.start,
+                        end: reference.end,
+                        target: target.to_owned(),
+                    });
+                }
+            }
         } else {
             let owner_id = owner;
             let owner = view.identity(owner).unwrap_or("");
@@ -622,11 +653,19 @@ pub fn load_frozen(
     observe("link_end");
     diagnostics.extend(outcomes.into_inner());
     let (references, resolved) = counts.into_inner();
+    let mut navigation = navigation.into_inner();
+    navigation.sort_by(|a, b| {
+        (&a.uri, a.start, a.end, &a.target).cmp(&(&b.uri, b.start, b.end, &b.target))
+    });
+    navigation.dedup_by(|a, b| {
+        a.uri == b.uri && a.start == b.start && a.end == b.end && a.target == b.target
+    });
     let result = |model: Option<FrozenModel>, diagnostics: Vec<LoadDiagnostic>| FrozenLoad {
         model,
         diagnostics,
         references,
         resolved,
+        navigation,
     };
     let linked = match linked {
         Ok(linked) => linked,

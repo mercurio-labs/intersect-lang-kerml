@@ -1,4 +1,6 @@
+mod completion;
 mod evaluation;
+mod navigation;
 mod visualization;
 
 /// The section ranges an embedder hashes come only from bytes that pass the

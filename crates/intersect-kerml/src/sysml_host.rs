@@ -20,6 +20,7 @@ use crate::{
     native_pilot::NativePilotSession,
     standard_library::{CombinedCatalog, StdlibCatalog, implicit_stdlib_usage, package_for_model},
 };
+use intersect_model::core::query::QueryBudget;
 use intersect_model::{
     core::{
         frozen::{FrozenStore, Metamodel, Model},
@@ -34,6 +35,7 @@ use intersect_model::{
     },
     frozen_scopes::{Execution, RcoreScopes},
 };
+use intersect_text::EvaluationLimits;
 use intersect_text::grammar::RuntimePredictionMemoMode;
 use intersect_text::{Source, StoredEvaluation};
 use std::{
@@ -74,7 +76,7 @@ pub struct SysmlHost<'h> {
     metamodel: Arc<Metamodel>,
     bindings: &'h str,
     resolvers: &'h RcoreScopes<'h>,
-    parse: &'h dyn Fn(&Source, &mut FrozenStore) -> Parsed,
+    parse: &'h dyn Fn(&Source, &mut FrozenStore, EvaluationLimits, &mut QueryBudget) -> Parsed,
 }
 
 impl SysmlHost<'_> {
@@ -91,7 +93,23 @@ impl SysmlHost<'_> {
     /// Parse one source into `store` with its language (`.kerml` URIs with
     /// KerML, the rest with SysML), without linking.
     pub fn parse(&self, source: &Source, store: &mut FrozenStore) -> Parsed {
-        (self.parse)(source, store)
+        self.parse_with(
+            source,
+            store,
+            frozen_load::limits(),
+            &mut QueryBudget::new(usize::MAX),
+        )
+    }
+    /// Construction-only parsing with explicit limits and a shared caller budget.
+    /// Editing probes use this without publishing their speculative model.
+    pub fn parse_with(
+        &self,
+        source: &Source,
+        store: &mut FrozenStore,
+        limits: EvaluationLimits,
+        caller: &mut QueryBudget,
+    ) -> Parsed {
+        (self.parse)(source, store, limits, caller)
     }
     /// Parse `sources` into `store` in order, link, complete and validate
     /// (`frozen_load::load_frozen`) with `parse` (so a host can time each
@@ -282,11 +300,14 @@ pub fn with_sysml_host<T>(
             frozen_load::with_sysml(sysml, sysml_contracts, preparation, |sysml| {
                 kerml.language.prediction_memo().set_mode(memo);
                 sysml.language.prediction_memo().set_mode(memo);
-                let parse = |source: &Source, store: &mut FrozenStore| {
+                let parse = |source: &Source,
+                             store: &mut FrozenStore,
+                             limits: EvaluationLimits,
+                             caller: &mut QueryBudget| {
                     if source.uri.ends_with(".kerml") {
-                        kerml.parse(source, store)
+                        kerml.parse_with(source, limits, store, caller)
                     } else {
-                        sysml.parse(source, store)
+                        sysml.parse_with(source, limits, store, caller)
                     }
                 };
                 body(&SysmlHost {

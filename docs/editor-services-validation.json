@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-16",
+  "base": "86fb572",
+  "text_revision": "3d026308b87a40d6a9548f1307c694558cbbaa30",
+  "model_revision": "9f026067f71721909ea508177127fccf5e7efd44",
+  "checks": [
+    { "command": "cargo test --profile test-fast -p intersect-kerml -p intersect-kerml-ide --lib --tests --locked --offline", "passed": 61, "failed": 0, "ignored": 33, "report": "kerml-editor/20261116-134607" },
+    { "command": "cargo test --profile test-fast -p intersect-kerml-ide --lib --tests --locked --offline --features milestone-tests", "passed": 13, "failed": 0, "ignored": 0, "report": "kerml-editor/20261116-134848" },
+    { "command": "cargo clippy -p intersect-kerml-ide -p intersect-kerml --all-targets --offline --locked -- -D warnings", "result": "passed" },
+    { "command": "cargo check -p intersect-kerml-ide --target wasm32-unknown-unknown --offline --locked", "result": "passed" },
+    { "command": "cargo fmt --all -- --check", "result": "passed" }
+  ],
+  "pack": { "self_check": "passed", "library_objects": 109826, "references": 18939, "resolved": 18939 },
+  "scope": "Bounded project-reference navigation and parser-probed contextual completion using existing language scopes; see editor-services.md for limits.",
+  "reports_root": "Local .worktrees/verification/reports under the Mercurio Labs workspace; suites executed through tools/test_report.py."
+}
