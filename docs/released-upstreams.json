@@ -1,0 +1,27 @@
+{
+  "release_tag": "release-2026-11-16",
+  "runtime_versions": {
+    "intersect-model": "=0.1.0-alpha.1",
+    "intersect-text": "=0.1.0-alpha.1",
+    "intersect-build-support": "=0.1.0-alpha.1"
+  },
+  "runtime_checksums": {
+    "intersect-model": "22c0446a248b0931d65747933ee4fee7106c0c95371a5674c779fe591008bb92",
+    "intersect-text": "2c596f0f43417cf324b7695a3d7b5e735187d79f48c54000691e9d88bdf3c077",
+    "intersect-build-support": "51a0b045d93c5a4e683eb7f1e14661bb134a34f04c3e93a55bdb629dc59797e0"
+  },
+  "source_adapters": {
+    "model_repository": "https://github.com/mercurio-labs/intersect-model.git",
+    "model_revision": "9f026067f71721909ea508177127fccf5e7efd44",
+    "text_repository": "https://github.com/mercurio-labs/intersect-text.git",
+    "text_revision": "217d87e1d206e6c313e47efd7ef1b6902d2621e8"
+  },
+  "maintained_locks": [
+    "Cargo.lock",
+    "tests/read-policy-only/Cargo.lock",
+    "tests/package-name-only/Cargo.lock",
+    "tests/member-name-only/Cargo.lock",
+    "crates/intersect-kerml-python/Cargo.lock"
+  ],
+  "scope": "Dependency/source integration and builds; no new KerML/SysML semantic qualification. Imported historical probe manifests retain their original provenance."
+}

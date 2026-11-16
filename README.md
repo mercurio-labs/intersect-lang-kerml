@@ -4,7 +4,7 @@ The UI-independent `intersect-kerml-ide` facade serves native and WASM consumers
 See [the bounded visualization and source-command profile](docs/visualization.md).
 
 The KerML and SysML v2 language package for
-[Intersect](https://github.com/mercurio-labs/intersect): native loading of
+[Intersect](https://github.com/mercurio-labs/intersect-model): native loading of
 KerML and SysML models against the SysML v2 standard library, with language
 semantics written in Rcore and run on Intersect's frozen engine, checked
 against the Java SysML v2 Pilot Implementation (used only as a test oracle).
@@ -49,43 +49,36 @@ Grammar compilation, text interpretation and Web come from
 This language package owns KerML/SysML semantics and standard libraries.
 Neither upstream repository depends on this repository.
 
-Every dependency uses its canonical Git URL and a full immutable revision.
-The Model/Text pins select their fresh-history evaluation-alpha baselines. The
-workspace requires Rust 1.88 or newer because of these dependencies; the development
-toolchain is pinned separately. This does not qualify KerML/SysML semantics or the
-historical standalone probes as part of the Model/Text alpha.
-All Model packages use one Model revision, including build support; Text and
-Web use one Text revision whose Model pin agrees with this workspace's Model
-pin. Update standalone consumers and lockfiles together. The repositories are
-private; `.cargo/config.toml` uses the Git CLI credential provider.
-CI runners need GitHub CLI and an `INTERSECT_READ_TOKEN` organization secret
-with read access to both `intersect-model` and `intersect-text`. The legacy
-`INTERSECT_CORE_TOKEN` fallback also needs both permissions. Hosted CI remains
-explicitly skipped for the repository split; the workflow configuration has
-not been execution-qualified.
+Model, Text and build support use the exact crates.io release
+`=0.1.0-alpha.1`. Unpublished project-host, visualization and browser-host
+adapters use immutable commits from the public Model and Text repositories.
+These adapters consume the same released runtimes, so the maintained KerML
+workspace has one Rust package identity per core crate and requires no patches
+or private repository access. Generic visualization contracts now live in Model.
+
+The workspace requires Rust 1.88 or newer; the development toolchain is pinned
+separately. This dependency update does not qualify additional KerML/SysML
+semantics or the historical standalone probes. Update maintained standalone
+consumers and lockfiles together; historical imported fixture manifests retain
+their original provenance. Hosted CI execution remains separate from local
+build verification.
 
 ### Coordinated local changes
 
 Use an explicit, uncommitted Cargo configuration at this workspace root:
 
 ```toml
-[patch."https://github.com/mercurio-labs/intersect-model.git"]
+[patch.crates-io]
 intersect-model = { path = "C:/work/intersect-model/crates/intersect-model" }
 intersect-build-support = { path = "C:/work/intersect-model/crates/intersect-build-support" }
-intersect-project-host = { path = "C:/work/intersect-model/crates/intersect-project-host" }
-intersect-model-test-support = { path = "C:/work/intersect-model/tests/support" }
-
-[patch."https://github.com/mercurio-labs/intersect-text.git"]
 intersect-text = { path = "C:/work/intersect-text/crates/intersect-text" }
-intersect-library = { path = "C:/work/intersect-text/crates/intersect-library" }
-intersect-web = { path = "C:/work/intersect-text/crates/intersect-web" }
 ```
 
 Pass it explicitly with `cargo --config path/to/local-upstreams.toml ...`.
 Ordinary builds require neither patches nor sibling checkouts. Remove overrides
 before qualification and inspect `cargo metadata --locked` and `cargo tree -d`
 for duplicate Intersect package identities. Land Model changes first, then Text,
-then pin this language package to the tested pair.
+then select the exact tested release pair for this language package.
 
 The shared host-only source identity scanner is the Model-owned
 `intersect-build-support` crate. Program compiler components compose installed

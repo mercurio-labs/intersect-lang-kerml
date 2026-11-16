@@ -12,18 +12,16 @@ repository = "https://github.com/mercurio-labs/intersect-lang-kerml"
 publish = false
 
 [workspace.dependencies]
-# Visualization contracts are not in the split Model or Text repositories yet
-# (core PR #6 is unmerged). The crate depends only on serde, so it stays on
-# the pre-split revision the facade was written against until it has a home.
-intersect-views = { git = "https://github.com/mercurio-labs/intersect", rev = "17554be4fa73bdf0fecda5bee5d01ed3f49e8830" }
+# Generic visualization contracts and host adapters live in public Model.
+intersect-views = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "9f026067f71721909ea508177127fccf5e7efd44" }
 intersect-kerml = { path = "crates/intersect-kerml" }
 intersect-kpar = { path = "crates/intersect-kpar" }
-intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "1955d1e9e99cad50049dd1f00096bee5fbe1a160" }
-# Canonical independent upstreams. Model pins agree with Text's Model pin.
-intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "1955d1e9e99cad50049dd1f00096bee5fbe1a160" }
-intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "4548d0aba245575263eae12db028582387abe442" }
-intersect-web = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "4548d0aba245575263eae12db028582387abe442", default-features = false }
-intersect-project-host = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "1955d1e9e99cad50049dd1f00096bee5fbe1a160" }
+intersect-build-support = "=0.1.0-alpha.1"
+# Exact registry versions keep runtime types shared with their host adapters.
+intersect-model = "=0.1.0-alpha.1"
+intersect-text = "=0.1.0-alpha.1"
+intersect-web = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "217d87e1d206e6c313e47efd7ef1b6902d2621e8", default-features = false }
+intersect-project-host = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "9f026067f71721909ea508177127fccf5e7efd44" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["raw_value"] }
 quick-xml = "0.41.0"

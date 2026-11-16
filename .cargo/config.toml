@@ -12,6 +12,5 @@ linker = "rust-lld.exe"
 RUST_MIN_STACK = "67108864"
 
 [net]
-# The Model and Text dependencies are private GitHub
-# repository; fetch it with the git CLI so the user's git credentials apply.
+# Public source adapters use the Git CLI. Core runtimes come from crates.io.
 git-fetch-with-cli = true

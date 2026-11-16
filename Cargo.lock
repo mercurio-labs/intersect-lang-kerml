@@ -172,7 +172,8 @@ dependencies = [
 [[package]]
 name = "intersect-build-support"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=1955d1e9e99cad50049dd1f00096bee5fbe1a160#1955d1e9e99cad50049dd1f00096bee5fbe1a160"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51a0b045d93c5a4e683eb7f1e14661bb134a34f04c3e93a55bdb629dc59797e0"
 dependencies = [
  "sha2",
 ]
@@ -268,7 +269,7 @@ dependencies = [
 [[package]]
 name = "intersect-library"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=4548d0aba245575263eae12db028582387abe442#4548d0aba245575263eae12db028582387abe442"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=217d87e1d206e6c313e47efd7ef1b6902d2621e8#217d87e1d206e6c313e47efd7ef1b6902d2621e8"
 dependencies = [
  "intersect-model",
  "intersect-text",
@@ -279,7 +280,8 @@ dependencies = [
 [[package]]
 name = "intersect-model"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=1955d1e9e99cad50049dd1f00096bee5fbe1a160#1955d1e9e99cad50049dd1f00096bee5fbe1a160"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22c0446a248b0931d65747933ee4fee7106c0c95371a5674c779fe591008bb92"
 dependencies = [
  "intersect-build-support",
  "iri-string",
@@ -296,9 +298,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "intersect-model-test-support"
+name = "intersect-model-example-support"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=1955d1e9e99cad50049dd1f00096bee5fbe1a160#1955d1e9e99cad50049dd1f00096bee5fbe1a160"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=9f026067f71721909ea508177127fccf5e7efd44#9f026067f71721909ea508177127fccf5e7efd44"
 dependencies = [
  "intersect-model",
  "serde_json",
@@ -307,7 +309,7 @@ dependencies = [
 [[package]]
 name = "intersect-project-host"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=1955d1e9e99cad50049dd1f00096bee5fbe1a160#1955d1e9e99cad50049dd1f00096bee5fbe1a160"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=9f026067f71721909ea508177127fccf5e7efd44#9f026067f71721909ea508177127fccf5e7efd44"
 dependencies = [
  "intersect-model",
 ]
@@ -315,7 +317,8 @@ dependencies = [
 [[package]]
 name = "intersect-text"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=4548d0aba245575263eae12db028582387abe442#4548d0aba245575263eae12db028582387abe442"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c596f0f43417cf324b7695a3d7b5e735187d79f48c54000691e9d88bdf3c077"
 dependencies = [
  "intersect-build-support",
  "intersect-model",
@@ -327,8 +330,8 @@ dependencies = [
 
 [[package]]
 name = "intersect-views"
-version = "0.1.0"
-source = "git+https://github.com/mercurio-labs/intersect?rev=17554be4fa73bdf0fecda5bee5d01ed3f49e8830#17554be4fa73bdf0fecda5bee5d01ed3f49e8830"
+version = "0.1.0-alpha.1"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=9f026067f71721909ea508177127fccf5e7efd44#9f026067f71721909ea508177127fccf5e7efd44"
 dependencies = [
  "serde",
  "serde_json",
@@ -337,11 +340,11 @@ dependencies = [
 [[package]]
 name = "intersect-web"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=4548d0aba245575263eae12db028582387abe442#4548d0aba245575263eae12db028582387abe442"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=217d87e1d206e6c313e47efd7ef1b6902d2621e8#217d87e1d206e6c313e47efd7ef1b6902d2621e8"
 dependencies = [
  "intersect-library",
  "intersect-model",
- "intersect-model-test-support",
+ "intersect-model-example-support",
  "intersect-text",
  "serde",
  "serde_json",

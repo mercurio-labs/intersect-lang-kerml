@@ -4,10 +4,11 @@ Read README.md before changing source. This is the KerML/SysML language
 package of Intersect; architecture and roadmap live in the core repository
 (mercurio-labs/intersect-model and mercurio-labs/intersect-text: docs/architecture.md, docs/release-plan.md).
 
-- Model and Text are separate Git dependencies pinned by full `rev` values.
-  Keep Model/build-support/project-host at one canonical Model URL/revision;
-  keep Text/Web at one canonical Text URL/revision whose Model pin agrees.
-  Land Model first, then Text, then update this repository and all lockfiles.
+- Model, Text and build-support use their exact released crates.io versions.
+  Unpublished host/visualization adapters use full immutable revisions from the
+  public Model and Text repositories and consume those same registry runtimes.
+  Preserve a single runtime identity per released crate. Update standalone
+  consumers and every maintained lockfile together.
   No default sibling checkout or committed local patch is permitted.
 
 - Use `develop` as the default base for new branches and managed worktrees.
