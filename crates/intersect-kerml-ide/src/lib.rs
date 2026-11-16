@@ -28,8 +28,10 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
+mod completion;
 mod editing;
 mod evaluation;
+mod navigation;
 mod views;
 
 struct PreparedCommand {
@@ -37,6 +39,7 @@ struct PreparedCommand {
     base_revision: u64,
     sources: BTreeMap<String, String>,
     model: Model,
+    navigation: Vec<intersect_text::Reference>,
     analysis: Value,
     baseline: ProjectRequest,
 }
@@ -53,6 +56,7 @@ pub struct Host {
     documents: editing::Documents,
     loaded: Option<Loaded>,
     current: Option<Model>,
+    navigation: Vec<intersect_text::Reference>,
     sources: BTreeMap<String, String>,
     revision: u64,
     editable: BTreeSet<String>,
@@ -267,6 +271,7 @@ impl Host {
             identity,
         });
         self.current = None;
+        self.navigation.clear();
         self.sources.clear();
         self.baseline = None;
         self.pending = None;
@@ -281,14 +286,15 @@ impl Host {
             "initialize" => Ok(json!({
                 "capabilities": {"positionEncoding":"utf-16", "textDocumentSync":{"openClose":true,"change":1},
                     "hoverProvider":true, "documentSymbolProvider":true,
-                    "definitionProvider":false, "completionProvider":{"resolveProvider":false}},
+                    "definitionProvider":true, "completionProvider":{"resolveProvider":false,"triggerCharacters":[".",":"]}},
                 "serverInfo":{"name":"Intersect KerML IDE","version":"0.1.0"},
-                "limitations":["Completion offers lexical keywords and declaration snippets; scope-aware reference completion and definition locations await upstream APIs."],
+                "limitations":["Reference completion uses bounded parser probes and the language's existing scope semantics; unsupported grammar contexts retain lexical suggestions."],
             })),
             "textDocument/didOpen" => self.documents.open(params),
             "textDocument/didChange" => self.documents.change(params),
             "textDocument/didClose" => self.documents.close(params),
-            "textDocument/completion" => self.documents.complete(params),
+            "textDocument/completion" => self.complete(params),
+            "textDocument/definition" => self.definition(params),
             "evaluation/sites" => self.evaluation_sites(params),
             "evaluation/evaluate" => self.evaluate_site(params),
             "workspace/analyze" => self.analyze(
@@ -388,6 +394,7 @@ impl Host {
             "shutdown" => {
                 self.documents = editing::Documents::default();
                 self.current = None;
+                self.navigation.clear();
                 self.loaded = None;
                 Ok(Value::Null)
             }
@@ -423,6 +430,7 @@ impl Host {
         // Invalidate first: a failed edit must never leave the previous model
         // available to hover/inspection as if it described the new text.
         self.current = None;
+        self.navigation.clear();
         self.revision = request.revision;
         self.sources.clear();
         self.pending = None;
@@ -542,6 +550,7 @@ impl Host {
         if load.is_clean() {
             self.baseline = Some(baseline);
         }
+        self.navigation = load.navigation;
         self.current = load.model;
         self.last_analysis = Some(result.clone());
         Ok(result)
@@ -641,6 +650,7 @@ impl Host {
             base_revision: self.revision,
             sources,
             model,
+            navigation: load.navigation,
             analysis,
             baseline,
         });
@@ -673,6 +683,7 @@ impl Host {
         self.revision = pending.baseline.revision;
         self.sources = pending.sources;
         self.current = Some(pending.model);
+        self.navigation = pending.navigation;
         self.baseline = Some(pending.baseline);
         self.last_analysis = Some(pending.analysis.clone());
         Ok(pending.analysis)

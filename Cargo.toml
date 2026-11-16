@@ -39,3 +39,9 @@ incremental = true
 
 [profile.test-fast.package."*"]
 opt-level = 3
+
+# Development source overrides for unreleased shared editor APIs. See docs/editor-services.md.
+[patch.crates-io]
+intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "9f026067f71721909ea508177127fccf5e7efd44" }
+intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "9f026067f71721909ea508177127fccf5e7efd44" }
+intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "3d026308b87a40d6a9548f1307c694558cbbaa30" }

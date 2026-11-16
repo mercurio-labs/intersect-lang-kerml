@@ -67,6 +67,49 @@ const SNIPPETS: &[(&str, &str, &str, bool)] = &[
 ];
 
 impl Documents {
+    pub(super) fn overlay(&self, sources: &mut BTreeMap<String, String>) {
+        for (uri, doc) in &self.0 {
+            if sources.contains_key(uri) {
+                sources.insert(uri.clone(), doc.text.clone());
+            }
+        }
+    }
+    pub(super) fn context(&self, params: &Value) -> Result<Option<CompletionContext<'_>>, String> {
+        let doc = self.0.get(uri(params)?).ok_or("Document is not open")?;
+        if params["textDocument"].get("version").is_some() && version(params)? != doc.version {
+            return Err("Document version is stale".into());
+        }
+        let offset = position_byte(&doc.text, &params["position"])?;
+        if !in_code(&doc.text[..offset]) {
+            return Ok(None);
+        }
+        let word = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
+        let start = doc.text[..offset]
+            .char_indices()
+            .rev()
+            .find(|(_, c)| !word(*c))
+            .map_or(0, |(i, c)| i + c.len_utf8());
+        let end = doc.text[offset..]
+            .char_indices()
+            .find(|(_, c)| !word(*c))
+            .map_or(doc.text.len(), |(i, _)| offset + i);
+        Ok(Some(CompletionContext {
+            text: &doc.text,
+            start,
+            end,
+            prefix: &doc.text[start..offset],
+        }))
+    }
+    pub(super) fn matches_sources<'a>(&self, source: impl Fn(&str) -> Option<&'a str>) -> bool {
+        self.0
+            .iter()
+            .all(|(uri, doc)| source(uri).is_none_or(|text| text == doc.text))
+    }
+    pub(super) fn matches(&self, uri: &str, text: &str, requested: Option<i64>) -> bool {
+        self.0.get(uri).map_or(requested.is_none(), |doc| {
+            doc.text == text && requested.is_none_or(|version| version == doc.version)
+        })
+    }
     fn budget(&self, uri: &str, text: &str) -> Result<(), String> {
         let others = self.0.iter().filter(|(key, _)| key.as_str() != uri);
         let (count, bytes) = others.fold((1, text.len()), |(count, bytes), (_, doc)| {
@@ -175,6 +218,35 @@ impl Documents {
         );
         Ok(json!({"isIncomplete":false,"items":items}))
     }
+}
+pub(super) struct CompletionContext<'a> {
+    pub text: &'a str,
+    pub start: usize,
+    pub end: usize,
+    pub prefix: &'a str,
+}
+
+pub(super) fn name_spelling(name: &str) -> Option<String> {
+    if name.is_empty() || name.contains(['\'', '\\', ':']) {
+        return None;
+    }
+    let plain = name.chars().enumerate().all(|(i, c)| {
+        c == '_'
+            || if i == 0 {
+                c.is_alphabetic()
+            } else {
+                c.is_alphanumeric()
+            }
+    });
+    let keyword = COMMON
+        .split_whitespace()
+        .chain(SYSML.split_whitespace())
+        .any(|word| word == name);
+    Some(if plain && !keyword {
+        name.to_owned()
+    } else {
+        format!("'{name}'")
+    })
 }
 fn uri(params: &Value) -> Result<&str, String> {
     params["textDocument"]["uri"]
