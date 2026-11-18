@@ -77,6 +77,8 @@ struct Loaded {
     library: Model,
     texts: BTreeMap<String, String>,
     identity: String,
+    #[cfg(feature = "components")]
+    library_info: Value,
 }
 
 #[derive(Clone, Deserialize)]
@@ -280,12 +282,24 @@ impl Host {
         } else {
             Vec::new()
         };
+        let provenance: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/native-pilot/v1/MANIFEST.json"
+        ))
+        .map_err(|e| format!("Invalid installed library provenance: {e}"))?;
+        let library_info = json!({
+            "name":"OMG standard library", "version":null,
+            "uri":"urn:intersect:standard-library", "readOnly":true,
+            "origin":"Language pack", "sourceRevision":provenance["pilot_commit"],
+            "snapshotKey":prepared.1, "objects":prepared.0.len(),
+            "files":texts.keys().collect::<Vec<_>>(),
+        });
         let result = json!({
             "language": language_pack::LANGUAGE,
             "compiler": language_pack::expected_compiler(),
             "libraryKey": prepared.1,
             "libraryFiles": texts.keys().collect::<Vec<_>>(),
             "libraryObjects": prepared.0.len(), "nodes": nodes,
+            "libraryMount": library_info,
         });
         self.loaded = Some(Loaded {
             session,
@@ -294,6 +308,8 @@ impl Host {
             library: prepared.0,
             texts,
             identity,
+            #[cfg(feature = "components")]
+            library_info,
         });
         #[cfg(feature = "components")]
         {

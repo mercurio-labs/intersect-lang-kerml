@@ -208,7 +208,9 @@ impl Host {
             component_texts(&context, &image, &model, &sources)?;
         let info = json!({"key":key,"uri":uri,"name":archive.project.name,"version":archive.project.version,
             "url":url,"sha256":digest,"readOnly":true,"cacheHit":false,"objects":image.object_count(),
-            "files":texts.keys().collect::<Vec<_>>(),"notes":archive.notes.iter().chain(&archive.warnings).collect::<Vec<_>>()});
+            "files":texts.keys().collect::<Vec<_>>(),"mountKey":image.key(),"identity":image.identity(),
+            "origin":"Hosted KPAR",
+            "notes":archive.notes.iter().chain(&archive.warnings).collect::<Vec<_>>()});
         self.components.context = Some(context);
         self.components.pool.insert(
             key,
@@ -395,7 +397,9 @@ impl Host {
         let result = json!({"revision":self.revision,"nodes":nodes,"diagnostics":diagnostics,
             "hasModel":analyzed.model.is_some(),"clean":analyzed.diagnostics.is_empty() && analyzed.model.is_some(),
             "resolved":analyzed.references.len(),"references":analyzed.references.len(),"project":project.map(|p|p.to_value()),
-            "libraryFiles":library_files,"libraryOrigin":self.components.standard.as_ref().map(|standard|&standard.info),"dependencyUris":dependency_uris,"dependencyDocuments":self.components.paths.iter().map(|(uri,path)|json!({"uri":uri,"path":path})).collect::<Vec<_>>(),"dependencies":dependencies,"notes":["Hosted usages are read only and retained for this open session. Diagram and evaluation services for mounted projects are not yet available."]});
+            "libraryFiles":library_files,"libraryOrigin":self.components.standard.as_ref().map(|standard|&standard.info),
+            "libraryMount":self.components.standard.as_ref().map(|standard|&standard.info),
+            "dependencyUris":dependency_uris,"dependencyDocuments":self.components.paths.iter().map(|(uri,path)|json!({"uri":uri,"path":path})).collect::<Vec<_>>(),"dependencies":dependencies,"notes":["Hosted usages are read only and retained for this open session. Diagram and evaluation services for mounted projects are not yet available."]});
         self.components.navigation = analyzed.references;
         self.components.model = analyzed.model;
         self.last_analysis = Some(result.clone());
@@ -450,11 +454,16 @@ fn prepare_standard_component(
         .collect();
     let ComponentSources { texts, paths } =
         component_texts(context, &image, &loaded.library, &sources)?;
+    let mut info = loaded.library_info.clone();
+    info["mountKey"] = json!(image.key());
+    info["identity"] = json!(image.identity());
+    info["originalPackages"] = json!(original_packages);
+    info["files"] = json!(texts.keys().collect::<Vec<_>>());
     Ok(Prepared {
         image,
         texts,
         paths,
-        info: json!({"name":"OMG standard library","readOnly":true,"originalPackages":original_packages}),
+        info,
     })
 }
 
@@ -473,7 +482,14 @@ fn component_texts(
         .collect();
     let mut texts = BTreeMap::new();
     let mut paths = BTreeMap::new();
+    let mut mapped = BTreeSet::new();
     for object in original.objects() {
+        // Resource qualification belongs to the image, so all objects in one
+        // original resource have the same mounted resource. Verify that actual
+        // correspondence once per source rather than once per library object.
+        if mapped.contains(object.resource()) {
+            continue;
+        }
         if let Some(text) = source_map.get(object.resource()) {
             view.inspect(image.object_id(object.identity())?, &mut |mounted| {
                 texts
@@ -482,6 +498,7 @@ fn component_texts(
                 paths.insert(mounted.resource().to_owned(), object.resource().to_owned());
                 Ok(())
             })?;
+            mapped.insert(object.resource().to_owned());
         }
     }
     Ok(ComponentSources { texts, paths })
