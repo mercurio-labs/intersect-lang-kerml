@@ -54,8 +54,8 @@ after cancellation, buffer/workspace changes or worker restart.
 The new Text API is not in the released `0.1.0-alpha.1` crate. For this feature,
 workspace and standalone consumer manifests explicitly override crates.io Text
 with immutable public revision
-`3d026308b87a40d6a9548f1307c694558cbbaa30`. Matching Model/build-support source
-overrides at `9f026067f71721909ea508177127fccf5e7efd44` keep registry-based
+`7ce03b8bf9e0db29ca32a62d7c7a9c7bd454328e`. Matching Model/build-support source
+overrides at `ee43b0696a99f966d90bf1b737aaf98e9ac9ba07` keep registry-based
 adapters and Text's source-qualified dependencies on one identity. These are
 Git source pins, not sibling checkout patches. All five maintained locks must
 agree. No crate publication is performed here. Once an editor-capable Text

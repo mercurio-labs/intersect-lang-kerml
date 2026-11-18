@@ -1,4 +1,6 @@
 //! Handwritten host bridge from checked KerML project archives to core locks.
+#[cfg(all(feature = "components", not(target_arch = "wasm32")))]
+pub mod hosted;
 use intersect_kpar::{ArchiveLimits, ErrorKind, KparError, ProjectArchive};
 use intersect_model::{
     definitions::{bundle::SourceId, pack::FileDigest},
