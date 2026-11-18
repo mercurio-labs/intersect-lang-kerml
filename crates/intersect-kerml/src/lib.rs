@@ -16,6 +16,8 @@ use intersect_model::definitions::{
 use intersect_model::setting::SourceSettingValues;
 use serde_json::{Value, json};
 
+#[cfg(feature = "components")]
+pub mod components;
 pub mod standard_library;
 
 pub const PILOT_SCHEMA_SHA256: &str =

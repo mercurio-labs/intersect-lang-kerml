@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  GH_TOKEN: ${{ secrets.INTERSECT_READ_TOKEN || secrets.INTERSECT_CORE_TOKEN }}
+  GH_TOKEN: ${{ secrets.INTERSECT_READ_TOKEN || secrets.INTERSECT_CORE_TOKEN || github.token }}
   CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
   RUSTUP_TOOLCHAIN: '1.99.1'
   INTERSECT_TEST_REPORTS: ${{ github.workspace }}/target/test-reports
@@ -48,3 +48,30 @@ jobs:
         run: python -B tools/test_report.py run -- --profile test-fast -p intersect-kerml-ide -p intersect-kerml -p intersect-kerml-eval -p intersect-kerml-web -p intersect-cli -p intersect-kpar -p intersect-kpar-host --lib --bins --tests --locked
       - name: WASM build
         run: cargo +1.99.1 build --workspace --lib --target wasm32-unknown-unknown --locked
+
+  components:
+    name: Component runtime (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: gh auth setup-git
+      - name: Short Windows Cargo cache paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "CARGO_HOME=C:\c" >> $env:GITHUB_ENV
+          git config --global core.longpaths true
+      - name: Install Rust
+        run: rustup toolchain install 1.99.1 --profile minimal --component clippy --target wasm32-unknown-unknown
+      - name: Component-enabled quick controls
+        run: python -B tools/test_report.py run -- --profile test-fast -p intersect-kerml-ide -p intersect-kerml -p intersect-kpar-host --features components --lib --tests --locked
+      - name: Component-enabled strict lint
+        run: cargo clippy -p intersect-kerml-ide -p intersect-kerml -p intersect-kpar-host --features components --all-targets --locked -- -D warnings
+      - name: Component-enabled WASM libraries
+        run: cargo build -p intersect-kerml-ide -p intersect-kerml -p intersect-kpar-host --features components --lib --target wasm32-unknown-unknown --locked

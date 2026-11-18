@@ -16,7 +16,21 @@ semver = { version = "1.0.28", default-features = false }
 
 [dev-dependencies]
 intersect-kerml = { path = "../intersect-kerml" }
+intersect-text.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+
+[features]
+components = ["intersect-model/components", "intersect-text/components", "intersect-kerml/components"]
+
+[[example]]
+name = "hosted_kpar_usage"
+required-features = ["components"]
 
 [[test]]
 name = "all"
 path = "tests/all.rs"
+
+[[example]]
+name = "stdlib_component_usage"
+required-features = ["components"]

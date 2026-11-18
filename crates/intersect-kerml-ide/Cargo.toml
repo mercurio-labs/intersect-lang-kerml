@@ -20,6 +20,7 @@ base64 = "0.22"
 sha2 = "0.10"
 
 [features]
+components = ["intersect-kerml/components", "intersect-model/components", "intersect-text/components"]
 milestone-tests = []
 
 [[test]]

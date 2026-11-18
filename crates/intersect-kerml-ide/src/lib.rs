@@ -29,6 +29,8 @@ use std::{
     rc::Rc,
 };
 mod completion;
+#[cfg(feature = "components")]
+mod components;
 mod editing;
 mod evaluation;
 mod navigation;
@@ -64,6 +66,8 @@ pub struct Host {
     last_analysis: Option<Value>,
     pending: Option<PreparedCommand>,
     next_transaction: u64,
+    #[cfg(feature = "components")]
+    components: components::State,
 }
 
 struct Loaded {
@@ -85,6 +89,9 @@ struct ProjectRequest {
     #[serde(default)]
     archives: Vec<ArchiveInput>,
     revision: u64,
+    #[cfg(feature = "components")]
+    #[serde(default, rename = "componentUsages")]
+    component_usages: Vec<String>,
 }
 #[derive(Clone, Deserialize)]
 struct ArchiveInput {
@@ -210,11 +217,17 @@ impl Host {
             intersect_kerml::sysml_bindings::BINDING_RECIPE,
             digest.finalize()
         );
-        let payload = language_pack::pack_library_payload(&pack)
-            .ok_or("Pack has no standard library. Build it with sysml_pack --library.")??;
-        let texts: BTreeMap<String, String> = decode_library_part(payload)
+        let payload = language_pack::pack_library_payload(&pack).transpose()?;
+        #[cfg(not(feature = "components"))]
+        let payload = Some(
+            payload.ok_or("Pack has no standard library. Build it with sysml_pack --library.")?,
+        );
+        let texts: BTreeMap<String, String> = payload
+            .map(decode_library_part)
+            .transpose()
             .map_err(|e| e.to_string())?
-            .sources()
+            .map(|p| p.sources())
+            .unwrap_or_default()
             .into_iter()
             .map(|s| (s.uri, s.text))
             .collect();
@@ -231,8 +244,20 @@ impl Host {
             |host| {
                 // Fail clearly on a stale snapshot. Rebuilding compiler caches is a
                 // host build task, not an accidental multi-minute UI operation.
+                if payload.is_none() {
+                    let load = host.load(
+                        FrozenStore::new(host.metamodel().clone()),
+                        &[],
+                        &mut |source, store| host.parse(source, store),
+                        &|_| {},
+                    )?;
+                    return Ok((
+                        load.model.ok_or("Empty library failed validation")?,
+                        "no-standard-library".to_owned(),
+                    ));
+                }
                 let prepared = language_pack::prepare_library(
-                    Some(payload),
+                    payload,
                     None,
                     host.context(),
                     // The payload is a pack section this read verified.
@@ -247,29 +272,33 @@ impl Host {
                 if prepared.origin != LibraryOrigin::Snapshot {
                     return Err("A prepared library snapshot is required".into());
                 }
-                Ok(prepared)
+                Ok((prepared.model, prepared.key))
             },
         )?;
         let nodes = if include_library_nodes {
-            model_nodes(&prepared.model)
+            model_nodes(&prepared.0)
         } else {
             Vec::new()
         };
         let result = json!({
             "language": language_pack::LANGUAGE,
             "compiler": language_pack::expected_compiler(),
-            "libraryKey": prepared.key,
+            "libraryKey": prepared.1,
             "libraryFiles": texts.keys().collect::<Vec<_>>(),
-            "libraryObjects": prepared.model.len(), "nodes": nodes,
+            "libraryObjects": prepared.0.len(), "nodes": nodes,
         });
         self.loaded = Some(Loaded {
             session,
             bundle,
             scopes,
-            library: prepared.model,
+            library: prepared.0,
             texts,
             identity,
         });
+        #[cfg(feature = "components")]
+        {
+            self.components = components::State::default();
+        }
         self.current = None;
         self.navigation.clear();
         self.sources.clear();
@@ -281,6 +310,10 @@ impl Host {
     }
 
     pub fn dispatch(&mut self, request: Value) -> Result<Value, String> {
+        #[cfg(feature = "components")]
+        if let Some(result) = self.component_dispatch(&request) {
+            return result;
+        }
         let params = &request["params"];
         match request["method"].as_str().ok_or("Request has no method")? {
             "initialize" => Ok(json!({
@@ -396,6 +429,10 @@ impl Host {
                 self.current = None;
                 self.navigation.clear();
                 self.loaded = None;
+                #[cfg(feature = "components")]
+                {
+                    self.components = components::State::default();
+                }
                 Ok(Value::Null)
             }
             method => Err(format!("Unsupported language method: {method}")),
@@ -409,12 +446,22 @@ impl Host {
         Ok(())
     }
     fn model(&self) -> Result<&Model, String> {
+        #[cfg(feature = "components")]
+        if !self.components.usages.is_empty() {
+            return Err(
+                "This operation is not available for mounted component projects yet".into(),
+            );
+        }
         self.current
             .as_ref()
             .or_else(|| self.loaded.as_ref().map(|l| &l.library))
             .ok_or_else(|| "Load a compatible language pack first".to_owned())
     }
     fn source(&self, uri: &str) -> Option<&str> {
+        #[cfg(feature = "components")]
+        if let Some(text) = self.components.texts.get(uri) {
+            return Some(text);
+        }
         self.sources
             .get(uri)
             .or_else(|| self.loaded.as_ref()?.texts.get(uri))
@@ -427,6 +474,16 @@ impl Host {
     }
 
     fn analyze(&mut self, request: ProjectRequest) -> Result<Value, String> {
+        #[cfg(feature = "components")]
+        if !request.component_usages.is_empty() {
+            return self.analyze_components(request);
+        }
+        #[cfg(feature = "components")]
+        {
+            self.components.usages.clear();
+            self.components.model = None;
+            self.components.texts.clear();
+        }
         // Invalidate first: a failed edit must never leave the previous model
         // available to hover/inspection as if it described the new text.
         self.current = None;

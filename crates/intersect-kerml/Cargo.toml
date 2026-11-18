@@ -26,6 +26,7 @@ intersect-build-support.workspace = true
 # Milestone-only tests (AGENTS.md test tiers): slow tests compile or run only
 # with this feature.
 milestone-tests = []
+components = ["intersect-model/components", "intersect-text/components"]
 [[test]]
 name = "all"
 path = "tests/all.rs"
