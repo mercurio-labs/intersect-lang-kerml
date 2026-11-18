@@ -79,6 +79,8 @@ struct Loaded {
     identity: String,
     #[cfg(feature = "components")]
     library_info: Value,
+    #[cfg(feature = "components")]
+    standard_component_payload: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -277,6 +279,9 @@ impl Host {
                 Ok((prepared.model, prepared.key))
             },
         )?;
+        #[cfg(feature = "components")]
+        let standard_component_payload =
+            language_pack::pack_standard_component_payload(&pack, &prepared.1)?.map(<[u8]>::to_vec);
         let nodes = if include_library_nodes {
             model_nodes(&prepared.0)
         } else {
@@ -293,6 +298,12 @@ impl Host {
             "snapshotKey":prepared.1, "objects":prepared.0.len(),
             "files":texts.keys().collect::<Vec<_>>(),
         });
+        #[cfg(feature = "components")]
+        let library_info = {
+            let mut info = library_info;
+            info["componentCacheAvailable"] = json!(standard_component_payload.is_some());
+            info
+        };
         let result = json!({
             "language": language_pack::LANGUAGE,
             "compiler": language_pack::expected_compiler(),
@@ -310,6 +321,8 @@ impl Host {
             identity,
             #[cfg(feature = "components")]
             library_info,
+            #[cfg(feature = "components")]
+            standard_component_payload,
         });
         #[cfg(feature = "components")]
         {

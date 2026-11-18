@@ -1269,7 +1269,68 @@ fn add_library(
             prepared.model.len(),
             mib(payload.len())
         );
-        language_pack::with_library_part(&pack, payload)
+        let bytes = language_pack::with_library_part(&pack, payload)?;
+        #[cfg(feature = "components")]
+        {
+            use intersect_model::components::SharedSchema;
+            let pack = LanguagePack::read(bytes).map_err(|e| e.to_string())?;
+            let context = SharedSchema::from_metamodel(host.context().metamodel.clone())?;
+            let reused_component = previous.and_then(|previous| {
+                language_pack::pack_standard_component_payload(previous, &prepared.key)
+                    .ok()
+                    .flatten()
+                    .filter(|payload| {
+                        language_pack::load_standard_component_cache(
+                            context.clone(),
+                            payload,
+                            &prepared.key,
+                            SnapshotTrust::HostCache,
+                        )
+                        .is_ok()
+                    })
+            });
+            let payload = match reused_component {
+                Some(payload) => {
+                    println!("standard component: reused build-time admission cache");
+                    payload.to_vec()
+                }
+                None => {
+                    println!("standard component: preparing build-time admission cache");
+                    language_pack::prepare_standard_component_cache(
+                        context.clone(),
+                        &prepared.key,
+                        language_pack::pack_library_payload(&pack)
+                            .ok_or("Missing selected library payload")??,
+                    )?
+                }
+            };
+            // Independent checked restore is an offline qualification of the
+            // newly encoded cache; browser loading trusts this host-built proof.
+            let checked = language_pack::load_standard_component_cache(
+                context,
+                &payload,
+                &prepared.key,
+                if reused_component.is_some() {
+                    SnapshotTrust::HostCache
+                } else {
+                    SnapshotTrust::Revalidate
+                },
+            )?;
+            if checked.object_count() != prepared.model.len() {
+                return Err(
+                    "Prepared component object count differs from the standard library".into(),
+                );
+            }
+            println!(
+                "standard component cache checked: {} objects",
+                checked.object_count()
+            );
+            language_pack::with_standard_component_part(&pack, payload)
+        }
+        #[cfg(not(feature = "components"))]
+        {
+            Ok(bytes)
+        }
     })
 }
 

@@ -5,7 +5,7 @@ use super::*;
 use intersect_kerml::components::with_shared_component_language;
 use intersect_model::{
     components::{ComponentImage, MountedModel, SharedSchema},
-    storage::{self, ModelRead},
+    storage::ModelRead,
 };
 use intersect_text::components::ComponentLanguage;
 use std::sync::Arc;
@@ -188,6 +188,9 @@ impl Host {
             .loaded
             .as_ref()
             .ok_or("Load a compatible language pack first")?;
+        if !loaded.library.is_empty() && loaded.standard_component_payload.is_none() {
+            return Err("This language pack has no prepared standard-library component. Rebuild the host-owned pack with components and --library before adding hosted usages.".into());
+        }
         let context = match &self.components.context {
             Some(context) => context.clone(),
             None => SharedSchema::from_metamodel(loaded.session.frozen_metamodel()?)?,
@@ -208,12 +211,20 @@ impl Host {
         let ComponentSources { texts, paths } =
             component_texts(&context, &image, &model, &sources)?;
         let nodes = component_nodes(&image, &model, &paths)?;
+        let standard = if self.components.standard.is_none() && !loaded.library.is_empty() {
+            Some(prepare_standard_component(&context, loaded)?)
+        } else {
+            None
+        };
         let info = json!({"key":key,"uri":uri,"name":archive.project.name,"version":archive.project.version,
             "url":url,"sha256":digest,"readOnly":true,"cacheHit":false,"objects":image.object_count(),
             "files":texts.keys().collect::<Vec<_>>(),"mountKey":image.key(),"identity":image.identity(),
             "origin":"Hosted KPAR",
             "notes":archive.notes.iter().chain(&archive.warnings).collect::<Vec<_>>()});
         self.components.context = Some(context);
+        if let Some(standard) = standard {
+            self.components.standard = Some(standard);
+        }
         self.components.pool.insert(
             key,
             Prepared {
@@ -417,17 +428,13 @@ impl Host {
     }
 }
 
-/// Adapt the exact, already validated closed standard-library package into the
-/// component representation once per worker. The original frozen package and
-/// all its resource provenance remain in Loaded; the component reports that
-/// origin explicitly rather than pretending its representation key is the
-/// original library package identity. A metadata-only frozen-store operation
-/// preserves native slots and assignment evidence. No source is reparsed.
+/// Restore the build-time admitted component. This path never reparses,
+/// rehashes a materialized graph, relinks or runs component preparation. The
+/// enclosing pack section was verified before its bytes entered Loaded.
 fn prepare_standard_component(
     context: &Arc<SharedSchema>,
     loaded: &Loaded,
 ) -> Result<Prepared, String> {
-    use intersect_model::{frozen::ById, storage::ModelStore};
     let records = loaded
         .library
         .resource_records()
@@ -436,24 +443,19 @@ fn prepare_standard_component(
         .iter()
         .map(|(uri, record)| (uri.clone(), record.package.clone()))
         .collect();
-    let mut store = FrozenStore::from_model(loaded.library.clone());
-    storage::atomic(&mut store, |store| {
-        for mut record in records.into_values() {
-            record.package = None;
-            store.set_resource_record(record)?;
-        }
-        Ok(())
-    })?;
-    // Keep native assignment evidence and all physical slots intact. An owned
-    // JSON export/import would introduce legacy default-assignment markers.
-    let closed = store
-        .into_builder()
-        .map_err(|e| e.to_string())?
-        .link(&ById)
-        .map_err(|e| format!("Closed standard library relink failed: {e:?}"))?
-        .validate()
-        .map_err(|e| format!("Closed standard library validation failed: {e:?}"))?;
-    let image = ComponentImage::prepare(context.clone(), "urn:intersect:standard-library", closed)?;
+    let payload = loaded
+        .standard_component_payload
+        .as_deref()
+        .ok_or("Rebuild the host-owned pack with its prepared standard-library component")?;
+    let library_key = loaded.library_info["snapshotKey"]
+        .as_str()
+        .ok_or("Missing standard-library key")?;
+    let image = intersect_kerml::language_pack::load_standard_component_cache(
+        context.clone(),
+        payload,
+        library_key,
+        SnapshotTrust::VerifiedHostCache,
+    )?;
     let sources: Vec<_> = loaded
         .texts
         .iter()
@@ -470,6 +472,7 @@ fn prepare_standard_component(
     info["identity"] = json!(image.identity());
     info["originalPackages"] = json!(original_packages);
     info["files"] = json!(texts.keys().collect::<Vec<_>>());
+    info["componentOrigin"] = json!("Pack snapshot");
     Ok(Prepared {
         image,
         texts,
@@ -621,6 +624,155 @@ fn mounted_nodes(model: &MountedModel, project_only: bool) -> Result<Vec<Value>,
 mod tests {
     use super::*;
     use intersect_model::frozen::{ById, ModelBuilder};
+
+    #[test]
+    fn standard_component_pack_cache_is_bound_checked_and_invalidated_with_library()
+    -> Result<(), String> {
+        use intersect_kerml::language_pack::*;
+        use intersect_model::definitions::{
+            library_part::{LibraryManifest, LibrarySource},
+            pack::{FileDigest, PackBuilder, PackHeader, PackSectionFlags, canonical_json},
+        };
+        let package = intersect_model::compile_rcore(
+            r#"rcore 1;
+package cache version "1";
+metamodel "urn:cache" prefix c { class Node { attr name: String [0,1]; } }"#,
+        )
+        .map_err(|e| e.to_string())?;
+        let context = SharedSchema::new(package.schema())?;
+        let mm = context.metamodel();
+        let class = mm
+            .class(package.schema().classes.keys().next().ok_or("Node")?)
+            .ok_or("Node")?;
+        let mut builder = ModelBuilder::new(mm.clone());
+        builder
+            .create("node", class, "memory:/Base.kerml")
+            .map_err(|e| e.to_string())?;
+        let native = builder
+            .link(&ById)
+            .map_err(|e| format!("{e:?}"))?
+            .validate()
+            .map_err(|e| format!("{e:?}"))?;
+        let sources = [LibrarySource {
+            uri: "memory:/Base.kerml".into(),
+            language: KERML_SOURCE.into(),
+            text: "package Base;".into(),
+        }];
+        let library = prepare_library(
+            None,
+            Some(&sources),
+            LibraryContext {
+                metamodel: &mm,
+                bindings: "test-bindings",
+            },
+            LibraryOptions::default(),
+            |_| Ok(native.clone()),
+        )?;
+        assert_eq!(
+            library.manifest,
+            LibraryManifest::of_sources(&sources).map_err(|e| e.to_string())?
+        );
+        let mut parts = PartKeyInputs::current()?.parts()?;
+        let placeholder = canonical_json(&json!({})).map_err(|e| e.to_string())?;
+        let output = FileDigest::of(&placeholder).sha256;
+        for part in &mut parts {
+            part.output_digest = output.clone();
+        }
+        let mut builder = PackBuilder::new(PackHeader {
+            language: LANGUAGE.into(),
+            recipe: recipe(),
+            compiler: expected_compiler(),
+            recipe_constants: recipe_constants()?,
+            inputs: pinned_inputs(),
+            parts: parts.clone(),
+            requires_hooks: vec![],
+            depends_on: vec![],
+        });
+        for part in &parts {
+            builder = builder.section(
+                part.name.clone(),
+                "placeholder",
+                PackSectionFlags::REQUIRED,
+                placeholder.clone(),
+                part.input_digest.clone(),
+                output.clone(),
+            );
+        }
+        let base = LanguagePack::read(builder.build().map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+        let library_payload = library.payload.as_ref().ok_or("Library payload")?.clone();
+        let classic = LanguagePack::read(with_library_part(&base, library_payload.clone())?)
+            .map_err(|e| e.to_string())?;
+        assert!(pack_standard_component_payload(&classic, &library.key)?.is_none());
+        let payload =
+            prepare_standard_component_cache(context.clone(), &library.key, &library_payload)?;
+        assert_eq!(
+            payload,
+            prepare_standard_component_cache(context.clone(), &library.key, &library_payload)?
+        );
+        let packed = LanguagePack::read(with_standard_component_part(&classic, payload.clone())?)
+            .map_err(|e| e.to_string())?;
+        let stored =
+            pack_standard_component_payload(&packed, &library.key)?.ok_or("Component cache")?;
+        assert_eq!(stored, payload);
+        for trust in [
+            SnapshotTrust::Revalidate,
+            SnapshotTrust::HostCache,
+            SnapshotTrust::VerifiedHostCache,
+        ] {
+            let image =
+                load_standard_component_cache(context.clone(), stored, &library.key, trust)?;
+            assert_eq!(image.uri(), STANDARD_COMPONENT_URI);
+            assert_eq!(image.object_count(), native.len());
+            MountedModel::new(context.clone(), vec![image])?.validate()?;
+        }
+        assert!(pack_standard_component_payload(&packed, &"00".repeat(32)).is_err());
+        assert!(
+            load_standard_component_cache(
+                context.clone(),
+                stored,
+                &"00".repeat(32),
+                SnapshotTrust::HostCache
+            )
+            .is_err()
+        );
+        let mut corrupt = payload.clone();
+        *corrupt.last_mut().ok_or("Snapshot byte")? ^= 1;
+        assert!(
+            load_standard_component_cache(
+                context.clone(),
+                &corrupt,
+                &library.key,
+                SnapshotTrust::HostCache
+            )
+            .is_err()
+        );
+        assert!(
+            load_standard_component_cache(
+                context,
+                &corrupt,
+                &library.key,
+                SnapshotTrust::VerifiedHostCache
+            )
+            .is_err()
+        );
+        assert!(
+            load_standard_component_cache(
+                SharedSchema::new(package.schema())?,
+                &payload[..10],
+                &library.key,
+                SnapshotTrust::HostCache
+            )
+            .is_err()
+        );
+        assert_eq!(without_standard_component_part(&packed)?, classic.bytes());
+        assert_eq!(without_library_part(&packed)?, base.bytes());
+        let replaced = LanguagePack::read(with_library_part(&packed, library_payload)?)
+            .map_err(|e| e.to_string())?;
+        assert!(pack_standard_component_payload(&replaced, &library.key)?.is_none());
+        assert!(with_standard_component_part(&base, payload).is_err());
+        Ok(())
+    }
 
     #[test]
     fn cached_component_nodes_match_full_mounted_projection_after_project_changes()

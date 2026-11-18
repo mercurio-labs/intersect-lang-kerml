@@ -126,6 +126,31 @@ checkout can run `./tools/run_hosted_kpar_proof.ps1 -Build` without sibling
 checkouts or path patches. `-BuildDirectory` and `-Cache` relocate host artifacts;
 they do not change the dependency graph. The components APIs remain opt-in and are not yet a registry release.
 
+## Prepared standard-library component pack
+
+Component-enabled `sysml_pack build --library` adds the optional
+`library/sysml-component` part. The native builder reads the exact selected
+library snapshot, preserves physical slots and assignment evidence, prepares
+the closed component, then checks its saved snapshot with full revalidation.
+The part key binds the runtime/compiler and exact original library payload
+digest. Replacing or removing the library also removes this dependent cache.
+Incremental builds reuse a compatible, checksum-checked cache.
+
+The required section of this optional part contains a bounded versioned header,
+the component descriptor and its native snapshot. It is host-built output, with
+the same trust convention as the executable language pack. It is not a KPAR
+interchange format or a cryptographic signature. The component snapshot is
+stored alongside the ordinary snapshot; this prototype trades additional pack
+bytes for removing runtime preparation. Loading a project retains the cache
+bytes without decoding the extra model. The first hosted usage restores the
+component from the verified section before publishing its handle. It never
+materializes a stdlib graph, reparses or relinks it, or reruns its admission.
+Authored project checks and ordinary preparation of downloaded KPARs remain.
+
+A classic-only pack can still open ordinary projects. If it contains a stdlib
+but lacks its component cache, hosted usage preparation reports a rebuild
+requirement before adoption. It does not fall back to slow runtime preparation.
+
 ## Retained explorer projection
 
 The IDE facade prepares each closed component's explorer nodes once, using the
