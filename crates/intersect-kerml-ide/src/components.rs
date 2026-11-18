@@ -31,6 +31,7 @@ struct Prepared {
     texts: BTreeMap<String, String>,
     paths: BTreeMap<String, String>,
     info: Value,
+    nodes: Vec<Value>,
 }
 
 impl Host {
@@ -206,6 +207,7 @@ impl Host {
         let image = ComponentImage::prepare(context.clone(), uri, model.clone())?;
         let ComponentSources { texts, paths } =
             component_texts(&context, &image, &model, &sources)?;
+        let nodes = component_nodes(&image, &model, &paths)?;
         let info = json!({"key":key,"uri":uri,"name":archive.project.name,"version":archive.project.version,
             "url":url,"sha256":digest,"readOnly":true,"cacheHit":false,"objects":image.object_count(),
             "files":texts.keys().collect::<Vec<_>>(),"mountKey":image.key(),"identity":image.identity(),
@@ -219,6 +221,7 @@ impl Host {
                 texts,
                 paths,
                 info: info.clone(),
+                nodes,
             },
         );
         Ok(info)
@@ -335,6 +338,7 @@ impl Host {
         let mut paths = BTreeMap::new();
         let mut seen = BTreeSet::new();
         let mut logical = BTreeSet::new();
+        let mut dependency_nodes = Vec::new();
         for key in &request.component_usages {
             let prepared = self
                 .components
@@ -349,6 +353,7 @@ impl Host {
             texts.extend(prepared.texts.clone());
             paths.extend(prepared.paths.clone());
             dependencies.push(prepared.info.clone());
+            dependency_nodes.extend(prepared.nodes.iter().cloned());
         }
         let mut library_files = Vec::new();
         if !loaded.library.is_empty() {
@@ -364,6 +369,7 @@ impl Host {
             texts.extend(standard.texts.clone());
             paths.extend(standard.paths.clone());
             images.push(standard.image.clone());
+            dependency_nodes.extend(standard.nodes.iter().cloned());
         }
         self.components.texts = texts;
         self.components.paths = paths;
@@ -379,12 +385,16 @@ impl Host {
             context,
             |language| language.analyze(&request.sources, &images),
         )?;
-        let nodes = analyzed
+        let mut nodes = analyzed
             .model
             .as_ref()
-            .map(project_nodes)
+            .map(|model| mounted_nodes(model, true))
             .transpose()?
             .unwrap_or_default();
+        if analyzed.model.is_some() {
+            nodes.extend(dependency_nodes);
+            nodes.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+        }
         let diagnostics: Vec<_> = analyzed
             .diagnostics
             .iter()
@@ -454,6 +464,7 @@ fn prepare_standard_component(
         .collect();
     let ComponentSources { texts, paths } =
         component_texts(context, &image, &loaded.library, &sources)?;
+    let nodes = component_nodes(&image, &loaded.library, &paths)?;
     let mut info = loaded.library_info.clone();
     info["mountKey"] = json!(image.key());
     info["identity"] = json!(image.identity());
@@ -464,6 +475,7 @@ fn prepare_standard_component(
         texts,
         paths,
         info,
+        nodes,
     })
 }
 
@@ -504,11 +516,49 @@ fn component_texts(
     Ok(ComponentSources { texts, paths })
 }
 
-fn project_nodes(model: &MountedModel) -> Result<Vec<Value>, String> {
+// Names, source spans and containment of closed images are immutable. Qualify
+// the ordinary native presentation once, retaining actual runtime identities.
+// Reciprocal project overlays cannot change any of these presentation fields.
+fn component_nodes(
+    image: &ComponentImage,
+    original: &Model,
+    paths: &BTreeMap<String, String>,
+) -> Result<Vec<Value>, String> {
+    let resources: BTreeMap<_, _> = paths
+        .iter()
+        .map(|(mounted, local)| (local.as_str(), mounted.as_str()))
+        .collect();
+    let mut nodes = model_nodes(original);
+    for node in &mut nodes {
+        node["id"] = json!(
+            image.object_id(
+                node["id"]
+                    .as_str()
+                    .ok_or("Missing component node identity")?
+            )?
+        );
+        if let Some(parent) = node["parent"].as_str() {
+            node["parent"] = json!(image.object_id(parent)?);
+        }
+        let uri = node["uri"].as_str().ok_or("Missing component source URI")?;
+        node["uri"] = json!(
+            resources
+                .get(uri)
+                .ok_or("Missing component source correspondence")?
+        );
+    }
+    Ok(nodes)
+}
+
+fn mounted_nodes(model: &MountedModel, project_only: bool) -> Result<Vec<Value>, String> {
     let mut nodes = BTreeMap::new();
     let mut parents = BTreeMap::<String, String>::new();
     let mut containment = BTreeMap::new();
-    storage::visit_views(model, |object| {
+    for (_, id) in model.id_page(None, usize::MAX)? {
+        if project_only && model.component_target(&id).is_some() {
+            continue;
+        }
+        model.inspect(&id, &mut |object| {
         let features = if let Some(features) = containment.get(object.class()) {
             features
         } else {
@@ -547,7 +597,8 @@ fn project_nodes(model: &MountedModel) -> Result<Vec<Value>, String> {
             nodes.insert(object.id().to_owned(),json!({"id":object.id(),"name":name,"class":object.class(),"uri":object.resource(),"start":object.start(),"end":object.end(),"parent":null}));
         }
         Ok(())
-    })?;
+        })?;
+    }
     let named: BTreeSet<_> = nodes.keys().cloned().collect();
     for (id, node) in &mut nodes {
         let mut parent = parents.get(id);
@@ -564,4 +615,93 @@ fn project_nodes(model: &MountedModel) -> Result<Vec<Value>, String> {
         }
     }
     Ok(nodes.into_values().collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use intersect_model::frozen::{ById, ModelBuilder};
+
+    #[test]
+    fn cached_component_nodes_match_full_mounted_projection_after_project_changes()
+    -> Result<(), String> {
+        let package = intersect_model::compile_rcore(
+            r#"rcore 1;
+package presentation version "1";
+metamodel "urn:presentation" prefix p {
+ class Node {
+  attr declaredName: String [0,1];
+  attr declaredShortName: String [0,1];
+  ref children: Node [0,*] containment opposite Node.parent;
+  ref parent: Node [0,1] opposite Node.children;
+  ref out: Node [0,*] opposite Node.incoming;
+  ref incoming: Node [0,*] opposite Node.out;
+ }
+}"#,
+        )
+        .map_err(|e| e.to_string())?;
+        let context = SharedSchema::new(package.schema())?;
+        let mm = context.metamodel();
+        let class = mm
+            .class(package.schema().classes.keys().next().ok_or("Node class")?)
+            .ok_or("Node class")?;
+        let name = mm.feature(class, "declaredName").ok_or("Name")?;
+        let short = mm.feature(class, "declaredShortName").ok_or("Short name")?;
+        let children = mm.feature(class, "children").ok_or("Children")?;
+        let mut builder = ModelBuilder::new(mm.clone());
+        let root = builder
+            .create("root", class, "memory:/library.sysml")
+            .map_err(|e| e.to_string())?;
+        let wrapper = builder
+            .create("wrapper", class, "memory:/library.sysml")
+            .map_err(|e| e.to_string())?;
+        let child = builder
+            .create("child", class, "memory:/library.sysml")
+            .map_err(|e| e.to_string())?;
+        builder
+            .set_str(root, name, "Library")
+            .map_err(|e| e.to_string())?;
+        builder
+            .set_str(child, short, "C")
+            .map_err(|e| e.to_string())?;
+        builder
+            .add_ref(root, children, wrapper)
+            .map_err(|e| e.to_string())?;
+        builder
+            .add_ref(wrapper, children, child)
+            .map_err(|e| e.to_string())?;
+        let native = builder
+            .link(&ById)
+            .map_err(|e| format!("{e:?}"))?
+            .validate()
+            .map_err(|e| format!("{e:?}"))?;
+        let first = ComponentImage::prepare(context.clone(), "urn:library:first", native.clone())?;
+        let second =
+            ComponentImage::prepare(context.clone(), "urn:library:second", native.clone())?;
+        let sources = [Source {
+            uri: "memory:/library.sysml".into(),
+            text: "library text".into(),
+        }];
+        let mut cached = Vec::new();
+        for image in [&first, &second] {
+            let correspondence = component_texts(&context, image, &native, &sources)?;
+            cached.extend(component_nodes(image, &native, &correspondence.paths)?);
+        }
+        let mut model = MountedModel::new(context, vec![first.clone(), second])?;
+        let check = |model: &MountedModel| -> Result<(), String> {
+            let mut combined = mounted_nodes(model, true)?;
+            combined.extend(cached.iter().cloned());
+            combined.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+            assert_eq!(combined, mounted_nodes(model, false)?);
+            Ok(())
+        };
+        check(&model)?;
+        model.create("project", mm.class_key(class), "memory:/project.sysml")?;
+        model.set("project", "declaredName", json!("Project"))?;
+        model.set("project", "out", json!([first.object_id("child")?]))?;
+        check(&model)?;
+        model.set("project", "declaredName", json!("Edited project"))?;
+        check(&model)?;
+        Ok(())
+    }
 }

@@ -125,3 +125,14 @@ The development source pins select one committed Model and Text pair. A fresh
 checkout can run `./tools/run_hosted_kpar_proof.ps1 -Build` without sibling
 checkouts or path patches. `-BuildDirectory` and `-Cache` relocate host artifacts;
 they do not change the dependency graph. The components APIs remain opt-in and are not yet a registry release.
+
+## Retained explorer projection
+
+The IDE facade prepares each closed component's explorer nodes once, using the
+ordinary native presentation projection and the image's actual qualified IDs and
+source correspondence. Later analyses project only editable objects and merge
+these cached nodes. Reciprocal overlays do not change component names, spans or
+containment. Scope, completion, semantic checks and inspection continue to read
+the current mounted model. A focused comparison checks the merged projection
+against a full mounted traversal before and after project edits and overlays,
+including unnamed containment wrappers and two mounts with identical local IDs.
