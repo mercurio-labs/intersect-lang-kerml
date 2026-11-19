@@ -13,6 +13,6 @@ serde_json = "1"
 
 # Development source overrides for unreleased shared editor APIs. See docs/editor-services.md.
 [patch.crates-io]
-intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "ee43b0696a99f966d90bf1b737aaf98e9ac9ba07" }
-intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "ee43b0696a99f966d90bf1b737aaf98e9ac9ba07" }
-intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "7ce03b8bf9e0db29ca32a62d7c7a9c7bd454328e" }
+intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "5911b8ebea2fa60290fcf6859c8b11dcada70513" }
+intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "5911b8ebea2fa60290fcf6859c8b11dcada70513" }
+intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "2e6b861d153c45c3fdb660684956ce21b73b59d0" }
