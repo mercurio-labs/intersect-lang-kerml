@@ -440,7 +440,10 @@ fn rebuild(
     let mut parts: Vec<PackPart> = manifest
         .parts
         .iter()
-        .filter(|part| part.name != dropped)
+        .filter(|part| {
+            part.name != dropped
+                && !(dropped == LIBRARY_SECTION && part.name == super::STANDARD_COMPONENT_SECTION)
+        })
         .cloned()
         .collect();
     let library = match payload {
@@ -463,7 +466,9 @@ fn rebuild(
         depends_on: manifest.depends_on.clone(),
     });
     for section in &manifest.sections {
-        if section.name == dropped {
+        if section.name == dropped
+            || (dropped == LIBRARY_SECTION && section.name == super::STANDARD_COMPONENT_SECTION)
+        {
             continue;
         }
         let bytes = pack

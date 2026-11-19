@@ -97,6 +97,18 @@ pub use library::{
     with_library_part, without_kerml_bindings, without_library_part,
 };
 
+/// Optional host-built standard-library component admission cache.
+pub const STANDARD_COMPONENT_SECTION: &str = "library/sysml-component";
+#[cfg(feature = "components")]
+#[path = "language_pack_component.rs"]
+mod component_cache;
+#[cfg(feature = "components")]
+pub use component_cache::{
+    STANDARD_COMPONENT_URI, load_standard_component_cache, pack_standard_component_payload,
+    prepare_standard_component_cache, with_standard_component_part,
+    without_standard_component_part,
+};
+
 /// The pack's language identity.
 pub const LANGUAGE: &str = "org.omg.sysml.kerml+sysml";
 /// The recipe name and version written into every pack.
@@ -948,6 +960,21 @@ fn check_layout(manifest: &PackManifest) -> Result<(), String> {
         return refuse("layering");
     }
     check_hooks(&manifest.requires_hooks)?;
+    let cached_part = manifest
+        .parts
+        .iter()
+        .any(|p| p.name == STANDARD_COMPONENT_SECTION);
+    let cached_section = manifest
+        .sections
+        .iter()
+        .any(|s| s.name == STANDARD_COMPONENT_SECTION);
+    if cached_part != cached_section
+        || (cached_part
+            && (!manifest.parts.iter().any(|p| p.name == LIBRARY_SECTION)
+                || !manifest.sections.iter().any(|s| s.name == LIBRARY_SECTION)))
+    {
+        return refuse("standard component dependency");
+    }
     let expected: Vec<_> = PARTS.iter().map(|part| part.name()).collect();
     // The optional library part sorts before the programs; the recipe
     // checks it apart (`pack_library_payload`).
@@ -955,13 +982,13 @@ fn check_layout(manifest: &PackManifest) -> Result<(), String> {
         .parts
         .iter()
         .map(|part| part.name.as_str())
-        .filter(|name| *name != LIBRARY_SECTION)
+        .filter(|name| *name != LIBRARY_SECTION && *name != STANDARD_COMPONENT_SECTION)
         .collect();
     let sections: Vec<_> = manifest
         .sections
         .iter()
         .map(|section| section.name.as_str())
-        .filter(|name| *name != LIBRARY_SECTION)
+        .filter(|name| *name != LIBRARY_SECTION && *name != STANDARD_COMPONENT_SECTION)
         .collect();
     if parts != sections {
         return refuse("part layout");

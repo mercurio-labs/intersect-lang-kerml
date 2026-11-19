@@ -49,12 +49,12 @@ Grammar compilation, text interpretation and Web come from
 This language package owns KerML/SysML semantics and standard libraries.
 Neither upstream repository depends on this repository.
 
-Model, Text and build support use the exact crates.io release
-`=0.1.0-alpha.1`. Unpublished project-host, visualization and browser-host
-adapters use immutable commits from the public Model and Text repositories.
-These adapters consume the same released runtimes, so the maintained KerML
-workspace has one Rust package identity per core crate and requires no patches
-or private repository access. Generic visualization contracts now live in Model.
+Released consumers use the exact crates.io release `=0.1.0-alpha.1`. Development
+component APIs use the canonical public Model and Text revisions selected by
+the committed crates.io patches. Project-host, visualization and browser-host
+adapters select those same revisions, keeping one Rust package identity per
+core crate. Ordinary development builds need no local patches, sibling checkouts
+or private repository access. Generic visualization contracts live in Model.
 
 The workspace requires Rust 1.88 or newer; the development toolchain is pinned
 separately. This dependency update does not qualify additional KerML/SysML
@@ -75,7 +75,7 @@ intersect-text = { path = "C:/work/intersect-text/crates/intersect-text" }
 ```
 
 Pass it explicitly with `cargo --config path/to/local-upstreams.toml ...`.
-Ordinary builds require neither patches nor sibling checkouts. Remove overrides
+Ordinary builds require neither local patches nor sibling checkouts. Remove overrides
 before qualification and inspect `cargo metadata --locked` and `cargo tree -d`
 for duplicate Intersect package identities. Land Model changes first, then Text,
 then select the exact tested release pair for this language package.

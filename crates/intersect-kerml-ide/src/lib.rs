@@ -77,6 +77,10 @@ struct Loaded {
     library: Model,
     texts: BTreeMap<String, String>,
     identity: String,
+    #[cfg(feature = "components")]
+    library_info: Value,
+    #[cfg(feature = "components")]
+    standard_component_payload: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -275,10 +279,30 @@ impl Host {
                 Ok((prepared.model, prepared.key))
             },
         )?;
+        #[cfg(feature = "components")]
+        let standard_component_payload =
+            language_pack::pack_standard_component_payload(&pack, &prepared.1)?.map(<[u8]>::to_vec);
         let nodes = if include_library_nodes {
             model_nodes(&prepared.0)
         } else {
             Vec::new()
+        };
+        let provenance: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/native-pilot/v1/MANIFEST.json"
+        ))
+        .map_err(|e| format!("Invalid installed library provenance: {e}"))?;
+        let library_info = json!({
+            "name":"OMG standard library", "version":null,
+            "uri":"urn:intersect:standard-library", "readOnly":true,
+            "origin":"Language pack", "sourceRevision":provenance["pilot_commit"],
+            "snapshotKey":prepared.1, "objects":prepared.0.len(),
+            "files":texts.keys().collect::<Vec<_>>(),
+        });
+        #[cfg(feature = "components")]
+        let library_info = {
+            let mut info = library_info;
+            info["componentCacheAvailable"] = json!(standard_component_payload.is_some());
+            info
         };
         let result = json!({
             "language": language_pack::LANGUAGE,
@@ -286,6 +310,7 @@ impl Host {
             "libraryKey": prepared.1,
             "libraryFiles": texts.keys().collect::<Vec<_>>(),
             "libraryObjects": prepared.0.len(), "nodes": nodes,
+            "libraryMount": library_info,
         });
         self.loaded = Some(Loaded {
             session,
@@ -294,6 +319,10 @@ impl Host {
             library: prepared.0,
             texts,
             identity,
+            #[cfg(feature = "components")]
+            library_info,
+            #[cfg(feature = "components")]
+            standard_component_payload,
         });
         #[cfg(feature = "components")]
         {
