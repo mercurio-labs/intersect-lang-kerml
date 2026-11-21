@@ -288,7 +288,7 @@ impl Host {
             Vec::new()
         };
         let provenance: Value = serde_json::from_str(include_str!(
-            "../../../fixtures/native-pilot/v1/MANIFEST.json"
+            "../../../fixtures/native-pilot/v1/manifest.json"
         ))
         .map_err(|e| format!("Invalid installed library provenance: {e}"))?;
         let library_info = json!({
