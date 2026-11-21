@@ -12,17 +12,17 @@ repository = "https://github.com/mercurio-labs/intersect-lang-kerml"
 publish = false
 
 [workspace.dependencies]
-intersect-load = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "22ade314be84b2fa9644e1e3ea3edfbce1932713" }
+intersect-load = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "7ac26b23108d8df91c1b1792d5433360173d17c6" }
 # Generic visualization contracts and host adapters live in public Model.
-intersect-views = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "b3b1b5e825e969bcb5e0219416ec2f053aa84206" }
+intersect-views = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
 intersect-kerml = { path = "crates/intersect-kerml" }
 intersect-kpar = { path = "crates/intersect-kpar" }
-intersect-build-support = "=0.1.0-alpha.1"
+intersect-build-support = "=0.1.0-alpha.2"
 # Exact registry versions keep runtime types shared with their host adapters.
-intersect-model = "=0.1.0-alpha.1"
-intersect-text = "=0.1.0-alpha.1"
-intersect-web = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "22ade314be84b2fa9644e1e3ea3edfbce1932713", default-features = false }
-intersect-project-host = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "b3b1b5e825e969bcb5e0219416ec2f053aa84206" }
+intersect-model = "=0.1.0-alpha.2"
+intersect-text = "=0.1.0-alpha.2"
+intersect-web = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "7ac26b23108d8df91c1b1792d5433360173d17c6", default-features = false }
+intersect-project-host = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["raw_value"] }
 quick-xml = "0.41.0"
@@ -43,6 +43,6 @@ opt-level = 3
 
 # Development source overrides for unreleased shared editor APIs. See docs/editor-services.md.
 [patch.crates-io]
-intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "b3b1b5e825e969bcb5e0219416ec2f053aa84206" }
-intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "b3b1b5e825e969bcb5e0219416ec2f053aa84206" }
-intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "22ade314be84b2fa9644e1e3ea3edfbce1932713" }
+intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
+intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
+intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "7ac26b23108d8df91c1b1792d5433360173d17c6" }
