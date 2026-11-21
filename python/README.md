@@ -6,10 +6,10 @@ prepared standard library. The workbench and project server are independent.
 
 ## Build a local wheel
 
-Requires conventional CPython 3.11 or later, Rust, the Windows MSVC build tools,
-Git access to the pinned private core, and `maturin==1.13.3`. The core revision
-must be available in the configured Git source; development commits can be
-seeded in the local Cargo cache before their upstream publication.
+Requires conventional CPython 3.11 or later, Rust, a native linker (MSVC build
+tools on Windows), and `maturin==1.13.3`. Install Git to fetch the public upstream
+revisions in the [Python crate manifest](../crates/intersect-kerml-python/Cargo.toml)
+when building from `develop`.
 
 From the language repository root:
 

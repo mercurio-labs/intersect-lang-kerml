@@ -6,7 +6,7 @@
 //! - [`project`]: `.project.json` and `.meta.json`;
 //! - [`archive`]: reading a checked archive into textual model sources with
 //!   archive-qualified resource URIs, and writing one;
-//! - [`resolve`]: offline resolution of `usage` dependencies.
+//! - [`mod@resolve`]: offline resolution of `usage` dependencies.
 //!
 //! Only textual notation (`.kerml`, `.sysml`) is loaded. JSON and XMI model
 //! content, derived or implied values, nested archives and other

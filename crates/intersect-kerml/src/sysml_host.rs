@@ -2,15 +2,14 @@
 //! on the frozen engine, shared by the `intersect` CLI and the measurement
 //! examples.
 //!
-//! [`with_sysml_host`] binds the KerML and SysML languages of a
-//! [`NativePilotSession`] (from a language pack or prepared from sources) and
-//! the combined KerML+SysML Rcore bindings (from the pack's
-//! `rcore/sysml-bindings` part, or a host's own cache), and hands a
-//! [`SysmlHost`] to the caller. The host parses sources into a frozen store
-//! (KerML files with the KerML language, the rest with SysML), links,
-//! completes and validates them (`frozen_load::load_frozen`): the whole
-//! library from an empty store, or user files on top of a prepared library
-//! (`language_pack::prepare_library`).
+//! [`with_sysml_host`](crate::sysml_host::with_sysml_host) binds the KerML and
+//! SysML languages of a [`NativePilotSession`](crate::native_pilot::NativePilotSession)
+//! (from a language pack or prepared from sources) and the combined KerML+SysML
+//! Rcore bindings (from the pack's `rcore/sysml-bindings` part or a host cache).
+//! It hands a [`SysmlHost`](crate::sysml_host::SysmlHost) to the caller. The host
+//! parses KerML and SysML into a frozen store, then links, completes and validates
+//! the model with `frozen_load::load_frozen`. This works for the whole library
+//! from an empty store or for user files on top of a prepared library.
 //!
 //! This module performs no I/O and reads no clock: hosts read files and the
 //! pack, and time phases through the `observe` callback.

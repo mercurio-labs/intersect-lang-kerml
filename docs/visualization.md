@@ -3,8 +3,8 @@
 `intersect-kerml-ide` is the UI-independent host formerly prototyped in Mercurio.
 Native and WASM hosts use the same implementation. It owns pack initialization,
 project batch analysis, offline KPAR input resolution, named containment, stored
-property inspection, LSP document synchronization and lexical completion, and a
-bounded SysML visualization/source-command provider. It owns no filesystem,
+property inspection, LSP document synchronization, source navigation and completion,
+and a bounded SysML visualization/source-command provider. It owns no filesystem,
 threads, clocks, renderer or document persistence.
 
 `Host::view_catalog`, `view_scene`, `prepare_view_command` and
@@ -32,7 +32,9 @@ rendering declarations are retained; arbitrary rendering functions are not run.
 This is not full SysML view evaluation. Filters, unsupported exposure forms,
 ambiguous identity paths, unsupported endpoint chains and creation owners are
 explicit errors or scene problems. Unknown palette commands have disabled
-capabilities. Completion provides lexical keywords/snippets only.
+capabilities. [Editor services](editor-services.md) describes the ordinary
+project's contextual completion. The experimental mounted component session
+currently supplies lexical completion and reference navigation.
 
 Named declaration keys use resource URI and named ownership path. They survive
 source offset changes; rename, move and duplicate paths need a future durable

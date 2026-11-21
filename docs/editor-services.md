@@ -51,16 +51,11 @@ after cancellation, buffer/workspace changes or worker restart.
 
 ## Development dependency pairing
 
-The new Text API is not in the released `0.1.0-alpha.1` crate. For this feature,
-workspace and standalone consumer manifests explicitly override crates.io Text
-with immutable public revision
-`7ce03b8bf9e0db29ca32a62d7c7a9c7bd454328e`. Matching Model/build-support source
-overrides at `ee43b0696a99f966d90bf1b737aaf98e9ac9ba07` keep registry-based
-adapters and Text's source-qualified dependencies on one identity. These are
-Git source pins, not sibling checkout patches. All five maintained locks must
-agree. No crate publication is performed here. Once an editor-capable Text
-release and matching adapters are qualified, replace these overrides with that
-exact registry pair and update consumers together.
+The editor API uses additions since the published `0.1.0-alpha.1` crates.
+The [workspace manifest](../Cargo.toml) records the exact public Git revisions
+for Text, Model and build-support. The standalone consumer manifests and locks
+use the same source identities. When the editor APIs are available in a new
+registry release, update the matching adapters and all maintained locks together.
 
 ## Verification
 

@@ -1,150 +1,143 @@
 # Intersect KerML and SysML
 
-The UI-independent `intersect-kerml-ide` facade serves native and WASM consumers.
-See [the bounded visualization and source-command profile](docs/visualization.md).
+Check KerML and SysML v2 source, evaluate supported expressions, and export
+models as JSON or XMI. Use the `intersect` CLI, embed the Rust language package,
+or build the Python SDK or a WebAssembly host.
 
-The KerML and SysML v2 language package for
-[Intersect](https://github.com/mercurio-labs/intersect-model): native loading of
-KerML and SysML models against the SysML v2 standard library, with language
-semantics written in Rcore and run on Intersect's frozen engine, checked
-against the Java SysML v2 Pilot Implementation (used only as a test oracle).
+[CLI tutorial](docs/cli-tutorial.md) · [Rust API reference](#rust-api-reference)
+· [Python SDK](python/README.md) · [Editor integration](docs/editor-services.md)
 
-This repository starts with a fresh `develop` history on November 16, 2026,
-from the previously maintained KerML source at
-`b5392d1641af92d4274d583aa80c33972062e2df`. Earlier history, branches and
-GitHub discussions are preserved in the read-only
-[intersect-lang-kerml-pre-dev](https://github.com/mercurio-labs/intersect-lang-kerml-pre-dev)
-repository. See [the reset receipt](docs/repository-reset.json) for provenance.
+This repository owns the KerML and SysML language definitions, Rcore policies,
+standard-library preparation, and KPAR project interchange. Intersect Model owns
+the shared model and execution runtime. Intersect Text owns grammar compilation
+and text interpretation. Java is used only when replaying the independent Pilot
+comparison. See [Intersect Model](https://github.com/mercurio-labs/intersect-model)
+and [Intersect Text](https://github.com/mercurio-labs/intersect-text).
 
-The language package was originally split from `mercurio-labs/intersect`
-after Release 1 (v0.1.0). The
-status, performance figures and release notes up to the split are in the core
-repository's [README](https://github.com/mercurio-labs/intersect-model-pre-dev/blob/3d7d6a3a8cc219e1b8874aeb1258dae3749d641a/README.md#where-things-stand)
-and [release notes](https://github.com/mercurio-labs/intersect/blob/develop/docs/release-notes.md).
+## Start with the CLI
 
-## Crates
+Clone this repository and install Rust with `rustup`. The checkout selects the
+pinned Rust toolchain. Build the CLI from the repository root.
 
-| Crate | What it is |
-| --- | --- |
-| `intersect-kerml` | The language package: pinned Pilot grammars, Rcore semantics (`semantics/`), the frozen KerML/SysML load, language packs and the standard-library snapshot. |
-| `intersect-kerml-eval` | KerML expression evaluation on the frozen model ([plan](docs/kerml-expression-evaluation-plan.md)). |
-| `intersect-kpar` | KerML project interchange archives (`.kpar`): bounded reading, deterministic writing, offline `usage` resolution ([plan](docs/kpar-plan.md)). No I/O; builds for WASM. |
-| `intersect-kpar-host` | Package-source and lock-catalog bridge over `intersect-kpar`, using core's project-usage resolver. |
-| `intersect-cli` | The `intersect` command: check, evaluate and export `.kerml`/`.sysml` files ([tutorial](docs/cli-tutorial.md)). |
-| `intersect-kerml-web` | Core's `intersect-web` browser host plus the `draft/kerml/*` methods, with the same WASM ABI. |
-
-Standalone probe sources remain under `tests/*-only` and
-`fixtures/xtext/imported-assignment-v66/full-source-probes/native-*`.
-The three historical read/name probes already fail on the unchanged develop
-baseline because their language policy exports/controls are absent; they are
-retained and are not counted as passing split acceptance. See
-[the consumer receipt](docs/repository-split-consumer.json).
-
-## Dependencies on Model and Text
-
-Modeling, execution, project packages and build support come from
-[intersect-model](https://github.com/mercurio-labs/intersect-model).
-Grammar compilation, text interpretation and Web come from
-[intersect-text](https://github.com/mercurio-labs/intersect-text).
-This language package owns KerML/SysML semantics and standard libraries.
-Neither upstream repository depends on this repository.
-
-Released consumers use the exact crates.io release `=0.1.0-alpha.1`. Development
-component APIs use the canonical public Model and Text revisions selected by
-the committed crates.io patches. Project-host, visualization and browser-host
-adapters select those same revisions, keeping one Rust package identity per
-core crate. Ordinary development builds need no local patches, sibling checkouts
-or private repository access. Generic visualization contracts live in Model.
-
-The workspace requires Rust 1.88 or newer; the development toolchain is pinned
-separately. This dependency update does not qualify additional KerML/SysML
-semantics or the historical standalone probes. Update maintained standalone
-consumers and lockfiles together; historical imported fixture manifests retain
-their original provenance. Hosted CI execution remains separate from local
-build verification.
-
-### Coordinated local changes
-
-Use an explicit, uncommitted Cargo configuration at this workspace root:
-
-```toml
-[patch.crates-io]
-intersect-model = { path = "C:/work/intersect-model/crates/intersect-model" }
-intersect-build-support = { path = "C:/work/intersect-model/crates/intersect-build-support" }
-intersect-text = { path = "C:/work/intersect-text/crates/intersect-text" }
+```sh
+cargo build --release --locked -p intersect-cli
 ```
 
-Pass it explicitly with `cargo --config path/to/local-upstreams.toml ...`.
-Ordinary builds require neither local patches nor sibling checkouts. Remove overrides
-before qualification and inspect `cargo metadata --locked` and `cargo tree -d`
-for duplicate Intersect package identities. Land Model changes first, then Text,
-then select the exact tested release pair for this language package.
+To check your first model, build a language pack from the same checkout and
+follow the [CLI tutorial](docs/cli-tutorial.md). A pack contains the prepared
+grammar and language rules and can also include the standard library. The first
+full pack build can take tens of minutes. Keep your authored `.sysml` and
+`.kerml` files so you can rebuild derived packs when the runtime changes.
 
-The shared host-only source identity scanner is the Model-owned
-`intersect-build-support` crate. Program compiler components compose installed
-Model/Text identities. Historical archive component keys such as
-`intersect-xtext` retain their existing wire meaning; the active Rust crate and
-imports are `intersect-text` and `intersect_text`.
+KerML crates in this workspace are built from source. The previous coordinated
+source release is tagged `release-2026-11-16` and uses Model, Text, and
+build-support `0.1.0-alpha.1` from crates.io. This development checkout uses
+canonical Git revision patches in [Cargo.toml](Cargo.toml) for the unreleased
+editor and component APIs. The committed manifests and locks select the same
+runtime identities across the adapters and standalone consumers. A fresh
+development checkout needs Git access to those revisions and crates.io.
 
-Hosted CI is explicitly skipped for this split. Local execution receipts retain
-their actual platform and source revisions; skipped checks are not passes.
+## Rust API reference
 
-## Native Python SDK
+Build the reference from the root of this checkout. Rustdoc generates searchable
+HTML from the same source as the API you're using.
 
-The [Python SDK](python/README.md) builds generated KerML/SysML wrappers and a
-native PyO3 wheel alongside the prepared language pack. It supports folder and
-in-memory projects, stored-model inspection and validated source transactions.
-The Python crate has its own workspace and stays outside the default WASM build.
+```sh
+cargo doc --locked --no-deps -p intersect-kerml -p intersect-kerml-ide \
+  -p intersect-kerml-eval -p intersect-kpar -p intersect-kpar-host
+```
 
-## Browser Toolkit
+| Crate | Use it for | Local rustdoc entry |
+| --- | --- | --- |
+| `intersect-kerml` | Native language loading, scopes, and language packs | `target/doc/intersect_kerml/index.html` |
+| `intersect-kerml-ide` | Source analysis, navigation, completion, and bounded view commands for native or WASM hosts | `target/doc/intersect_kerml_ide/index.html` |
+| `intersect-kerml-eval` | Expression evaluation over the stored model | `target/doc/intersect_kerml_eval/index.html` |
+| `intersect-kpar` | Reading, writing, and resolving KPAR archives | `target/doc/intersect_kpar/index.html` |
+| `intersect-kpar-host` | Host-side archive acquisition and dependency locks | `target/doc/intersect_kpar_host/index.html` |
 
-The Toolkit lives in the Text repository. To run it with KerML, build this
-repository's host and point the Toolkit's WASM build at it:
+Repeat the command with `--features intersect-kerml/components,intersect-kerml-ide/components,intersect-kpar-host/components`
+to include the experimental component API. For the published upstream APIs,
+see the [Model rustdoc](https://docs.rs/intersect-model/latest/intersect_model/)
+and [Text rustdoc](https://docs.rs/intersect-text/latest/intersect_text/).
 
-~~~sh
-cargo build -p intersect-kerml-web --release --target wasm32-unknown-unknown --locked
-~~~
+## Integrate with an application
 
-Then, in the Text checkout, set `INTERSECT_WEB_WASM` to
-`target/wasm32-unknown-unknown/release/intersect_kerml_web.wasm` from this
-repository and run `npm run build` in `toolkit/`. The KerML draft browser
-specs run with `playwright.prepared-draft.config.js` and
-`playwright.physical-project.config.js` there.
+- Build the native Python wheel and inspect model elements or edit through source
+  transactions. The Python project has a separate Cargo workspace. See the
+  [Python SDK guide](python/README.md).
+- Embed the IDE facade for source diagnostics, resolved reference navigation,
+  contextual completion, and the supported SysML view and source-edit profile.
+  See [editor services](docs/editor-services.md) and
+  [visualization](docs/visualization.md).
+- Try mounted read-only libraries with the opt-in `components` feature. The
+  hosted prototype accepts self-contained textual KPAR archives. Mounted IDE
+  sessions currently support inspection and navigation. See the
+  [hosted KPAR profile](docs/hosted-kpar-prototype.md) and
+  [archive format](docs/kpar-format-reference.md).
+- Review measured language coverage before relying on a particular behavior.
+  See the [KerML observations](docs/native-pilot-kerml-observations.md),
+  [SysML observations](docs/native-pilot-sysml-observations.md), and
+  [expression evaluator guide](crates/intersect-kerml-eval/README.md).
 
-## Checks
+### Build the WebAssembly host
+
+Build the host from this checkout.
+
+```sh
+cargo build --locked --release -p intersect-kerml-web --target wasm32-unknown-unknown
+```
+
+The built module is `target/wasm32-unknown-unknown/release/intersect_kerml_web.wasm`.
+In the Examples repository's `toolkit/` directory, set `INTERSECT_WEB_WASM` to its
+absolute path and run the full workbench build. The Toolkit keeps its own pins
+for fixtures and native oracles. See the [Toolkit build guide](https://github.com/mercurio-labs/intersect-lang-examples/tree/develop/toolkit#full-workbench-development).
+
+## Develop this repository
+
+Use `develop` for new work. Keep the Model, Text, and build-support dependency
+sources aligned across the workspace, Python SDK, and maintained standalone
+consumers. Check `cargo metadata --locked` and `cargo tree --locked -d` after
+updating pins. For a coordinated change, update Model first, then Text, then this
+repository. The [editor services guide](docs/editor-services.md) explains why
+development needs source pins. The [release receipt](docs/released-upstreams.json)
+records the earlier registry pairing.
 
 ### Test tiers
 
-Run suites through `tools/test_report.py` (every run appears at
-http://localhost:8765/).
+Run suites through [`tools/test_report.py`](tools/test_report.py). Reports are
+available at [localhost:8765](http://localhost:8765/).
 
-- **Quick tier**, after every change: the crates you touched, default
-  features. It must finish in under 10 minutes including the build.
+- **Quick tier** covers the crates you changed, with a target of ten minutes
+  including compilation. The command below tests the IDE facade and CLI.
 
-  ~~~sh
-  python -B tools/test_report.py run -- --profile test-fast -p intersect-kerml -p intersect-kerml-eval -p intersect-kerml-web -p intersect-cli -p intersect-kpar -p intersect-kpar-host --lib --bins --tests
-  ~~~
+  ```sh
+  python -B tools/test_report.py run -- --profile test-fast --locked \
+    -p intersect-kerml-ide -p intersect-cli --lib --bins --tests
+  ```
 
-- **Milestone tier**, at milestone boundaries only: everything, including
-  whole-library loads and language-pack equivalence.
+- **Milestone tier** includes full-library loads and language-pack checks. See
+  the [visualization](docs/visualization.md) and [CLI guides](docs/cli-tutorial.md)
+  for the matching prepared-pack prerequisites.
 
-  ~~~sh
-  python -B tools/test_report.py run -- --profile test-fast --workspace --locked --no-fail-fast --features intersect-kerml/milestone-tests,intersect-kerml-eval/milestone-tests,intersect-kerml-web/milestone-tests,intersect-cli/milestone-tests
-  ~~~
+  ```sh
+  python -B tools/test_report.py run -- --profile test-fast --workspace --locked --no-fail-fast \
+    --features intersect-kerml/milestone-tests,intersect-kerml-eval/milestone-tests,intersect-kerml-web/milestone-tests,intersect-cli/milestone-tests,intersect-kerml-ide/milestone-tests
+  ```
 
-### Rust checks
+### Formatting, lint, and WASM
 
-Rust 1.99.1 is pinned in `rust-toolchain.toml`, matching core; rustup installs
-it on first use, and CI names the same release.
-
-~~~sh
+```sh
 python -B tools/format_workspace.py --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
-rustup target add wasm32-unknown-unknown
 cargo build --workspace --lib --target wasm32-unknown-unknown --locked
-~~~
+```
+
+See the [CI workflow](.github/workflows/ci.yml) for the opt-in component lane.
+The [repository migration receipt](docs/repository-reset.json) records the earlier
+source history. [Standalone probe results](docs/repository-split-consumer.json)
+describe separate historical checks.
 
 ## License
 
-MIT; see [LICENSE](LICENSE). Pinned upstream inputs under `fixtures/` keep
+MIT. See [LICENSE](LICENSE). Pinned upstream inputs under `fixtures/` retain
 their own license notices.
