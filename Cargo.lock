@@ -172,8 +172,9 @@ dependencies = [
 [[package]]
 name = "intersect-build-support"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=5911b8ebea2fa60290fcf6859c8b11dcada70513#5911b8ebea2fa60290fcf6859c8b11dcada70513"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3b1b5e825e969bcb5e0219416ec2f053aa84206#b3b1b5e825e969bcb5e0219416ec2f053aa84206"
 dependencies = [
+ "serde_json",
  "sha2",
 ]
 
@@ -195,6 +196,7 @@ version = "0.1.0"
 dependencies = [
  "intersect-build-support",
  "intersect-kpar",
+ "intersect-load",
  "intersect-model",
  "intersect-text",
  "semver",
@@ -271,7 +273,7 @@ dependencies = [
 [[package]]
 name = "intersect-library"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=2e6b861d153c45c3fdb660684956ce21b73b59d0#2e6b861d153c45c3fdb660684956ce21b73b59d0"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=22ade314be84b2fa9644e1e3ea3edfbce1932713#22ade314be84b2fa9644e1e3ea3edfbce1932713"
 dependencies = [
  "intersect-model",
  "intersect-text",
@@ -280,9 +282,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "intersect-load"
+version = "0.1.0-alpha.1"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=22ade314be84b2fa9644e1e3ea3edfbce1932713#22ade314be84b2fa9644e1e3ea3edfbce1932713"
+dependencies = [
+ "intersect-build-support",
+ "intersect-model",
+ "intersect-text",
+ "serde",
+]
+
+[[package]]
 name = "intersect-model"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=5911b8ebea2fa60290fcf6859c8b11dcada70513#5911b8ebea2fa60290fcf6859c8b11dcada70513"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3b1b5e825e969bcb5e0219416ec2f053aa84206#b3b1b5e825e969bcb5e0219416ec2f053aa84206"
 dependencies = [
  "intersect-build-support",
  "iri-string",
@@ -301,7 +314,7 @@ dependencies = [
 [[package]]
 name = "intersect-model-example-support"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=5911b8ebea2fa60290fcf6859c8b11dcada70513#5911b8ebea2fa60290fcf6859c8b11dcada70513"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3b1b5e825e969bcb5e0219416ec2f053aa84206#b3b1b5e825e969bcb5e0219416ec2f053aa84206"
 dependencies = [
  "intersect-model",
  "serde_json",
@@ -310,7 +323,7 @@ dependencies = [
 [[package]]
 name = "intersect-project-host"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=5911b8ebea2fa60290fcf6859c8b11dcada70513#5911b8ebea2fa60290fcf6859c8b11dcada70513"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3b1b5e825e969bcb5e0219416ec2f053aa84206#b3b1b5e825e969bcb5e0219416ec2f053aa84206"
 dependencies = [
  "intersect-model",
 ]
@@ -318,7 +331,7 @@ dependencies = [
 [[package]]
 name = "intersect-text"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=2e6b861d153c45c3fdb660684956ce21b73b59d0#2e6b861d153c45c3fdb660684956ce21b73b59d0"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=22ade314be84b2fa9644e1e3ea3edfbce1932713#22ade314be84b2fa9644e1e3ea3edfbce1932713"
 dependencies = [
  "intersect-build-support",
  "intersect-model",
@@ -331,7 +344,7 @@ dependencies = [
 [[package]]
 name = "intersect-views"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=5911b8ebea2fa60290fcf6859c8b11dcada70513#5911b8ebea2fa60290fcf6859c8b11dcada70513"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3b1b5e825e969bcb5e0219416ec2f053aa84206#b3b1b5e825e969bcb5e0219416ec2f053aa84206"
 dependencies = [
  "serde",
  "serde_json",
@@ -340,7 +353,7 @@ dependencies = [
 [[package]]
 name = "intersect-web"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=2e6b861d153c45c3fdb660684956ce21b73b59d0#2e6b861d153c45c3fdb660684956ce21b73b59d0"
+source = "git+https://github.com/mercurio-labs/intersect-text.git?rev=22ade314be84b2fa9644e1e3ea3edfbce1932713#22ade314be84b2fa9644e1e3ea3edfbce1932713"
 dependencies = [
  "intersect-library",
  "intersect-model",

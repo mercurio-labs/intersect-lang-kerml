@@ -11,6 +11,7 @@ publish = false
 # `xmi`: the XMI export of `sysml_host::export`.
 intersect-model = { workspace = true, features = ["xmi"] }
 intersect-text.workspace = true
+intersect-load.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # Digests the KerML binding recipe source (`kerml_bindings::recipe_digest`).

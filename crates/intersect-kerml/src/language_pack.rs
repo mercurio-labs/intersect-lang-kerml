@@ -174,7 +174,12 @@ pub const SYSML_BINDINGS_COMPONENT: &str = "intersect-sysml-bindings";
 const SYSML_BINDING_COMPONENTS: [&str; 2] = ["intersect-model", SYSML_BINDINGS_COMPONENT];
 /// Compiler components the program parts are keyed on: the crates that
 /// compile or load a program.
-const PROGRAM_COMPONENTS: [&str; 3] = ["intersect-kerml", "intersect-model", "intersect-xtext"];
+const PROGRAM_COMPONENTS: [&str; 4] = [
+    "intersect-kerml",
+    "intersect-load",
+    "intersect-model",
+    "intersect-xtext",
+];
 /// Pinned input roles that are original definition files (the others are
 /// compiled into this crate).
 const DEFINITION_INPUTS: [&str; 4] = ["expressions", "kerml-grammar", "schema", "sysml-grammar"];
@@ -200,6 +205,7 @@ pub fn recipe() -> PackRecipe {
 pub fn expected_compiler() -> BTreeMap<String, String> {
     [
         ("intersect-kerml", crate::SOURCE_IDENTITY.to_owned()),
+        ("intersect-load", intersect_load::SOURCE_IDENTITY.to_owned()),
         (BINDINGS_COMPONENT, kerml_bindings::recipe_digest()),
         (SYSML_BINDINGS_COMPONENT, sysml_bindings::recipe_digest()),
         (

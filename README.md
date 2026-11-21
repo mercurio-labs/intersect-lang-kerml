@@ -16,11 +16,14 @@ and [Intersect Text](https://github.com/mercurio-labs/intersect-text).
 
 ## Start with the CLI
 
-Clone this repository and install Rust with `rustup`. The checkout selects the
-pinned Rust toolchain. Build the CLI from the repository root.
+Clone this repository and install Rust with `rustup` and Python 3.11 or later.
+The checkout selects the pinned Rust toolchain. Fetch the locked dependencies,
+then build the CLI from the repository root. The wrapper computes the compiler
+identity for the shared loader and KerML.
 
 ```sh
-cargo build --release --locked -p intersect-cli
+cargo fetch --locked
+python3 -B tools/compiler_build.py -- build --release --locked -p intersect-cli
 ```
 
 To check your first model, build a language pack from the same checkout and
@@ -43,7 +46,7 @@ Build the reference from the root of this checkout. Rustdoc generates searchable
 HTML from the same source as the API you're using.
 
 ```sh
-cargo doc --locked --no-deps -p intersect-kerml -p intersect-kerml-ide \
+python3 -B tools/compiler_build.py -- doc --locked --no-deps -p intersect-kerml -p intersect-kerml-ide \
   -p intersect-kerml-eval -p intersect-kpar -p intersect-kpar-host
 ```
 
@@ -84,7 +87,7 @@ and [Text rustdoc](https://docs.rs/intersect-text/latest/intersect_text/).
 Build the host from this checkout.
 
 ```sh
-cargo build --locked --release -p intersect-kerml-web --target wasm32-unknown-unknown
+python3 -B tools/compiler_build.py -- build --locked --release -p intersect-kerml-web --target wasm32-unknown-unknown
 ```
 
 The built module is `target/wasm32-unknown-unknown/release/intersect_kerml_web.wasm`.
@@ -111,7 +114,7 @@ available at [localhost:8765](http://localhost:8765/).
   including compilation. The command below tests the IDE facade and CLI.
 
   ```sh
-  python -B tools/test_report.py run -- --profile test-fast --locked \
+  python3 -B tools/compiler_build.py --report -- test --profile test-fast --locked \
     -p intersect-kerml-ide -p intersect-cli --lib --bins --tests
   ```
 
@@ -120,7 +123,7 @@ available at [localhost:8765](http://localhost:8765/).
   for the matching prepared-pack prerequisites.
 
   ```sh
-  python -B tools/test_report.py run -- --profile test-fast --workspace --locked --no-fail-fast \
+  python3 -B tools/compiler_build.py --report -- test --profile test-fast --workspace --locked --no-fail-fast \
     --features intersect-kerml/milestone-tests,intersect-kerml-eval/milestone-tests,intersect-kerml-web/milestone-tests,intersect-cli/milestone-tests,intersect-kerml-ide/milestone-tests
   ```
 
@@ -128,8 +131,8 @@ available at [localhost:8765](http://localhost:8765/).
 
 ```sh
 python -B tools/format_workspace.py --check
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo build --workspace --lib --target wasm32-unknown-unknown --locked
+python3 -B tools/compiler_build.py -- clippy --workspace --all-targets --locked -- -D warnings
+python3 -B tools/compiler_build.py -- build --workspace --lib --target wasm32-unknown-unknown --locked
 ```
 
 See the [CI workflow](.github/workflows/ci.yml) for the opt-in component lane.
