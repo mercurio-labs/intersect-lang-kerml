@@ -23,6 +23,6 @@ debug = 0
 
 # Development source overrides for unreleased shared editor APIs. See docs/editor-services.md.
 [patch.crates-io]
-intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
-intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "a7c8a8a5ec25c0cc12dbbde8d2dce10083c83cff" }
-intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "7ac26b23108d8df91c1b1792d5433360173d17c6" }
+intersect-model = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "11c33990a50cb4074d4f97619687a6b33358e560" }
+intersect-build-support = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "11c33990a50cb4074d4f97619687a6b33358e560" }
+intersect-text = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "69e2303c7f3ce57c189ea2d8856f54ade1cab0be" }
