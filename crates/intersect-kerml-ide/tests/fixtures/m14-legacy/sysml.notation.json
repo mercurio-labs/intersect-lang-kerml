@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "sysml.bounded",
+  "shapes": {
+    "structure": {
+      "shape": "rounded",
+      "fill": "usage",
+      "stroke": "neutral",
+      "radius": 5
+    },
+    "definition": {
+      "shape": "rectangle",
+      "fill": "definition",
+      "stroke": "neutral",
+      "radius": 5
+    },
+    "package": {
+      "shape": "rectangle",
+      "fill": "package",
+      "stroke": "neutral",
+      "radius": 5
+    }
+  },
+  "edges": {
+    "connection": {
+      "line": "solid",
+      "stroke": "neutral",
+      "startMarker": "none",
+      "endMarker": "none"
+    },
+    "specialization": {
+      "line": "solid",
+      "stroke": "neutral",
+      "startMarker": "none",
+      "endMarker": "triangle"
+    },
+    "containment": {
+      "line": "solid",
+      "stroke": "neutral",
+      "startMarker": "none",
+      "endMarker": "none"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "sysml.renderings",
+  "registrations": [
+    {
+      "id": "sysml.compartments",
+      "ruleSetId": "sysml.compartments",
+      "projectionPolicy": {
+        "kind": "nested"
+      }
+    },
+    {
+      "id": "sysml.interconnection",
+      "ruleSetId": "sysml.interconnection",
+      "projectionPolicy": {
+        "kind": "nested"
+      }
+    },
+    {
+      "id": "sysml.partsTree",
+      "ruleSetId": "sysml.partsTree",
+      "projectionPolicy": {
+        "kind": "containmentTree",
+        "edgeRole": "part-child",
+        "edgeNotation": "containment"
+      }
+    }
+  ]
+}

@@ -225,6 +225,7 @@ dependencies = [
  "intersect-kpar",
  "intersect-model",
  "intersect-text",
+ "intersect-view-host",
  "intersect-views",
  "serde",
  "serde_json",
@@ -342,9 +343,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "intersect-view-engine"
+version = "0.0.0"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=a64a75e59277c62a527c44977ad7e9c1c235c493#a64a75e59277c62a527c44977ad7e9c1c235c493"
+dependencies = [
+ "intersect-views",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "intersect-view-host"
+version = "0.0.0"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=a64a75e59277c62a527c44977ad7e9c1c235c493#a64a75e59277c62a527c44977ad7e9c1c235c493"
+dependencies = [
+ "intersect-build-support",
+ "intersect-load",
+ "intersect-model",
+ "intersect-text",
+ "intersect-view-engine",
+ "intersect-views",
+ "self_cell",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "intersect-views"
-version = "0.1.0-alpha.2"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=11c33990a50cb4074d4f97619687a6b33358e560#11c33990a50cb4074d4f97619687a6b33358e560"
+version = "0.0.0"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=a64a75e59277c62a527c44977ad7e9c1c235c493#a64a75e59277c62a527c44977ad7e9c1c235c493"
 dependencies = [
  "serde",
  "serde_json",

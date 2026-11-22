@@ -1,0 +1,499 @@
+rcore 1;
+package intersect.sysml.viewNavigation version "1";
+import model "https://www.omg.org/spec/SysML/20250201" as k;
+
+// The view provider's single semantic navigation layer. Read only the accepted
+// model's stored memberships, specializations, redefinitions and connector ends.
+// Recursive walks carry a visited set; VM/query limits refuse excessive work.
+// These are the two stored physical containment edges in the SysML schema.
+// Follow their stored opposites for parents. Generic ownership intrinsics build
+// a whole-model index per invocation, including the standard library.
+fn direct(e:k.Element)->Sequence<k.Element> =
+  Sequence(e.ownedRelationship).selectByKind::<k.Element>().concat(related(e));
+fn related(e:k.Element)->Sequence<k.Element> = match e {
+  r:k.Relationship => Sequence(r.ownedRelatedElement), _ => []
+};
+fn physical_parent(e:k.Element)->Sequence<k.Element> = match e {
+  r:k.Relationship => match r.owningRelatedElement {
+    Some(p) => [p], None => match e.owningRelationship { Some(r) => Sequence([r]).selectByKind::<k.Element>(), None => [] }
+  },
+  _ => match e.owningRelationship { Some(r) => Sequence([r]).selectByKind::<k.Element>(), None => [] }
+};
+fn parents_work(e:k.Element, seen:Sequence<k.Element>)->Sequence<k.Element> =
+  match physical_parent(e).first() {
+    Some(p) => if seen.contains(p) { [] } else {
+      Sequence([p]).concat(parents_work(p, seen.concat(Sequence([p]))))
+    }, None => []
+  };
+fn parents(e:k.Element)->Sequence<k.Element> = parents_work(e, [e]);
+
+pub fn owned(e:k.Element)->Sequence<k.Element> =
+  Sequence(direct(e).selectByKind::<k.OwningMembership>().flatMap(|m| direct(m).selectByKind::<k.Element>()));
+
+pub fn generals(e:k.Element)->Sequence<k.Element> =
+  Sequence(direct(e).selectByKind::<k.Specialization>().flatMap(|s| storedGeneral(s)))
+    .concat(direct(e).selectByKind::<k.Conjugation>().flatMap(|c| original(c))).selectByKind::<k.Element>();
+// Read concrete stored targets, not the uninstalled derived `general` property.
+// Same field dispatch as the language's name-resolution Rcore layer.
+fn storedGeneral(s:k.Specialization)->Sequence<k.Type> = match s {
+  _:k.CrossSubsetting => [],
+  _ => {
+    let chain = direct(s).selectByKind::<k.Feature>().selectByKind::<k.Type>();
+    if chain.notEmpty() { chain } else { concreteGeneral(s) }
+  }
+};
+fn concreteGeneral(s:k.Specialization)->Sequence<k.Type> = match s {
+  x:k.Subclassification => Sequence([x.superclassifier]).selectByKind::<k.Type>(),
+  x:k.ConjugatedPortTyping => Sequence([x.conjugatedPortDefinition]).selectByKind::<k.Type>(),
+  x:k.FeatureTyping => Sequence([x.type]).selectByKind::<k.Type>(),
+  x:k.Redefinition => Sequence([x.redefinedFeature]).selectByKind::<k.Type>(),
+  x:k.ReferenceSubsetting => Sequence([x.referencedFeature]).selectByKind::<k.Type>(),
+  x:k.Subsetting => Sequence([x.subsettedFeature]).selectByKind::<k.Type>(),
+  _ => []
+};
+fn original(c:k.Conjugation)->Sequence<k.Type> = match c {
+  p:k.PortConjugation => Sequence([p.originalPortDefinition]).selectByKind::<k.Type>(),
+  _ => {
+    let chain = direct(c).selectByKind::<k.Feature>().selectByKind::<k.Type>();
+    if chain.notEmpty() { chain } else { Sequence([c.originalType]) }
+  }
+};
+
+fn closure_work(todo:Sequence<k.Element>, i:Int64, seen:Sequence<k.Element>)->Sequence<k.Element> =
+  match todo.at(i) {
+    Some(e) => if seen.contains(e) { closure_work(todo, i + 1, seen) } else {
+      Sequence([e]).concat(closure_work(todo.concat(generals(e)), i + 1, seen.concat(Sequence([e]))))
+    },
+    None => []
+  };
+pub fn closure(e:k.Element)->Sequence<k.Element> = closure_work(Sequence([e]), 0, []);
+pub fn members(e:k.Element)->Sequence<k.Element> = Sequence(closure(e).flatMap(|t| owned(t)).distinct());
+
+fn redefining(f:k.Feature)->Sequence<k.Feature> =
+  Sequence(direct(f).selectByKind::<k.Redefinition>().map(|r| r.redefinedFeature));
+fn redefined_work(todo:Sequence<k.Feature>, i:Int64, seen:Sequence<k.Feature>)->Sequence<k.Feature> =
+  match todo.at(i) {
+    Some(f) => if seen.contains(f) { redefined_work(todo, i + 1, seen) } else {
+      Sequence([f]).concat(redefined_work(todo.concat(redefining(f)), i + 1, seen.concat(Sequence([f]))))
+    },
+    None => []
+  };
+fn redefined(f:k.Feature)->Sequence<k.Feature> = redefined_work(redefining(f), 0, []);
+
+fn label_work(e:k.Element, seen:Sequence<k.Element>)->String =
+  if seen.contains(e) { "" } else {
+    match e.declaredName {
+      Some(n) => if n != "" { n } else { short_label(e, seen) },
+      None => short_label(e, seen)
+    }
+  };
+fn short_label(e:k.Element, seen:Sequence<k.Element>)->String =
+  match e.declaredShortName {
+    Some(n) => n,
+    None => match e {
+      f:k.Feature => match redefining(f).first() {
+        Some(base) => label_work(base, seen.concat(Sequence([e]))), None => ""
+      },
+      _ => ""
+    }
+  };
+pub fn label(e:k.Element)->String = label_work(e, []);
+
+// Filter globally after traversing all generals. An inherited redefiner hides
+// its base even if that base was visited earlier through a diamond's other arm.
+pub fn features(e:k.Element)->Sequence<k.Feature> {
+  let all = Sequence(closure(e).flatMap(|t| owned(t)).selectByKind::<k.Feature>().distinct());
+  // One shared transitive walk has the same hidden set as walking independently
+  // from every candidate, including candidates without any redefinition.
+  let hidden = redefined_work(Sequence(all.flatMap(|g| redefining(g)).distinct()), 0, []);
+  all.reject(|f| f.isAbstract || hidden.contains(f))
+}
+pub fn parts(e:k.Element)->Sequence<k.PartUsage> =
+  features(e).selectByKind::<k.PartUsage>()
+    .reject(|p| match p { _:k.ViewUsage => true, _:k.ConnectionUsage => true, _ => false });
+pub fn ports(e:k.Element)->Sequence<k.PortUsage> = features(e).selectByKind::<k.PortUsage>();
+pub fn attributes(e:k.Element)->Sequence<k.AttributeUsage> = features(e).selectByKind::<k.AttributeUsage>();
+pub fn connections(e:k.Element)->Sequence<k.ConnectionUsage> = features(e).selectByKind::<k.ConnectionUsage>();
+pub fn typeLabel(e:k.Element)->String =
+  match generals(e).selectByKind::<k.Definition>().first() { Some(t) => label(t), None => "" };
+pub fn generalLabel(e:k.Element)->String =
+  if direct(e).selectByKind::<k.FeatureTyping>().notEmpty() { "defined by" } else { "specializes" };
+pub fn title(e:k.Element)->String {
+  let ty = typeLabel(e);
+  if ty == "" { label(e) } else { label(e) + " : " + ty }
+}
+pub fn classLabel(e:k.Element)->String = match e {
+  _:k.PartDefinition => "PartDefinition", _:k.PortDefinition => "PortDefinition",
+  _:k.AttributeDefinition => "AttributeDefinition", _:k.ConnectionUsage => "ConnectionUsage",
+  _:k.PartUsage => "PartUsage", _:k.PortUsage => "PortUsage", _:k.AttributeUsage => "AttributeUsage",
+  _:k.Package => "Package", _ => "Element"
+};
+pub fn portSide(p:k.PortUsage)->String =
+  if direct(p).selectByKind::<k.Conjugation>().notEmpty()
+    || direct(p).selectByKind::<k.ConjugatedPortTyping>().notEmpty() { "WEST" } else { "EAST" };
+pub fn ownedParts(e:k.Element)->Sequence<k.PartUsage> = owned(e).selectByKind::<k.PartUsage>()
+  .reject(|p| match p { _:k.ViewUsage => true, _:k.ConnectionUsage => true, _ => false });
+pub fn ownedPorts(e:k.Element)->Sequence<k.PortUsage> = owned(e).selectByKind::<k.PortUsage>();
+pub fn ownedAttributes(e:k.Element)->Sequence<k.AttributeUsage> = owned(e).selectByKind::<k.AttributeUsage>();
+
+fn standard(e:k.Element, name:String)->Bool = label(e) == name
+  && parents(e).selectByKind::<k.Package>().exists(|p| label(p) == "StandardViewDefinitions");
+pub fn viewKind(v:k.ViewUsage)->String = kind(closure(v));
+fn kind(types:Sequence<k.Element>)->String {
+  if types.exists(|t| standard(t, "InterconnectionView")) { "interconnection" } else {
+    if types.exists(|t| standard(t, "GeneralView")) { "general" } else { "unsupported" }
+  }
+}
+fn nested_work(todo:Sequence<k.Element>, i:Int64, seen:Sequence<k.Element>)->Sequence<k.Element> =
+  match todo.at(i) {
+    Some(e) => if seen.contains(e) { nested_work(todo, i + 1, seen) } else {
+      Sequence([e]).concat(nested_work(todo.concat(owned(e)), i + 1, seen.concat(Sequence([e]))))
+    },
+    None => []
+  };
+fn exposed_namespace(n:k.NamespaceExpose)->Sequence<k.Element> =
+  if n.isRecursive { nested_work(owned(n.importedNamespace), 0, []) } else { owned(n.importedNamespace) };
+fn exposures_of(types:Sequence<k.Element>)->Sequence<k.Element> = Sequence(types.flatMap(|t|
+  Sequence(direct(t).selectByKind::<k.MembershipExpose>().flatMap(|x| direct(x.importedMembership).selectByKind::<k.Element>()))
+    .concat(direct(t).selectByKind::<k.NamespaceExpose>().flatMap(|n| exposed_namespace(n)))).distinct());
+pub fn viewSeeds(v:k.ViewUsage)->Sequence<k.Element> {
+  let types = closure(v);
+  let mode = kind(types);
+  exposures_of(types)
+    .filter(|e| label(e) != "")
+    .reject(|e| match e { _:k.ConnectionUsage => true, _ => false })
+    .filter(|e| if mode == "interconnection" {
+      match e { _:k.ViewUsage => false, _:k.PartUsage => true, _ => false }
+    } else { true })
+}
+pub fn viewHasUnsupportedExposes(v:k.ViewUsage)->Bool {
+  let types = closure(v);
+  if kind(types) == "interconnection" {
+    exposures_of(types).exists(|e| label(e) == "" || match e {
+      _:k.ViewUsage => true, _:k.ConnectionUsage => true, _:k.PartUsage => false, _ => true
+    })
+  } else { false }
+}
+pub fn viewOwners(v:k.ViewUsage)->Sequence<k.Element> {
+  let types = closure(v);
+  Sequence(types.flatMap(|t| direct(t).selectByKind::<k.NamespaceExpose>().map(|x| x.importedNamespace))
+    .selectByKind::<k.Element>().concat(exposures_of(types)).distinct()
+    .filter(|e| match e {
+      _:k.ViewUsage => false, _:k.ConnectionUsage => false,
+      _:k.Package => true, _:k.PartDefinition => true, _:k.PartUsage => true,
+      _:k.ActionDefinition => true, _:k.ActionUsage => true, _:k.StateDefinition => true, _ => false
+    }))
+}
+pub fn viewpoints(v:k.ViewUsage)->Sequence<k.ViewpointUsage> =
+  Sequence(closure(v).flatMap(|t| owned(t)).selectByKind::<k.ViewpointUsage>().distinct());
+pub fn viewpointLabel(e:k.Element)->String = "Viewpoint · " + title(e);
+
+pub fn ambiguous(e:k.Element)->Bool {
+  let names = features(e).map(|f| label(f)).filter(|n| n != "");
+  names.distinct().size() != names.size()
+}
+// Independent admissibility predicates let the catalog report a located reason
+// while charging every check to the same catalog work ledger.
+pub fn viewHasFilters(v:k.ViewUsage)->Bool =
+  closure(v).exists(|t| direct(t).selectByKind::<k.ElementFilterMembership>().notEmpty());
+pub fn viewHasImportedExposes(v:k.ViewUsage)->Bool =
+  closure(v).exists(|t| direct(t).selectByKind::<k.NamespaceExpose>()
+    .exists(|x| direct(x.importedNamespace).selectByKind::<k.Import>().notEmpty()));
+pub fn viewHasAliases(v:k.ViewUsage)->Bool =
+  closure(v).exists(|t| direct(t).selectByKind::<k.MembershipExpose>()
+    .exists(|x| direct(x.importedMembership).selectByKind::<k.Element>().isEmpty()));
+
+fn ends(c:k.ConnectionUsage)->Sequence<k.Feature> =
+  Sequence(direct(c).selectByKind::<k.EndFeatureMembership>().flatMap(|m| direct(m).selectByKind::<k.Feature>()));
+fn endPath(end:k.Feature)->Sequence<k.Element> =
+  match direct(end).selectByKind::<k.ReferenceSubsetting>().first() {
+    Some(r) => {
+      let chain = Sequence(direct(r.referencedFeature).selectByKind::<k.FeatureChaining>().map(|c| c.chainingFeature));
+      if chain.isEmpty() { Sequence([r.referencedFeature]).selectByKind::<k.Element>() }
+      else { chain.selectByKind::<k.Element>() }
+    },
+    None => []
+  };
+pub fn sourcePath(c:k.ConnectionUsage)->Sequence<k.Element> =
+  if ends(c).size() == 2 { match ends(c).at(0) { Some(e) => endPath(e), None => [] } } else { [] };
+pub fn targetPath(c:k.ConnectionUsage)->Sequence<k.Element> =
+  if ends(c).size() == 2 { match ends(c).at(1) { Some(e) => endPath(e), None => [] } } else { [] };
+pub fn siblingConnections(e:k.Element)->Sequence<k.ConnectionUsage> =
+  match parents(e).selectByKind::<k.Namespace>().first() {
+    Some(ns) => match ns { _:k.Package => owned(ns).selectByKind::<k.ConnectionUsage>(), _ => [] },
+    None => []
+  };
+pub fn canCreatePart(e:k.Element)->Bool = match e {
+  _:k.ViewUsage => false, _:k.ConnectionUsage => false,
+  _:k.Package => true, _:k.PartDefinition => true, _:k.PartUsage => true, _ => false
+};
+pub fn canCreatePort(e:k.Element)->Bool = match e {
+  _:k.ViewUsage => false, _:k.ConnectionUsage => false,
+  _:k.PartDefinition => true, _:k.PartUsage => true, _ => false
+};
+pub fn canConnect(e:k.Element)->Bool = match e {
+  _:k.ViewUsage => false, _:k.ConnectionUsage => false,
+  _:k.PartUsage => true, _:k.PortUsage => true, _ => false
+};
+
+// M13 semantic gate: effective rendering features use the same redefinition walk.
+pub fn renderingMembers(v:k.ViewUsage)->Sequence<k.RenderingUsage> =
+  features(v).selectByKind::<k.RenderingUsage>()
+    .filter(|r| physical_parent(r).exists(|m| match m { _:k.ViewRenderingMembership => true, _ => false }));
+// A reference rendering selects its referenced feature. Redefinition establishes
+// replacement, not an additional inherited rendering target when a new target
+// was supplied. This follows referencedFeatureTarget before ancestor fallback.
+fn rendering_supers(r:k.RenderingUsage)->Sequence<k.RenderingUsage> {
+  let reference = direct(r).selectByKind::<k.ReferenceSubsetting>()
+    .map(|s| s.referencedFeature).selectByKind::<k.RenderingUsage>();
+  if reference.notEmpty() { reference } else {
+    let selected = direct(r).selectByKind::<k.Subsetting>()
+      .reject(|s| match s { _:k.Redefinition => true, _ => false })
+      .flatMap(|s| storedGeneral(s)).selectByKind::<k.RenderingUsage>();
+    if selected.notEmpty() { selected } else { redefining(r).selectByKind::<k.RenderingUsage>() }
+  }
+}
+fn rendering_work(todo:Sequence<k.RenderingUsage>, i:Int64, seen:Sequence<k.RenderingUsage>)->Sequence<k.RenderingUsage> =
+  match todo.at(i) {
+    Some(r) => if seen.contains(r) { rendering_work(todo, i+1, seen) } else {
+      Sequence([r]).concat(rendering_work(todo.concat(rendering_supers(r)),i+1,seen.concat(Sequence([r]))))
+    }, None => []
+  };
+pub fn renderingTargets(r:k.RenderingUsage)->Sequence<k.RenderingUsage> = rendering_work([r],0,[]);
+pub fn renderingOrigin(r:k.RenderingUsage)->Sequence<k.Element> =
+  Sequence(physical_parent(r).flatMap(|m| physical_parent(m)));
+pub fn viewDefinitionTypes(v:k.ViewUsage)->Sequence<k.ViewDefinition> =
+  closure(v).selectByKind::<k.ViewDefinition>();
+
+// Admissibility belongs to the selected language profile, independent of view type.
+pub fn viewExposures(v:k.ViewUsage)->Sequence<k.Element> = exposures_of(closure(v));
+pub fn supportedPartRoot(e:k.Element)->Bool = label(e) != "" && match e {
+  _:k.ViewUsage => false, _:k.ConnectionUsage => false, _:k.PartUsage => true, _ => false
+};
+pub fn supportedStructuralRoot(e:k.Element)->Bool = label(e) != "" && match e {
+  _:k.ViewUsage => false, _:k.ConnectionUsage => false,
+  _:k.PartDefinition => true, _:k.PortDefinition => true, _:k.AttributeDefinition => true,
+  _:k.PartUsage => true, _:k.PortUsage => true, _:k.AttributeUsage => true, _:k.Package => true, _ => false
+};
+pub fn viewHasRecursiveExposes(v:k.ViewUsage)->Bool = closure(v).exists(|t| direct(t).selectByKind::<k.NamespaceExpose>().exists(|x| x.isRecursive));
+pub fn displayTypes(e:k.Element)->Sequence<k.Definition> = generals(e).selectByKind::<k.Definition>();
+pub fn hasType(e:k.Element)->Bool = displayTypes(e).notEmpty();
+
+// Namespace exposes can include binary relationships represented by edges, not roots.
+// Explicit relationship-only exposes remain outside the structural root profile.
+pub fn structuralViewSeeds(v:k.ViewUsage)->Sequence<k.Element> =
+  viewExposures(v).reject(|e| match e { _:k.ConnectionUsage => true, _ => false });
+pub fn viewHasExplicitRelationshipExpose(v:k.ViewUsage)->Bool = closure(v).exists(|t|
+  direct(t).selectByKind::<k.MembershipExpose>().exists(|x|
+    direct(x.importedMembership).selectByKind::<k.ConnectionUsage>().notEmpty()));
+
+// M14 native semantic gate. These entries return actual stored/linked objects;
+// implied succession ends use the checked language membership semantics below.
+pub fn m14FeatureCandidates(e:k.Element)->Sequence<k.Element> =
+  members(e).selectByKind::<k.Feature>().selectByKind::<k.Element>();
+pub fn m14ConcreteCandidates(e:k.Element)->Sequence<k.Element> =
+  members(e).selectByKind::<k.Feature>().reject(|f| f.isAbstract).selectByKind::<k.Element>();
+pub fn m14RedefinedTargets(e:k.Element)->Sequence<k.Element> =
+  members(e).selectByKind::<k.Feature>().flatMap(|f| redefining(f)).selectByKind::<k.Element>();
+pub fn behaviorActions(e:k.Element)->Sequence<k.Element> =
+  features(e).selectByKind::<k.ActionUsage>().reject(|a| match a {
+    _:k.StateUsage => true, _:k.TransitionUsage => true, _:k.ConnectorAsUsage => true, _ => false
+  }).selectByKind::<k.Element>();
+// A control endpoint referenced by a stored succession is itself the actual
+// occurrence; retain its library binding and the containing action context.
+pub fn actionNodes(e:k.Element)->Sequence<k.Element> =
+  if behaviorControlKind(e) != "action" { [] } else {
+    let referenced = Sequence(closure(e).flatMap(|owner|
+      direct(owner).selectByKind::<k.Membership>().flatMap(|membership| memberElements(membership))));
+    let ends = Sequence(behaviorSuccessions(e).flatMap(|edge|
+      behaviorEnds(edge).flatMap(|end| endPath(end))));
+    behaviorActions(e).concat(Sequence(referenced.concat(ends)
+      .filter(|endpoint| canonicalActionStart(endpoint) || canonicalActionDone(endpoint)).distinct()))
+  };
+pub fn supportedActionRoot(e:k.Element)->Bool = label(e) != "" && match e {
+  _:k.StateDefinition => false, _:k.StateUsage => false, _:k.TransitionUsage => false,
+  _:k.ConnectorAsUsage => false, _:k.ActionDefinition => true, _:k.ActionUsage => true, _ => false
+};
+pub fn supportedStateRoot(e:k.Element)->Bool = label(e) != "" && match e {
+  _:k.StateDefinition => true, _:k.StateUsage => true, _ => false
+};
+// State entry is a control occurrence only when a stored succession uses it.
+// Entry/do/exit subactions otherwise remain separately bound text, not states.
+fn stateInitials(e:k.Element)->Sequence<k.Element> =
+  features(e).selectByKind::<k.SuccessionAsUsage>().flatMap(|edge| successionSourcePath(edge))
+    .filter(|entry| physical_parent(entry).selectByKind::<k.StateSubactionMembership>()
+      .exists(|membership| membership.kind == k.StateSubactionKind.entry));
+pub fn stateNodes(e:k.Element)->Sequence<k.Element> =
+  if behaviorControlKind(e) != "action" { [] } else {
+    // Resolve the effective feature set once. Repeating every inherited state's
+    // succession walk multiplies work and retained values for nested groups.
+    let effective=features(e);
+    effective.selectByKind::<k.StateUsage>().selectByKind::<k.Element>()
+      .concat(Sequence(effective.selectByKind::<k.SuccessionAsUsage>()
+        .flatMap(|edge| successionSourcePath(edge))
+        .flatMap(|entry| physical_parent(entry).selectByKind::<k.StateSubactionMembership>())
+        .filter(|membership| membership.kind == k.StateSubactionKind.entry).distinct()).selectByKind::<k.Element>())
+  };
+// The entry membership owns the written `entry;` span. Its implicit action has
+// an empty span; the view's initial glyph binds to the actual source membership.
+pub fn stateSuccessionSourcePath(edge:k.SuccessionAsUsage)->Sequence<k.Element> =
+  successionSourcePath(edge).flatMap(|source| {
+    let membership=physical_parent(source).selectByKind::<k.StateSubactionMembership>();
+    if membership.exists(|m| m.kind == k.StateSubactionKind.entry) { membership.selectByKind::<k.Element>() }
+    else { Sequence([source]) }
+  });
+// Initial/final identity follows actual feature subsettings/redefinitions.
+// A feature's definition type is not a control identity; traversing that whole
+// type hierarchy here needlessly expands the StateAction library for final states.
+fn controlBases_work(todo:Sequence<k.Element>,i:Int64,seen:Sequence<k.Element>)->Sequence<k.Element> =
+  match todo.at(i) {
+    Some(e) => if seen.contains(e) { controlBases_work(todo,i+1,seen) } else {
+      Sequence([e]).concat(controlBases_work(todo.concat(direct(e).selectByKind::<k.Subsetting>()
+        .flatMap(|subset| storedGeneral(subset)).selectByKind::<k.Element>()),i+1,seen.concat(Sequence([e]))))
+    }, None => []
+  };
+pub fn behaviorControlKind(e:k.Element)->String {
+  match e {
+    _:k.ForkNode => "fork", _:k.JoinNode => "join",
+    _:k.DecisionNode => "decision", _:k.MergeNode => "merge",
+    _ => {
+      let bases = controlBases_work([e],0,[]);
+      if bases.exists(|base| canonicalActionStart(base)) { "initial" }
+      else { if bases.exists(|base| canonicalActionDone(base)) { "final" }
+        else {
+          let membership = physical_parent(e).selectByKind::<k.StateSubactionMembership>();
+          if membership.exists(|m| m.kind == k.StateSubactionKind.entry)
+            && membership.flatMap(|m| physical_parent(m)).exists(|owner| stateInitials(owner).contains(e)) { "initial" }
+          else { "action" }
+        }
+      }
+    }
+  }
+}
+pub fn behaviorStates(e:k.Element)->Sequence<k.Element> = features(e).selectByKind::<k.StateUsage>().selectByKind::<k.Element>();
+pub fn behaviorParameters(e:k.Element)->Sequence<k.Feature> =
+  if behaviorControlKind(e) != "action" { [] } else {
+    features(e).filter(|f| match f.direction { Some(d) => true, None => false })
+  };
+pub fn behaviorFlows(e:k.Element)->Sequence<k.FlowUsage> =
+  if behaviorControlKind(e) != "action" { [] } else { features(e).selectByKind::<k.FlowUsage>() };
+pub fn behaviorSuccessions(e:k.Element)->Sequence<k.SuccessionAsUsage> =
+  if behaviorControlKind(e) != "action" { [] } else { features(e).selectByKind::<k.SuccessionAsUsage>() };
+pub fn behaviorTransitions(e:k.Element)->Sequence<k.TransitionUsage> =
+  if behaviorControlKind(e) != "action" { [] } else { features(e).selectByKind::<k.TransitionUsage>() };
+fn behaviorEnds(c:k.ConnectorAsUsage)->Sequence<k.Feature> =
+  Sequence(direct(c).selectByKind::<k.EndFeatureMembership>().flatMap(|m| direct(m).selectByKind::<k.Feature>()));
+// Ordered semantic memberships supply implied succession ends. They are not
+// diagram rows or source-token proximity. Explicit stored end paths take priority.
+fn memberElements(m:k.Membership)->Sequence<k.Element> = match m {
+  owning:k.OwningMembership => Sequence(owning.ownedRelatedElement),
+  _ => Sequence([m.memberElement])
+};
+fn behaviorParameter(f:k.Feature)->Bool = match f.direction {
+  None => false,
+  Some(direction) => match parents(f).selectByKind::<k.Type>().first() {
+    Some(owner) => match owner { _:k.Behavior => true, _:k.Step => true, _ => false },
+    None => false
+  }
+};
+fn precedingEligible(f:k.Feature)->Bool = !behaviorParameter(f) && match f {
+  _:k.TransitionUsage => false,
+  _:k.Connector => match f {
+    flow:k.FlowUsage => behaviorEnds(flow).isEmpty(),
+    _ => false
+  },
+  _ => true
+};
+fn previousFeature(todo:Sequence<k.Membership>, target:k.Membership, i:Int64,
+    previous:Sequence<k.Feature>)->Sequence<k.Element> = match todo.at(i) {
+  Some(m) => if m == target { previous.selectByKind::<k.Element>() } else {
+    let candidates = memberElements(m).selectByKind::<k.Feature>().filter(|f| precedingEligible(f));
+    previousFeature(todo, target, i+1, if candidates.notEmpty() { candidates } else { previous })
+  },
+  None => []
+};
+fn followingFeature(todo:Sequence<k.FeatureMembership>, target:k.FeatureMembership,
+    i:Int64, found:Bool)->Sequence<k.Element> = match todo.at(i) {
+  Some(m) => if found { memberElements(m).selectByKind::<k.Feature>().selectByKind::<k.Element>() }
+    else { followingFeature(todo, target, i+1, m == target) },
+  None => []
+};
+fn impliedSource(c:k.SuccessionAsUsage)->Sequence<k.Element> =
+  match physical_parent(c).selectByKind::<k.Membership>().first() {
+    Some(m) => match physical_parent(m).first() {
+      Some(owner) => match owner {
+        t:k.TransitionUsage => transitionSourcePath(t),
+        t:k.Type => previousFeature(Sequence(t.ownedRelationship).selectByKind::<k.Membership>(), m, 0, []),
+        _ => []
+      },
+      None => []
+    },
+    None => []
+  };
+fn impliedTarget(c:k.SuccessionAsUsage)->Sequence<k.Element> =
+  match physical_parent(c).selectByKind::<k.FeatureMembership>().first() {
+    Some(m) => match physical_parent(m).selectByKind::<k.Type>().first() {
+      Some(owner) => followingFeature(Sequence(owner.ownedRelationship).selectByKind::<k.FeatureMembership>(), m, 0, false),
+      None => []
+    },
+    None => []
+  };
+pub fn successionSourcePath(c:k.SuccessionAsUsage)->Sequence<k.Element> =
+  if behaviorEnds(c).size() == 2 { match behaviorEnds(c).at(0) {
+    Some(e) => { let path = endPath(e); if path.notEmpty() { path } else { impliedSource(c) } },
+    None => []
+  } } else { [] };
+pub fn successionTargetPath(c:k.SuccessionAsUsage)->Sequence<k.Element> =
+  if behaviorEnds(c).size() == 2 { match behaviorEnds(c).at(1) {
+    Some(e) => { let path = endPath(e); if path.notEmpty() { path } else { impliedTarget(c) } },
+    None => []
+  } } else { [] };
+fn flowEndPath(e:k.Feature)->Sequence<k.Element> = endPath(e).concat(
+  owned(e).selectByKind::<k.Feature>().flatMap(|p|
+    direct(p).selectByKind::<k.Redefinition>().map(|r| r.redefinedFeature)).selectByKind::<k.Element>());
+pub fn flowSourcePath(c:k.FlowUsage)->Sequence<k.Element> =
+  if behaviorEnds(c).size() == 2 { match behaviorEnds(c).at(0) { Some(e) => flowEndPath(e), None => [] } } else { [] };
+pub fn flowTargetPath(c:k.FlowUsage)->Sequence<k.Element> =
+  if behaviorEnds(c).size() == 2 { match behaviorEnds(c).at(1) { Some(e) => flowEndPath(e), None => [] } } else { [] };
+// TransitionUsage::sourceFeature() in the checked SysML metamodel selects the
+// non-FeatureMembership's linked member. Its nested succession supplies target.
+pub fn transitionSourcePath(t:k.TransitionUsage)->Sequence<k.Element> =
+  direct(t).selectByKind::<k.Membership>()
+    .reject(|m| match m { _:k.FeatureMembership => true, _ => false })
+    .flatMap(|m| memberElements(m)).selectByKind::<k.ActionUsage>().selectByKind::<k.Element>();
+pub fn transitionTargetPath(t:k.TransitionUsage)->Sequence<k.Element> =
+  match owned(t).selectByKind::<k.SuccessionAsUsage>().first() {
+    Some(s) => successionTargetPath(s), None => []
+  };
+pub fn transitionTrigger(t:k.TransitionUsage)->Sequence<k.Element> =
+  direct(t).selectByKind::<k.TransitionFeatureMembership>().filter(|m| m.kind == k.TransitionFeatureKind.trigger)
+    .flatMap(|m| direct(m).selectByKind::<k.AcceptActionUsage>()).selectByKind::<k.Element>();
+pub fn transitionGuard(t:k.TransitionUsage)->Sequence<k.Element> =
+  direct(t).selectByKind::<k.TransitionFeatureMembership>().filter(|m| m.kind == k.TransitionFeatureKind.guard)
+    .flatMap(|m| direct(m).selectByKind::<k.Expression>()).selectByKind::<k.Element>();
+pub fn transitionEffect(t:k.TransitionUsage)->Sequence<k.Element> =
+  direct(t).selectByKind::<k.TransitionFeatureMembership>().filter(|m| m.kind == k.TransitionFeatureKind.effect)
+    .flatMap(|m| direct(m).selectByKind::<k.ActionUsage>()).selectByKind::<k.Element>();
+pub fn stateEntry(s:k.StateUsage)->Sequence<k.Element> =
+  direct(s).selectByKind::<k.StateSubactionMembership>().filter(|m| m.kind == k.StateSubactionKind.entry)
+    .flatMap(|m| direct(m).selectByKind::<k.ActionUsage>()).selectByKind::<k.Element>();
+// An entry used as the initial succession endpoint is represented by its
+// source-owning membership control glyph, rather than an empty action span.
+pub fn stateEntryDisplay(s:k.StateUsage)->Sequence<k.Element> = {
+  let entries=stateEntry(s);
+  if entries.isEmpty() { [] } else {
+    let initials=stateInitials(s);
+    entries.reject(|entry| initials.contains(entry))
+  }
+};
+pub fn stateDo(s:k.StateUsage)->Sequence<k.Element> =
+  direct(s).selectByKind::<k.StateSubactionMembership>().filter(|m| m.kind == k.StateSubactionKind.do)
+    .flatMap(|m| direct(m).selectByKind::<k.ActionUsage>()).selectByKind::<k.Element>();
+pub fn stateExit(s:k.StateUsage)->Sequence<k.Element> =
+  direct(s).selectByKind::<k.StateSubactionMembership>().filter(|m| m.kind == k.StateSubactionKind.exit)
+    .flatMap(|m| direct(m).selectByKind::<k.ActionUsage>()).selectByKind::<k.Element>();
+
+pub fn behaviorParameterSide(e:k.Feature)->String = match e.direction {
+  Some(d) => if d == k.FeatureDirectionKind.`in` { "WEST" } else { "EAST" },
+  None => "EAST"
+};

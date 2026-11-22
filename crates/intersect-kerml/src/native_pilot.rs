@@ -655,6 +655,11 @@ impl NativePilotSession {
             .clone()
     }
 
+    /// Borrow the prepared SysML definition from its immutable owner.
+    pub fn sysml_definition(&self) -> Result<PreparedLanguageDefinition<'_>, String> {
+        self.sysml.view()
+    }
+
     /// Scoped views share the real immutable owners. The callback may bind the
     /// existing language services without recompiling either original grammar.
     pub fn with_definitions<R>(

@@ -1,0 +1,26 @@
+[
+  {
+    "path": "general.viewrules.json",
+    "sha256": "93a2a7668bd56cd20425ccc7b22b56e089063529e3e263f989d4375dc1644fc0"
+  },
+  {
+    "path": "interconnection.viewrules.json",
+    "sha256": "9b4eabbde13d5207c4996b2d04ade1ebeabcb506684e469139714ccd1ae2d0f9"
+  },
+  {
+    "path": "parts-tree.viewrules.json",
+    "sha256": "efca72431360c6313ca618e28fb3d3f8d551a7095bf027bafbce2c1805b5b45c"
+  },
+  {
+    "path": "sysml.symbols.json",
+    "sha256": "09fd21212a7955ef500164fd3b73f1acb7a0a67a519e0a3e12b5bcc323895d88"
+  },
+  {
+    "path": "renderings.json",
+    "sha256": "0d371c00cc0ea407e24d12bd647e941fc2075a3ad34fdfbdeb5af4eef6853d76"
+  },
+  {
+    "path": "sysml.notation.json",
+    "sha256": "71a35a431d577f05688cb472ad2f441900147595f96ff52b288cdc80cb1cb651"
+  }
+]

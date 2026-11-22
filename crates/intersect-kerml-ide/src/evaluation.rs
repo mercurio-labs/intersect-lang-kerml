@@ -13,8 +13,7 @@ mod fixture;
 impl Host {
     fn evaluation_model(&self, params: &Value) -> Result<&intersect_kerml_eval::Model, String> {
         self.check_revision(params)?;
-        self.current
-            .as_ref()
+        self.project_model()
             .ok_or_else(|| "No current project model; analyze the current buffers first".into())
     }
 
@@ -36,7 +35,7 @@ impl Host {
     }
 
     fn site_json(&self, site: Site, evaluator: &Evaluator<'_>) -> Result<Value, String> {
-        let model = self.current.as_ref().ok_or("No current evaluation model")?;
+        let model = self.project_model().ok_or("No current evaluation model")?;
         let expression = model
             .obj(site.expression)
             .ok_or("Evaluation expression no longer exists")?;
@@ -218,7 +217,7 @@ mod tests {
         };
         let (big, missing, recursive, many) = (id(big)?, id(missing)?, id(recursive)?, id(many)?);
         let host = Host {
-            current: Some(model),
+            fixture_model: Some(model),
             revision: 7,
             sources: std::collections::BTreeMap::from([(
                 "memory:/eval.kerml".into(),

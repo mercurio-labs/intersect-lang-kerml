@@ -1,0 +1,442 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.actionFlow",
+  "label": "Action flow",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "layered",
+    "direction": "RIGHT"
+  },
+  "symbols": [
+    {
+      "id": "behavior-ActionDefinition",
+      "match": "ActionDefinition",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "behavior-ActionUsage",
+      "match": "ActionUsage",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "behavior-ForkNode",
+      "match": "ForkNode",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "behavior-JoinNode",
+      "match": "JoinNode",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "behavior-DecisionNode",
+      "match": "DecisionNode",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "behavior-MergeNode",
+      "match": "MergeNode",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "actionNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      },
+      "ports": {
+        "select": "behaviorParameters",
+        "rule": "parameter"
+      }
+    },
+    {
+      "id": "parameter",
+      "match": "Feature",
+      "emit": "port",
+      "label": "label",
+      "side": "behaviorParameterSide",
+      "graphic": {
+        "definition": "sysml.symbols/parameter",
+        "parameters": {
+          "facing": {
+            "kind": "string",
+            "value": "behaviorParameterSide"
+          }
+        },
+        "slots": {
+          "label": {
+            "kind": "label"
+          }
+        },
+        "text": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "ActionDefinition-control",
+      "kind": "element",
+      "per": "behavior-ActionDefinition",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ActionDefinition-data",
+      "kind": "element",
+      "per": "behavior-ActionDefinition",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ActionUsage-control",
+      "kind": "element",
+      "per": "behavior-ActionUsage",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ActionUsage-data",
+      "kind": "element",
+      "per": "behavior-ActionUsage",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ForkNode-control",
+      "kind": "element",
+      "per": "behavior-ForkNode",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ForkNode-data",
+      "kind": "element",
+      "per": "behavior-ForkNode",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "JoinNode-control",
+      "kind": "element",
+      "per": "behavior-JoinNode",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "JoinNode-data",
+      "kind": "element",
+      "per": "behavior-JoinNode",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "DecisionNode-control",
+      "kind": "element",
+      "per": "behavior-DecisionNode",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "DecisionNode-data",
+      "kind": "element",
+      "per": "behavior-DecisionNode",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "MergeNode-control",
+      "kind": "element",
+      "per": "behavior-MergeNode",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "MergeNode-data",
+      "kind": "element",
+      "per": "behavior-MergeNode",
+      "select": "behaviorFlows",
+      "notation": "data",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "flowSourcePath",
+      "targetPath": "flowTargetPath",
+      "anchor": "owner"
+    }
+  ],
+  "projection": {
+    "kind": "nested"
+  },
+  "routing": {
+    "algorithm": "orthogonal",
+    "clearance": 8.0,
+    "stubLength": 18.0,
+    "trunks": "none"
+  }
+}

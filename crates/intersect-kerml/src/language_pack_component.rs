@@ -159,6 +159,16 @@ pub fn prepare_standard_component_cache(
     Ok(payload)
 }
 
+/// Read the bounded descriptor from the selected pack payload, without
+/// restoring any object records. Use only with a verified pack section.
+pub fn standard_component_descriptor(
+    payload: &[u8],
+    library_key: &str,
+) -> Result<ComponentDescriptor, String> {
+    let (header, _) = decode(payload, library_key)?;
+    Ok(header.descriptor)
+}
+
 /// Restore a prepared image using Model's explicit host-cache trust boundary.
 /// `VerifiedHostCache` requires a verified enclosing pack section. Downloaded
 /// KPARs must continue through their textual preparation and canonical audit.

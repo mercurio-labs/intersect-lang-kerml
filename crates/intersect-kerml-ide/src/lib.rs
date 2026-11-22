@@ -2,7 +2,6 @@
 //!
 //! This facade binds the existing pack, frozen SysML loader and KPAR resolver.
 //! The bounded view/editing profile is documented in docs/visualization.md.
-use base64::Engine;
 use intersect_kerml::{
     language_pack::{self, LibraryOptions, LibraryOrigin},
     native_pilot::NativePilotSession,
@@ -25,6 +24,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
@@ -34,17 +34,10 @@ mod components;
 mod editing;
 mod evaluation;
 mod navigation;
+mod view_commands;
+mod view_loading;
+#[path = "view_engine.rs"]
 mod views;
-
-struct PreparedCommand {
-    token: String,
-    base_revision: u64,
-    sources: BTreeMap<String, String>,
-    model: Model,
-    navigation: Vec<intersect_text::Reference>,
-    analysis: Value,
-    baseline: ProjectRequest,
-}
 
 struct Observer;
 impl InvocationObserver for Observer {
@@ -56,18 +49,19 @@ impl InvocationObserver for Observer {
 #[derive(Default)]
 pub struct Host {
     documents: editing::Documents,
-    loaded: Option<Loaded>,
-    current: Option<Model>,
-    navigation: Vec<intersect_text::Reference>,
+    loaded: Option<Rc<Loaded>>,
+    views: Option<intersect_view_host::Host>,
+    view_presentation_fingerprint: String,
+    project: Rc<RefCell<view_loading::ProjectEnvironment>>,
+    #[cfg(test)]
+    fixture_model: Option<Model>,
     sources: BTreeMap<String, String>,
     revision: u64,
-    editable: BTreeSet<String>,
-    baseline: Option<ProjectRequest>,
     last_analysis: Option<Value>,
-    pending: Option<PreparedCommand>,
-    next_transaction: u64,
     #[cfg(feature = "components")]
     components: components::State,
+    #[cfg(feature = "components")]
+    mount_transaction: u64,
 }
 
 struct Loaded {
@@ -187,154 +181,41 @@ impl Host {
         include_library_nodes: bool,
         digests: &BTreeMap<String, String>,
     ) -> Result<Value, String> {
-        // This host never opens the KerML-only bindings: it runs the combined
-        // KerML+SysML ones. Leaving that section unverified (and unreadable)
-        // saves hashing a large part of the pack on every start.
-        let pack = LanguagePack::read_checked(bytes, |section| {
-            if section.name == language_pack::BINDINGS_SECTION {
-                SectionCheck::Skip
-            } else if let Some(digest) = digests.get(&section.name) {
-                SectionCheck::HostDigest(digest.clone())
-            } else {
-                SectionCheck::Hash
-            }
-        })
-        .map_err(|e| format!("Language pack: {e}"))?;
-        let session = NativePilotSession::from_pack(&pack, RuntimeAdmissionLoadMode::HostCache)?;
-        let (bundle, scopes) = language_pack::load_pack_sysml_bindings(&pack)?;
-        // Host binding identity: matches upstream sysml_pack's
-        // public binding recipe inputs (examples/support/sysml_scopes.rs).
-        // The upstream CLI currently uses a different host-selected key.
-        let compiler = intersect_kerml::sysml_bindings::compiler_identity();
-        let mut digest = Sha256::new();
-        for part in std::iter::once(compiler.as_str()).chain(
-            bundle
-                .sources
-                .iter()
-                .flat_map(|source| [source.id.uri.as_str(), source.id.sha256.as_str()]),
-        ) {
-            digest.update((part.len() as u64).to_le_bytes());
-            digest.update(part.as_bytes());
-        }
-        let identity = format!(
-            "{}:{:x}",
-            intersect_kerml::sysml_bindings::BINDING_RECIPE,
-            digest.finalize()
-        );
-        let payload = language_pack::pack_library_payload(&pack).transpose()?;
-        #[cfg(not(feature = "components"))]
-        let payload = Some(
-            payload.ok_or("Pack has no standard library. Build it with sysml_pack --library.")?,
-        );
-        let texts: BTreeMap<String, String> = payload
-            .map(decode_library_part)
-            .transpose()
-            .map_err(|e| e.to_string())?
-            .map(|p| p.sources())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|s| (s.uri, s.text))
-            .collect();
-        let preparation = InvocationContext::new(Rc::new(Observer));
-        let prepared = with_sysml_host(
-            &session,
-            &preparation,
-            SysmlBindings {
-                bundle: &bundle,
-                scopes: &scopes,
-                identity: &identity,
-            },
-            RuntimePredictionMemoMode::On,
-            |host| {
-                // Fail clearly on a stale snapshot. Rebuilding compiler caches is a
-                // host build task, not an accidental multi-minute UI operation.
-                if payload.is_none() {
-                    let load = host.load(
-                        FrozenStore::new(host.metamodel().clone()),
-                        &[],
-                        &mut |source, store| host.parse(source, store),
-                        &|_| {},
-                    )?;
-                    return Ok((
-                        load.model.ok_or("Empty library failed validation")?,
-                        "no-standard-library".to_owned(),
-                    ));
-                }
-                let prepared = language_pack::prepare_library(
-                    payload,
-                    None,
-                    host.context(),
-                    // The payload is a pack section this read verified.
-                    LibraryOptions {
-                        trust: SnapshotTrust::VerifiedHostCache,
-                        ..LibraryOptions::default()
-                    },
-                    |_| {
-                        Err("Library snapshot is stale. Rebuild the host-owned pack with --library.".into())
-                    },
-                )?;
-                if prepared.origin != LibraryOrigin::Snapshot {
-                    return Err("A prepared library snapshot is required".into());
-                }
-                Ok((prepared.model, prepared.key))
-            },
-        )?;
-        #[cfg(feature = "components")]
-        let standard_component_payload =
-            language_pack::pack_standard_component_payload(&pack, &prepared.1)?.map(<[u8]>::to_vec);
-        let nodes = if include_library_nodes {
-            model_nodes(&prepared.0)
-        } else {
-            Vec::new()
-        };
-        let provenance: Value = serde_json::from_str(include_str!(
-            "../../../fixtures/native-pilot/v1/manifest.json"
-        ))
-        .map_err(|e| format!("Invalid installed library provenance: {e}"))?;
-        let library_info = json!({
-            "name":"OMG standard library", "version":null,
-            "uri":"urn:intersect:standard-library", "readOnly":true,
-            "origin":"Language pack", "sourceRevision":provenance["pilot_commit"],
-            "snapshotKey":prepared.1, "objects":prepared.0.len(),
-            "files":texts.keys().collect::<Vec<_>>(),
-        });
-        #[cfg(feature = "components")]
-        let library_info = {
-            let mut info = library_info;
-            info["componentCacheAvailable"] = json!(standard_component_payload.is_some());
-            info
-        };
-        let result = json!({
-            "language": language_pack::LANGUAGE,
-            "compiler": language_pack::expected_compiler(),
-            "libraryKey": prepared.1,
-            "libraryFiles": texts.keys().collect::<Vec<_>>(),
-            "libraryObjects": prepared.0.len(), "nodes": nodes,
-            "libraryMount": library_info,
-        });
-        self.loaded = Some(Loaded {
-            session,
-            bundle,
-            scopes,
-            library: prepared.0,
-            texts,
-            identity,
-            #[cfg(feature = "components")]
-            library_info,
-            #[cfg(feature = "components")]
-            standard_component_payload,
-        });
+        self.load_pack_reporting(bytes, include_library_nodes, digests, &mut |_| {})
+    }
+
+    /// Load with phase notifications for an explicit host-owned progress adapter.
+    /// The callback supplies no schema, cache or model authority.
+    pub fn load_pack_with_progress(
+        &mut self,
+        bytes: Vec<u8>,
+        progress: &mut dyn FnMut(&'static str),
+    ) -> Result<Value, String> {
+        self.load_pack_reporting(bytes, true, &BTreeMap::new(), progress)
+    }
+
+    fn load_pack_reporting(
+        &mut self,
+        bytes: Vec<u8>,
+        include_library_nodes: bool,
+        digests: &BTreeMap<String, String>,
+        progress: &mut dyn FnMut(&'static str),
+    ) -> Result<Value, String> {
+        let (loaded, result) = Loaded::from_pack(bytes, include_library_nodes, digests, progress)?;
+        progress("view-functions");
+        let project = Rc::new(RefCell::new(view_loading::ProjectEnvironment::default()));
+        let (views, view_presentation_fingerprint) = views::host(loaded.clone(), project.clone())?;
+        progress("publish");
+        self.loaded = Some(loaded);
+        self.views = Some(views);
+        self.view_presentation_fingerprint = view_presentation_fingerprint;
+        self.project = project;
         #[cfg(feature = "components")]
         {
             self.components = components::State::default();
         }
-        self.current = None;
-        self.navigation.clear();
         self.sources.clear();
-        self.baseline = None;
-        self.pending = None;
         self.last_analysis = None;
-        self.editable.clear();
         Ok(result)
     }
 
@@ -343,9 +224,20 @@ impl Host {
         if let Some(result) = self.component_dispatch(&request) {
             return result;
         }
+        let method = request["method"]
+            .as_str()
+            .ok_or("Request has no method")?
+            .to_owned();
+        if method == "views/scene" {
+            return self.views_scene(&request["params"]);
+        }
+        if method.starts_with("views/") {
+            return self.view_dispatch(request);
+        }
         let params = &request["params"];
-        match request["method"].as_str().ok_or("Request has no method")? {
+        match method.as_str() {
             "initialize" => Ok(json!({
+                "protocolVersion":1,"language":{"id":"sysml","name":"KerML / SysML","fileExtensions":["sysml","kerml"]},
                 "capabilities": {"positionEncoding":"utf-16", "textDocumentSync":{"openClose":true,"change":1},
                     "hoverProvider":true, "documentSymbolProvider":true,
                     "definitionProvider":true, "completionProvider":{"resolveProvider":false,"triggerCharacters":[".",":"]}},
@@ -359,31 +251,16 @@ impl Host {
             "textDocument/definition" => self.definition(params),
             "evaluation/sites" => self.evaluation_sites(params),
             "evaluation/evaluate" => self.evaluate_site(params),
-            "workspace/analyze" => self.analyze(
-                serde_json::from_value(params.clone())
-                    .map_err(|e| format!("Invalid workspace request: {e}"))?,
-            ),
-            "views/catalog" => {
-                self.check_revision(params)?;
-                self.views_catalog()
-            }
-            "views/scene" => self.views_scene(params),
-            "views/locate" => self.views_locate(params),
-            "views/prepareCommand" => self.prepare_command(
-                serde_json::from_value(params.clone())
-                    .map_err(|e| format!("Invalid diagram command: {e}"))?,
-            ),
-            "views/commitCommand" => self.commit_command(params),
-            "views/abortCommand" => {
-                if self
-                    .pending
-                    .as_ref()
-                    .is_some_and(|p| params["token"].as_str() == Some(p.token.as_str()))
-                {
-                    self.pending = None;
+            "workspace/analyze" => match serde_json::from_value(params.clone()) {
+                Ok(request) => self.analyze(request),
+                Err(error) => {
+                    if let Some(views) = &mut self.views {
+                        views.invalidate();
+                    }
+                    self.last_analysis = None;
+                    Err(format!("Invalid workspace request: {error}"))
                 }
-                Ok(Value::Null)
-            }
+            },
             "intersect/inspect" => {
                 let id = params["id"].as_str().ok_or("Missing element id")?;
                 let model = self.model()?;
@@ -455,13 +332,14 @@ impl Host {
             }
             "shutdown" => {
                 self.documents = editing::Documents::default();
-                self.current = None;
-                self.navigation.clear();
+                self.views = None;
                 self.loaded = None;
                 #[cfg(feature = "components")]
                 {
                     self.components = components::State::default();
                 }
+                self.sources.clear();
+                self.last_analysis = None;
                 Ok(Value::Null)
             }
             method => Err(format!("Unsupported language method: {method}")),
@@ -474,6 +352,13 @@ impl Host {
         }
         Ok(())
     }
+    fn project_model(&self) -> Option<&Model> {
+        #[cfg(test)]
+        if let Some(model) = &self.fixture_model {
+            return Some(model);
+        }
+        self.views.as_ref().and_then(|v| v.accepted_model())
+    }
     fn model(&self) -> Result<&Model, String> {
         #[cfg(feature = "components")]
         if !self.components.usages.is_empty() {
@@ -481,20 +366,16 @@ impl Host {
                 "This operation is not available for mounted component projects yet".into(),
             );
         }
-        self.current
-            .as_ref()
+        self.project_model()
             .or_else(|| self.loaded.as_ref().map(|l| &l.library))
-            .ok_or_else(|| "Load a compatible language pack first".to_owned())
+            .ok_or_else(|| "Load a compatible language pack first".into())
     }
     fn source(&self, uri: &str) -> Option<&str> {
-        #[cfg(feature = "components")]
-        if let Some(text) = self.components.texts.get(uri) {
-            return Some(text);
-        }
         self.sources
             .get(uri)
-            .or_else(|| self.loaded.as_ref()?.texts.get(uri))
             .map(String::as_str)
+            .or_else(|| self.views.as_ref()?.source(uri))
+            .or_else(|| self.loaded.as_ref()?.texts.get(uri).map(String::as_str))
     }
     fn range(&self, object: Obj<'_>) -> Value {
         let (start, end) = object.span();
@@ -509,270 +390,206 @@ impl Host {
         }
         #[cfg(feature = "components")]
         {
-            self.components.usages.clear();
-            self.components.model = None;
-            self.components.texts.clear();
+            self.components.clear_project();
         }
-        // Invalidate first: a failed edit must never leave the previous model
-        // available to hover/inspection as if it described the new text.
-        self.current = None;
-        self.navigation.clear();
+        if let Some(views) = &mut self.views {
+            views.invalidate();
+        }
         self.revision = request.revision;
-        self.sources.clear();
-        self.pending = None;
-        self.baseline = None;
-        self.editable = request.sources.iter().map(|s| s.uri.clone()).collect();
-        let projection_resources = request.project_nodes_only.then(|| self.editable.clone());
-        let baseline = request.clone();
-        if request.sources.len() > 256
-            || request.sources.iter().map(|s| s.text.len()).sum::<usize>() > 8 * 1024 * 1024
-        {
-            return Err("Workspace exceeds 256 sources or 8 MiB of model text".into());
-        }
-        let mut seen = BTreeSet::new();
-        for source in &request.sources {
-            if !seen.insert(&source.uri) {
-                return Err(format!("Duplicate source URI: {}", source.uri));
-            }
-        }
-        let project = request
-            .descriptor
-            .as_ref()
-            .map(|s| intersect_kpar::Project::parse(s.as_bytes()))
-            .transpose()
-            .map_err(|e| e.to_string())?;
-        let mut archives = Vec::new();
-        // A loose folder is a root candidate with the standard descriptor.
-        if let Some(project) = project.as_ref() {
-            archives.push(intersect_kpar::ProjectArchive {
-                uri: "workspace:/.project.json".into(),
-                root: String::new(),
-                project: project.clone(),
-                meta: intersect_kpar::Meta::default(),
-                sources: vec![],
-                notes: vec![],
-                warnings: vec![],
-            });
-        }
-        if request.archives.len() > 64 {
-            return Err("Workspace exceeds 64 dependency archives".into());
-        }
-        for archive in request.archives {
-            let bytes = base64::engine::general_purpose::STANDARD
-                .decode(archive.base64)
-                .map_err(|e| format!("Invalid archive transport: {e}"))?;
-            archives.push(
-                intersect_kpar::read(&archive.uri, &bytes, &Default::default())
-                    .map_err(|e| e.to_string())?,
-            );
-        }
-        let resolution = if project.is_some() {
-            Some(intersect_kpar::resolve(&archives, &[0]).map_err(|errors| {
-                errors
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })?)
-        } else {
-            None
-        };
-        let mut sources = request.sources;
-        let mut dependency_uris = BTreeSet::new();
-        if let Some(resolution) = &resolution {
-            for index in &resolution.order {
-                for source in &archives[*index].sources {
-                    dependency_uris.insert(source.uri.clone());
-                    sources.push(Source {
-                        uri: source.uri.clone(),
-                        text: source.text.clone(),
-                    });
-                }
-            }
-        }
-        if sources.len() > 256
-            || sources.iter().map(|s| s.text.len()).sum::<usize>() > 8 * 1024 * 1024
-        {
-            return Err("Resolved workspace exceeds 256 sources or 8 MiB of model text".into());
-        }
-        self.sources = sources
+        self.last_analysis = None;
+        self.sources = request
+            .sources
             .iter()
             .map(|s| (s.uri.clone(), s.text.clone()))
             .collect();
-        let load = self.load_sources(&sources)?;
-        let diagnostics: Vec<_> = load
-            .diagnostics
-            .iter()
-            .map(|d| {
-                let object = d
-                    .object
-                    .as_deref()
-                    .and_then(|id| load.model.as_ref()?.lookup(id));
-                let uri = d
-                    .resource
-                    .as_deref()
-                    .or_else(|| object.map(|o| o.resource()));
-                let span = object.map(|o| o.span());
-                let text = uri.and_then(|uri| self.source(uri)).unwrap_or("");
-                json!({"uri":uri,"message":d.message,"code":d.code,"phase":d.phase,
-                "severity":d.severity,"range":{
-                    "start":byte_position(text,d.start.or_else(||span.map(|s|s.0)).unwrap_or(0)),
-                    "end":byte_position(text,d.end.or_else(||span.map(|s|s.1)).unwrap_or(0))}})
-            })
-            .collect();
-        let valid_model = load.model.is_some();
-        let nodes = load
-            .model
-            .as_ref()
-            .map(|model| model_nodes_in_resources(model, projection_resources.as_ref()))
-            .unwrap_or_default();
-        let result = json!({"revision":self.revision,"nodes":nodes,"diagnostics":diagnostics,
-            "hasModel":valid_model,"clean":load.is_clean(),"resolved":load.resolved,"references":load.references,
-            "project":project.map(|p|p.to_value()), "dependencyUris":dependency_uris,
-            "dependencies":resolution.as_ref().map(|r| r.order.iter().filter(|i| **i != 0)
-                .map(|i| json!({"uri":archives[*i].uri,"name":archives[*i].project.name,
-                    "version":archives[*i].project.version})).collect::<Vec<_>>()).unwrap_or_default(),
-            "notes":archives.iter().flat_map(|a| a.notes.iter().chain(a.warnings.iter())).collect::<Vec<_>>()});
-        if load.is_clean() {
-            self.baseline = Some(baseline);
+        *self.project.try_borrow_mut().map_err(|e| e.to_string())? =
+            view_loading::ProjectEnvironment {
+                descriptor: request.descriptor,
+                archives: request.archives,
+                #[cfg(feature = "components")]
+                mounted: None,
+            };
+        if self.views.is_none() {
+            // Resolve descriptor/archives through the same language-owned code,
+            // preserving useful errors for editor sessions without a pack.
+            let project = self.project.try_borrow().map_err(|e| e.to_string())?;
+            view_loading::resolve_project(&project, &request.sources)?;
+            return Err("Load a language pack to analyze SysML/KerML".into());
         }
-        self.navigation = load.navigation;
-        self.current = load.model;
-        self.last_analysis = Some(result.clone());
+        let mut result=self.views.as_mut().ok_or("Load a language pack first")?.dispatch(json!({
+            "method":"workspace/analyze","params":{"revision":request.revision,"sources":request.sources,"projectNodesOnly":request.project_nodes_only}
+        }))?;
+        self.sync_analysis(&mut result)?;
         Ok(result)
     }
+    fn sync_analysis(&mut self, analysis: &mut Value) -> Result<(), String> {
+        #[cfg(feature = "components")]
+        if let Some(mounted) = &self.project.borrow().mounted {
+            mounted.enrich(analysis);
+        }
+        self.revision = analysis["revision"]
+            .as_u64()
+            .ok_or("Analysis has no revision")?;
+        self.sources = view_loading::project_buffers(
+            self.views.as_ref().ok_or("No shared view host")?,
+            analysis,
+        );
+        self.last_analysis = Some(analysis.clone());
+        Ok(())
+    }
+}
 
-    fn load_sources(
-        &self,
-        sources: &[Source],
-    ) -> Result<intersect_kerml::frozen_load::FrozenLoad, String> {
-        let loaded = self
-            .loaded
-            .as_ref()
-            .ok_or("Load a language pack to analyze SysML/KerML")?;
+impl Loaded {
+    fn from_pack(
+        bytes: Vec<u8>,
+        include_library_nodes: bool,
+        digests: &BTreeMap<String, String>,
+        progress: &mut dyn FnMut(&'static str),
+    ) -> Result<(Rc<Self>, Value), String> {
+        progress("pack-check");
+        // This host never opens the KerML-only bindings: it runs the combined
+        // KerML+SysML ones. Leaving that section unverified (and unreadable)
+        // saves hashing a large part of the pack on every start.
+        let pack = LanguagePack::read_checked(bytes, |section| {
+            if section.name == language_pack::BINDINGS_SECTION {
+                SectionCheck::Skip
+            } else if let Some(digest) = digests.get(&section.name) {
+                SectionCheck::HostDigest(digest.clone())
+            } else {
+                SectionCheck::Hash
+            }
+        })
+        .map_err(|e| format!("Language pack: {e}"))?;
+        progress("definition-owners");
+        let session = NativePilotSession::from_pack(&pack, RuntimeAdmissionLoadMode::HostCache)?;
+        progress("bindings");
+        let (bundle, scopes) = language_pack::load_pack_sysml_bindings(&pack)?;
+        // Host binding identity: matches upstream sysml_pack's
+        // public binding recipe inputs (examples/support/sysml_scopes.rs).
+        // The upstream CLI currently uses a different host-selected key.
+        let compiler = intersect_kerml::sysml_bindings::compiler_identity();
+        let mut digest = Sha256::new();
+        for part in std::iter::once(compiler.as_str()).chain(
+            bundle
+                .sources
+                .iter()
+                .flat_map(|source| [source.id.uri.as_str(), source.id.sha256.as_str()]),
+        ) {
+            digest.update((part.len() as u64).to_le_bytes());
+            digest.update(part.as_bytes());
+        }
+        let identity = format!(
+            "{}:{:x}",
+            intersect_kerml::sysml_bindings::BINDING_RECIPE,
+            digest.finalize()
+        );
+        progress("library-sources");
+        let payload = language_pack::pack_library_payload(&pack).transpose()?;
+        #[cfg(not(feature = "components"))]
+        let payload = Some(
+            payload.ok_or("Pack has no standard library. Build it with sysml_pack --library.")?,
+        );
+        let texts: BTreeMap<String, String> = payload
+            .map(decode_library_part)
+            .transpose()
+            .map_err(|e| e.to_string())?
+            .map(|p| p.sources())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| (s.uri, s.text))
+            .collect();
+        progress("library-restore");
         let preparation = InvocationContext::new(Rc::new(Observer));
-        with_sysml_host(
-            &loaded.session,
+        let prepared = with_sysml_host(
+            &session,
             &preparation,
             SysmlBindings {
-                bundle: &loaded.bundle,
-                scopes: &loaded.scopes,
-                identity: &loaded.identity,
+                bundle: &bundle,
+                scopes: &scopes,
+                identity: &identity,
             },
             RuntimePredictionMemoMode::On,
             |host| {
-                host.load(
-                    FrozenStore::from_model(loaded.library.clone()),
-                    sources,
-                    &mut |source, store| host.parse(source, store),
-                    &|_| {},
-                )
+                // Fail clearly on a stale snapshot. Rebuilding compiler caches is a
+                // host build task, not an accidental multi-minute UI operation.
+                if payload.is_none() {
+                    let load = host.load(
+                        FrozenStore::new(host.metamodel().clone()),
+                        &[],
+                        &mut |source, store| host.parse(source, store),
+                        &|_| {},
+                    )?;
+                    return Ok((
+                        load.model.ok_or("Empty library failed validation")?,
+                        "no-standard-library".to_owned(),
+                    ));
+                }
+                let prepared = language_pack::prepare_library(
+                    payload,
+                    None,
+                    host.context(),
+                    // The payload is a pack section this read verified.
+                    LibraryOptions {
+                        trust: SnapshotTrust::VerifiedHostCache,
+                        ..LibraryOptions::default()
+                    },
+                    |_| {
+                        Err("Library snapshot is stale. Rebuild the host-owned pack with --library.".into())
+                    },
+                )?;
+                if prepared.origin != LibraryOrigin::Snapshot {
+                    return Err("A prepared library snapshot is required".into());
+                }
+                Ok((prepared.model, prepared.key))
             },
-        )
-    }
-
-    fn prepare_command(&mut self, command: views::Command) -> Result<Value, String> {
-        let baseline = self
-            .baseline
-            .as_ref()
-            .ok_or("Diagram editing requires a clean, current source model")?;
-        let (patch, after, created) = views::prepare_patch(self, &command)?;
-        let mut sources = self.sources.clone();
-        sources.insert(patch.uri.clone(), after.clone());
-        let batch: Vec<_> = sources
-            .iter()
-            .map(|(uri, text)| Source {
-                uri: uri.clone(),
-                text: text.clone(),
-            })
-            .collect();
-        let load = self.load_sources(&batch)?;
-        if !load.is_clean() {
-            return Err(format!(
-                "Proposed source edit was rejected: {}",
-                load.diagnostics
-                    .iter()
-                    .map(|d| d.message.clone())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            ));
-        }
-        let model = load.model.ok_or("Proposed edit has no accepted model")?;
-        let mut analysis = self.last_analysis.clone().ok_or("No accepted analysis")?;
-        let next_revision = self.revision.checked_add(1).ok_or("Revision overflow")?;
-        analysis["revision"] = json!(next_revision);
-        analysis["nodes"] = json!(model_nodes_in_resources(
-            &model,
-            baseline.project_nodes_only.then_some(&self.editable)
-        ));
-        analysis["diagnostics"]=json!(load.diagnostics.iter().map(|d|json!({"uri":d.resource,"message":d.message,"severity":d.severity,"phase":d.phase,"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":0}}})).collect::<Vec<_>>());
-        analysis["clean"] = json!(true);
-        analysis["hasModel"] = json!(true);
-        analysis["resolved"] = json!(load.resolved);
-        analysis["references"] = json!(load.references);
-        let mut baseline = baseline.clone();
-        baseline.revision = next_revision;
-        for source in &mut baseline.sources {
-            if source.uri == patch.uri {
-                source.text = after.clone();
-            }
-        }
-        self.next_transaction = self
-            .next_transaction
-            .checked_add(1)
-            .ok_or("Transaction identity overflow")?;
-        let token = format!("edit:{}:{}", self.revision, self.next_transaction);
-        let result = PreparedEdit {
-            schema_version: 1,
-            token: token.clone(),
-            base_revision: self.revision,
-            next_revision,
-            patches: vec![patch],
-            created,
+        )?;
+        #[cfg(feature = "components")]
+        let standard_component_payload =
+            language_pack::pack_standard_component_payload(&pack, &prepared.1)?.map(<[u8]>::to_vec);
+        progress("library-tree");
+        let nodes = if include_library_nodes {
+            model_nodes(&prepared.0)
+        } else {
+            Vec::new()
         };
-        result.validate()?;
-        self.pending = Some(PreparedCommand {
-            token: token.clone(),
-            base_revision: self.revision,
-            sources,
-            model,
-            navigation: load.navigation,
-            analysis,
-            baseline,
+        let provenance: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/native-pilot/v1/manifest.json"
+        ))
+        .map_err(|e| format!("Invalid installed library provenance: {e}"))?;
+        let library_info = json!({
+            "name":"OMG standard library", "version":null,
+            "uri":"urn:intersect:standard-library", "readOnly":true,
+            "origin":"Language pack", "sourceRevision":provenance["pilot_commit"],
+            "snapshotKey":prepared.1, "objects":prepared.0.len(),
+            "files":texts.keys().collect::<Vec<_>>(),
         });
-        serde_json::to_value(result).map_err(|e| e.to_string())
-    }
-
-    fn commit_command(&mut self, params: &Value) -> Result<Value, String> {
-        self.check_revision(params)?;
-        let pending = self.pending.as_ref().ok_or("No prepared diagram edit")?;
-        if params["token"].as_str() != Some(pending.token.as_str())
-            || pending.base_revision != self.revision
-        {
-            return Err("Prepared edit token is stale".into());
-        }
-        let received: Vec<Source> = serde_json::from_value(params["sources"].clone())
-            .map_err(|e| format!("Invalid applied source receipt: {e}"))?;
-        let mut seen = BTreeSet::new();
-        if received.len() != self.editable.len()
-            || received.iter().any(|s| {
-                !seen.insert(&s.uri)
-                    || !self.editable.contains(&s.uri)
-                    || pending.sources.get(&s.uri) != Some(&s.text)
-            })
-        {
-            return Err(
-                "Editor buffers differ from the prepared source edit; nothing was published".into(),
-            );
-        }
-        let pending = self.pending.take().ok_or("Prepared edit disappeared")?;
-        self.revision = pending.baseline.revision;
-        self.sources = pending.sources;
-        self.current = Some(pending.model);
-        self.navigation = pending.navigation;
-        self.baseline = Some(pending.baseline);
-        self.last_analysis = Some(pending.analysis.clone());
-        Ok(pending.analysis)
+        #[cfg(feature = "components")]
+        let library_info = {
+            let mut info = library_info;
+            info["componentCacheAvailable"] = json!(standard_component_payload.is_some());
+            info
+        };
+        let result = json!({
+            "language": language_pack::LANGUAGE,
+            "compiler": language_pack::expected_compiler(),
+            "libraryKey": prepared.1,
+            "libraryFiles": texts.keys().collect::<Vec<_>>(),
+            "libraryObjects": prepared.0.len(), "nodes": nodes,
+            "libraryMount": library_info,
+        });
+        let loaded = Rc::new(Self {
+            session,
+            bundle,
+            scopes,
+            library: prepared.0,
+            texts,
+            identity,
+            #[cfg(feature = "components")]
+            library_info,
+            #[cfg(feature = "components")]
+            standard_component_payload,
+        });
+        Ok((loaded, result))
     }
 }
 
@@ -898,3 +715,8 @@ mod tests {
         assert!(missing.is_err_and(|e| e.contains("missing.kpar")));
     }
 }
+
+#[cfg(test)]
+mod source_function_probe;
+
+mod view_rendering;
