@@ -406,7 +406,8 @@ impl Host {
             view_loading::ProjectEnvironment {
                 descriptor: request.descriptor,
                 archives: request.archives,
-                ..Default::default()
+                #[cfg(feature = "components")]
+                mounted: None,
             };
         if self.views.is_none() {
             // Resolve descriptor/archives through the same language-owned code,

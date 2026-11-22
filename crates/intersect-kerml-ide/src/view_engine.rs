@@ -396,10 +396,9 @@ impl ModelViews for Catalog {
                 {
                     if let Some(package) =
                         declared_parent(seed).filter(|parent| is(model, *parent, "Package"))
+                        && !package_keys.insert(context.key(package)?)
                     {
-                        if !package_keys.insert(context.key(package)?) {
-                            candidates.push(package);
-                        }
+                        candidates.push(package);
                     }
                 }
             }
