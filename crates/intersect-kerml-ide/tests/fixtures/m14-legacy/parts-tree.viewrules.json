@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 7,
+  "id": "sysml.partsTree",
+  "label": "Parts tree",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "layered",
+    "direction": "DOWN"
+  },
+  "symbols": [
+    {
+      "id": "part",
+      "match": "PartUsage",
+      "emit": "node",
+      "notation": "structure",
+      "title": {
+        "parts": [
+          {
+            "id": "name",
+            "subject": {
+              "kind": "self"
+            },
+            "text": "label"
+          },
+          {
+            "id": "separator",
+            "subject": {
+              "kind": "none"
+            },
+            "text": {
+              "text": " : "
+            },
+            "when": "hasType"
+          },
+          {
+            "id": "type",
+            "subject": {
+              "kind": "select",
+              "select": "displayTypes"
+            },
+            "text": "label"
+          }
+        ]
+      },
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "attributes",
+          "rows": "attributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "children": {
+        "select": "parts"
+      },
+      "ports": {
+        "select": "ports",
+        "rule": "port"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "port",
+      "match": "PortUsage",
+      "emit": "port",
+      "label": "label",
+      "side": "portSide",
+      "graphic": {
+        "definition": "sysml.symbols/port",
+        "parameters": {
+          "facing": {
+            "kind": "string",
+            "value": "portSide"
+          }
+        },
+        "slots": {
+          "label": {
+            "kind": "label"
+          }
+        },
+        "text": {}
+      }
+    }
+  ],
+  "edges": [],
+  "projection": {
+    "kind": "containmentTree",
+    "edgeRole": "part-child",
+    "edgeNotation": "containment"
+  }
+}

@@ -105,7 +105,7 @@ mod component_cache;
 #[cfg(feature = "components")]
 pub use component_cache::{
     STANDARD_COMPONENT_URI, load_standard_component_cache, pack_standard_component_payload,
-    prepare_standard_component_cache, with_standard_component_part,
+    prepare_standard_component_cache, standard_component_descriptor, with_standard_component_part,
     without_standard_component_part,
 };
 

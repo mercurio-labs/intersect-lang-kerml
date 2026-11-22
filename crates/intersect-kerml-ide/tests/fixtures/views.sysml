@@ -8,7 +8,7 @@ package DriveViews {
 
     view def DefinitionOverview :> GeneralView {
         viewpoint concerns : StructurePerspective;
-        render asTreeDiagram;
+        // Structured compartments use the documented GeneralView default.
     }
     view def InternalStructure :> InterconnectionView {
         viewpoint concerns : StructurePerspective;

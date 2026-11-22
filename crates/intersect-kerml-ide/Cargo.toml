@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 intersect-views.workspace = true
+intersect-view-host.workspace = true
 intersect-kerml.workspace = true
 intersect-kerml-eval = { path = "../intersect-kerml-eval" }
 intersect-kpar.workspace = true

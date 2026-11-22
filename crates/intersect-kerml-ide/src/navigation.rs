@@ -7,7 +7,8 @@ impl Host {
     /// Native consumers use the same endpoint as the embedded LSP facade.
     pub fn definition(&self, params: &Value) -> Result<Value, String> {
         self.check_revision(params)?;
-        let model = self.current.as_ref().ok_or("No current project model")?;
+        let views = self.views.as_ref().ok_or("No accepted view host")?;
+        let model = views.accepted_project().ok_or("No current project model")?;
         if !self.documents.matches_sources(|uri| self.source(uri)) {
             return Err("Open documents differ from the current analysis".into());
         }
@@ -22,8 +23,8 @@ impl Host {
             return Err("Document differs from the current analysis".into());
         }
         let offset = position_byte(text, &params["position"])?;
-        let Some(reference) = self
-            .navigation
+        let Some(reference) = views
+            .navigation()
             .iter()
             .filter(|r| r.uri == uri && r.start <= offset && offset <= r.end)
             .min_by_key(|r| r.end - r.start)

@@ -40,7 +40,13 @@
           "icon": "box",
           "gesture": "place",
           "command": "sysml.createPartUsage",
-          "inputs": [{ "id": "name", "label": "Name", "default": "newPart" }]
+          "inputs": [
+            {
+              "id": "name",
+              "label": "Name",
+              "default": "newPart"
+            }
+          ]
         },
         {
           "id": "port",
@@ -48,7 +54,39 @@
           "icon": "port",
           "gesture": "place",
           "command": "sysml.createPortUsage",
-          "inputs": [{ "id": "name", "label": "Name", "default": "newPort" }]
+          "inputs": [
+            {
+              "id": "name",
+              "label": "Name",
+              "default": "newPort"
+            }
+          ],
+          "parameters": {
+            "placement": "border"
+          }
+        }
+      ]
+    },
+    {
+      "id": "connectors",
+      "label": "Connectors",
+      "entries": [
+        {
+          "id": "connection",
+          "label": "Connection",
+          "icon": "connection",
+          "gesture": "place",
+          "command": "sysml.createConnectionUsage",
+          "parameters": {
+            "placement": "connection"
+          },
+          "inputs": [
+            {
+              "id": "name",
+              "label": "Name",
+              "default": "newConnection"
+            }
+          ]
         }
       ]
     }

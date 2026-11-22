@@ -1,0 +1,562 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.stateTransition",
+  "label": "State transitions",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "layered",
+    "direction": "RIGHT"
+  },
+  "symbols": [
+    {
+      "id": "behavior-StateDefinition",
+      "match": "StateDefinition",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "stateNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      }
+    },
+    {
+      "id": "behavior-StateUsage",
+      "match": "StateUsage",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "stateNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": [
+              {
+                "id": "entry",
+                "label": {
+                  "parts": [
+                    {
+                      "id": "entry-prefix",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateEntryDisplay"
+                      },
+                      "text": {
+                        "text": "entry "
+                      }
+                    },
+                    {
+                      "id": "entry",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateEntryDisplay"
+                      },
+                      "text": {
+                        "sourceText": true
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "do",
+                "label": {
+                  "parts": [
+                    {
+                      "id": "do-prefix",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateDo"
+                      },
+                      "text": {
+                        "text": "do "
+                      }
+                    },
+                    {
+                      "id": "do",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateDo"
+                      },
+                      "text": {
+                        "sourceText": true
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "exit",
+                "label": {
+                  "parts": [
+                    {
+                      "id": "exit-prefix",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateExit"
+                      },
+                      "text": {
+                        "text": "exit "
+                      }
+                    },
+                    {
+                      "id": "exit",
+                      "subject": {
+                        "kind": "select",
+                        "select": "stateExit"
+                      },
+                      "text": {
+                        "sourceText": true
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "behavior-ActionUsage",
+      "match": "ActionUsage",
+      "emit": "node",
+      "notation": "structure",
+      "title": "label",
+      "children": {
+        "select": "stateNodes"
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "string",
+            "value": "behaviorControlKind"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      }
+    },
+    {
+      "id": "parameter",
+      "match": "Feature",
+      "emit": "port",
+      "label": "label",
+      "side": "behaviorParameterSide",
+      "graphic": {
+        "definition": "sysml.symbols/parameter",
+        "parameters": {
+          "facing": {
+            "kind": "string",
+            "value": "behaviorParameterSide"
+          }
+        },
+        "slots": {
+          "label": {
+            "kind": "label"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "state-initial-membership",
+      "match": "StateSubactionMembership",
+      "emit": "node",
+      "notation": "structure",
+      "title": {
+        "text": ""
+      },
+      "graphic": {
+        "definition": "sysml.symbols/behavior",
+        "parameters": {
+          "control": {
+            "kind": "constant",
+            "value": "initial"
+          }
+        },
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "actions": {
+            "kind": "text",
+            "name": "stateActions"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {
+          "stateActions": {
+            "runs": []
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "StateDefinition-transition",
+      "kind": "element",
+      "per": "behavior-StateDefinition",
+      "select": "behaviorTransitions",
+      "notation": "control",
+      "label": {
+        "parts": [
+          {
+            "id": "trigger-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "text": "accept "
+            }
+          },
+          {
+            "id": "trigger",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": " ["
+            }
+          },
+          {
+            "id": "guard",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-suffix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": "]"
+            }
+          },
+          {
+            "id": "effect-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "text": " / "
+            }
+          },
+          {
+            "id": "effect",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "sourceText": true
+            }
+          }
+        ]
+      },
+      "sourcePath": "transitionSourcePath",
+      "targetPath": "transitionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "StateDefinition-initial-succession",
+      "kind": "element",
+      "per": "behavior-StateDefinition",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "stateSuccessionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "StateUsage-transition",
+      "kind": "element",
+      "per": "behavior-StateUsage",
+      "select": "behaviorTransitions",
+      "notation": "control",
+      "label": {
+        "parts": [
+          {
+            "id": "trigger-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "text": "accept "
+            }
+          },
+          {
+            "id": "trigger",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": " ["
+            }
+          },
+          {
+            "id": "guard",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-suffix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": "]"
+            }
+          },
+          {
+            "id": "effect-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "text": " / "
+            }
+          },
+          {
+            "id": "effect",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "sourceText": true
+            }
+          }
+        ]
+      },
+      "sourcePath": "transitionSourcePath",
+      "targetPath": "transitionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "StateUsage-initial-succession",
+      "kind": "element",
+      "per": "behavior-StateUsage",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "stateSuccessionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ActionUsage-transition",
+      "kind": "element",
+      "per": "behavior-ActionUsage",
+      "select": "behaviorTransitions",
+      "notation": "control",
+      "label": {
+        "parts": [
+          {
+            "id": "trigger-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "text": "accept "
+            }
+          },
+          {
+            "id": "trigger",
+            "subject": {
+              "kind": "select",
+              "select": "transitionTrigger"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": " ["
+            }
+          },
+          {
+            "id": "guard",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "sourceText": true
+            }
+          },
+          {
+            "id": "guard-suffix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionGuard"
+            },
+            "text": {
+              "text": "]"
+            }
+          },
+          {
+            "id": "effect-prefix",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "text": " / "
+            }
+          },
+          {
+            "id": "effect",
+            "subject": {
+              "kind": "select",
+              "select": "transitionEffect"
+            },
+            "text": {
+              "sourceText": true
+            }
+          }
+        ]
+      },
+      "sourcePath": "transitionSourcePath",
+      "targetPath": "transitionTargetPath",
+      "anchor": "owner"
+    },
+    {
+      "id": "ActionUsage-initial-succession",
+      "kind": "element",
+      "per": "behavior-ActionUsage",
+      "select": "behaviorSuccessions",
+      "notation": "control",
+      "label": {
+        "text": ""
+      },
+      "sourcePath": "stateSuccessionSourcePath",
+      "targetPath": "successionTargetPath",
+      "anchor": "owner"
+    }
+  ],
+  "projection": {
+    "kind": "nested"
+  },
+  "routing": {
+    "algorithm": "orthogonal",
+    "clearance": 8.0,
+    "stubLength": 18.0,
+    "trunks": "none"
+  }
+}

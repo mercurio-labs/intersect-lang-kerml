@@ -10,7 +10,7 @@ threads, clocks, renderer or document persistence.
 `Host::view_catalog`, `view_scene`, `prepare_view_command` and
 `commit_view_command` expose the same implementations as JSON dispatch methods
 `views/catalog`, `views/scene`, `views/prepareCommand`, `views/commitCommand`.
-DTOs come from core `intersect-views`; `Source` is re-exported so applications
+DTOs come from the standalone [Intersect Views](https://github.com/mercurio-labs/intersect-views) contracts; `Source` is re-exported so applications
 need no direct core dependency. `views/locate` maps source selections to bindings.
 
 `load_pack_for_analysis` skips the optional library presentation tree while
@@ -27,7 +27,14 @@ explicit exposes and standard rendering names. General scenes project
 definitions, usages, stored typing and specialization. Interconnection scenes
 project concrete part contexts, inherited owned parts/ports and binary resolved
 part/port connections. Viewpoint references are source-linked details. Standard
-rendering declarations are retained; arbitrary rendering functions are not run.
+rendering declarations are retained. M14 also supports bounded read-only action
+flow and state-transition projections. Arbitrary rendering functions are not run.
+
+Enable `intersect-kerml-ide/components` to use the same catalog, scene,
+navigation and checked source-transaction APIs on projects with mounted KPARs.
+The accepted project supplies one checked read view for both project source and
+mounted elements. Mounted source may be revealed. Source edits require a
+writable, supported project owner and are validated before commit.
 
 This is not full SysML view evaluation. Filters, unsupported exposure forms,
 ambiguous identity paths, unsupported endpoint chains and creation owners are
@@ -50,9 +57,9 @@ model/source epoch. Reanalysis invalidates pending commands. Clients own applyin
 patches through undo and recovering buffers on failure. Source undo followed by
 analysis removes created elements.
 
-Pack binding identity follows the existing sysml_pack recipe. Unifying this with
-the CLI's independently selected host key remains follow-up. KPAR input resolution
-is preserved; migration to newer catalog/project-host APIs is separate work.
+Pack binding identity follows the existing sysml_pack recipe. See the
+[hosted KPAR profile](hosted-kpar-prototype.md) for archive admission and the
+[Rust API reference](../README.md#rust-api-reference) for the host entry points.
 
 ## Checks
 

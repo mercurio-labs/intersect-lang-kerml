@@ -2,12 +2,17 @@
 //! host-owned. Preparation never publishes a usage or changes a document buffer;
 //! each analysis supplies its complete usage set and latest editable sources.
 use super::*;
+use base64::Engine as _;
 use intersect_kerml::components::with_shared_component_language;
 use intersect_model::{
     components::{ComponentImage, MountedModel, SharedSchema},
     storage::ModelRead,
 };
 use intersect_text::components::ComponentLanguage;
+use intersect_view_host::{
+    LoadedModel, LoadedSources, PreparedProject, ProjectLoad, ProjectMetadata,
+    load::{LoadDiagnostic, LoadPhase},
+};
 use std::sync::Arc;
 
 #[derive(Default)]
@@ -16,10 +21,26 @@ pub(super) struct State {
     pool: BTreeMap<String, Prepared>,
     standard: Option<Prepared>,
     pub usages: Vec<String>,
-    pub model: Option<MountedModel>,
-    navigation: Vec<intersect_text::Reference>,
-    pub texts: BTreeMap<String, String>,
-    paths: BTreeMap<String, String>,
+    pending: Option<PendingMount>,
+}
+
+struct PendingMount {
+    token: String,
+    candidate: PreparedMount,
+}
+
+struct PreparedMount {
+    revision: u64,
+    usages: Vec<String>,
+    environment: view_loading::ProjectEnvironment,
+    project: PreparedProject,
+}
+
+impl State {
+    pub(super) fn clear_project(&mut self) {
+        self.usages.clear();
+        self.pending = None;
+    }
 }
 struct ComponentSources {
     texts: BTreeMap<String, String>,
@@ -31,27 +52,110 @@ struct Prepared {
     texts: BTreeMap<String, String>,
     paths: BTreeMap<String, String>,
     info: Value,
-    nodes: Vec<Value>,
+}
+
+pub(super) struct MountedSources {
+    context: Arc<SharedSchema>,
+    images: Vec<Arc<ComponentImage>>,
+    texts: BTreeMap<String, String>,
+    paths: BTreeMap<String, String>,
+    metadata: ProjectMetadata,
+    library_files: Vec<String>,
+    library_info: Option<Value>,
+}
+
+impl MountedSources {
+    pub(super) fn load(
+        &self,
+        loaded: &Loaded,
+        sources: &[Source],
+    ) -> Result<LoadedSources, String> {
+        let preparation = InvocationContext::new(Rc::new(Observer));
+        let analyzed = with_shared_component_language(
+            &loaded.session,
+            &preparation,
+            SysmlBindings {
+                bundle: &loaded.bundle,
+                scopes: &loaded.scopes,
+                identity: &loaded.identity,
+            },
+            self.context.clone(),
+            |language| language.analyze(sources, &self.images),
+        )?;
+        let diagnostics = analyzed
+            .diagnostics
+            .into_iter()
+            .map(|d| LoadDiagnostic {
+                resource: Some(d.source),
+                start: Some(d.start),
+                end: Some(d.end),
+                ..LoadDiagnostic::error(LoadPhase::Validate, d.message)
+            })
+            .collect();
+        let model = analyzed
+            .model
+            .map(MountedModel::into_read_model)
+            .transpose()?
+            .map(|model| LoadedModel::Mounted(Rc::new(model)));
+        Ok(LoadedSources {
+            load: ProjectLoad {
+                model,
+                diagnostics,
+                references: analyzed.references.len(),
+                resolved: analyzed.references.len(),
+                navigation: analyzed.references,
+            },
+            reference_sources: self.texts.clone(),
+            metadata: ProjectMetadata {
+                project: self.metadata.project.clone(),
+                dependency_uris: self.metadata.dependency_uris.clone(),
+                dependencies: self.metadata.dependencies.clone(),
+                notes: self.metadata.notes.clone(),
+            },
+        })
+    }
+
+    pub(super) fn enrich(&self, analysis: &mut Value) {
+        analysis["libraryFiles"] = json!(self.library_files);
+        analysis["libraryOrigin"] = json!(self.library_info);
+        analysis["libraryMount"] = json!(self.library_info);
+        analysis["dependencyDocuments"] = json!(
+            self.paths
+                .iter()
+                .map(|(uri, path)| json!({"uri": uri, "path": path}))
+                .collect::<Vec<_>>()
+        );
+    }
 }
 
 impl Host {
     pub(super) fn component_dispatch(&mut self, request: &Value) -> Option<Result<Value, String>> {
         let params = &request["params"];
         match request["method"].as_str()? {
-            "intersect/source"
-                if self
-                    .components
-                    .texts
-                    .contains_key(params["uri"].as_str().unwrap_or("")) =>
-            {
-                Some((|| {
-                    let uri = params["uri"].as_str().ok_or("Missing source URI")?;
-                    Ok(
-                        json!({"uri":uri,"text":self.components.texts.get(uri),"path":self.components.paths.get(uri),"readOnly":true}),
-                    )
-                })())
+            "intersect/source" => {
+                let uri = params["uri"].as_str()?;
+                let project = self.project.borrow();
+                let mounted = project.mounted.as_ref()?;
+                let path = mounted.paths.get(uri)?;
+                let text = self.source(uri)?;
+                Some(Ok(
+                    json!({"uri": uri, "text": text, "path": path, "readOnly": true}),
+                ))
             }
             "components/prepareUsage" => Some(self.prepare_usage(params)),
+            "components/prepareProject" => Some(self.prepare_component_project(params)),
+            "components/adoptProject" => Some(self.adopt_component_project(params)),
+            "components/abortProject" => {
+                if self
+                    .components
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| params["token"].as_str() == Some(pending.token.as_str()))
+                {
+                    self.components.pending = None;
+                }
+                Some(Ok(Value::Null))
+            }
             "components/checkUsageSet" => Some((|| {
                 let request: ProjectRequest = serde_json::from_value(params.clone())
                     .map_err(|e| format!("Invalid usage request: {e}"))?;
@@ -60,26 +164,11 @@ impl Host {
             })()),
             "intersect/inspect" if !self.components.usages.is_empty() => Some((|| {
                 self.check_revision(params)?;
-                let model = self
-                    .components
-                    .model
-                    .as_ref()
-                    .ok_or("No current mounted model")?;
-                let id = params["id"].as_str().ok_or("Missing element id")?;
-                let mut result = Value::Null;
-                if !model.inspect(id, &mut |object| {
-                    let text = self.source(object.resource()).unwrap_or("");
-                    let values: BTreeMap<_, _> = object.fields().map(|(k,v)| (k, v.to_json())).collect();
-                    result = json!({"id":id,"class":object.class(),"resource":object.resource(),
-                        "range":{"start":byte_position(text,object.start()),"end":byte_position(text,object.end())},
-                        "values":values,"revision":self.revision});
-                    Ok(())
-                })? { return Err("Element no longer exists in the current model".into()); }
-                Ok(result)
+                self.views
+                    .as_mut()
+                    .ok_or("No current mounted model")?
+                    .dispatch(request.clone())
             })()),
-            "textDocument/definition" if !self.components.usages.is_empty() => {
-                Some(self.component_definition(params))
-            }
             "textDocument/completion" if !self.components.usages.is_empty() => {
                 Some(self.documents.complete(params))
             }
@@ -91,45 +180,6 @@ impl Host {
             }
             _ => None,
         }
-    }
-
-    fn component_definition(&self, params: &Value) -> Result<Value, String> {
-        self.check_revision(params)?;
-        if !self.documents.matches_sources(|uri| self.source(uri)) {
-            return Err("Open documents differ from the current analysis".into());
-        }
-        let uri = params["textDocument"]["uri"]
-            .as_str()
-            .ok_or("Missing document URI")?;
-        let text = self.source(uri).ok_or("Unknown source")?;
-        if !self
-            .documents
-            .matches(uri, text, params["textDocument"]["version"].as_i64())
-        {
-            return Err("Document differs from the current analysis".into());
-        }
-        let offset = position_byte(text, &params["position"])?;
-        let Some(reference) = self
-            .components
-            .navigation
-            .iter()
-            .filter(|r| r.uri == uri && r.start <= offset && offset <= r.end)
-            .min_by_key(|r| r.end - r.start)
-        else {
-            return Ok(Value::Null);
-        };
-        let model = self
-            .components
-            .model
-            .as_ref()
-            .ok_or("No current mounted model")?;
-        let mut result = Value::Null;
-        model.inspect(&reference.target,&mut |object| {
-            let target=self.source(object.resource()).ok_or("Target source unavailable")?;
-            let range=json!({"start":byte_position(target,object.start()),"end":byte_position(target,object.end())});
-            result=json!([{"originSelectionRange":{"start":byte_position(text,reference.start),"end":byte_position(text,reference.end)},"targetUri":object.resource(),"targetRange":range,"targetSelectionRange":range}]);Ok(())
-        })?;
-        Ok(result)
     }
 
     fn prepare_usage(&mut self, params: &Value) -> Result<Value, String> {
@@ -210,7 +260,6 @@ impl Host {
         let image = ComponentImage::prepare(context.clone(), uri, model.clone())?;
         let ComponentSources { texts, paths } =
             component_texts(&context, &image, &model, &sources)?;
-        let nodes = component_nodes(&image, &model, &paths)?;
         let standard = if self.components.standard.is_none() && !loaded.library.is_empty() {
             Some(prepare_standard_component(&context, loaded)?)
         } else {
@@ -232,7 +281,6 @@ impl Host {
                 texts,
                 paths,
                 info: info.clone(),
-                nodes,
             },
         );
         Ok(info)
@@ -310,28 +358,50 @@ impl Host {
     }
 
     pub(super) fn analyze_components(&mut self, request: ProjectRequest) -> Result<Value, String> {
-        // Invalidate before attempting analysis, including operational errors.
-        self.current = None;
-        self.pending = None;
-        self.baseline = None;
-        self.last_analysis = None;
-        self.components.model = None;
-        self.components.navigation.clear();
-        self.navigation.clear();
-        self.components.usages = request.component_usages.clone();
-        self.revision = request.revision;
-        self.sources = request
-            .sources
-            .iter()
-            .map(|s| (s.uri.clone(), s.text.clone()))
-            .collect();
-        self.editable = self.sources.keys().cloned().collect();
-        if self.sources.len() != request.sources.len()
-            || request.sources.len() > 256
-            || request.sources.iter().map(|s| s.text.len()).sum::<usize>() > 8 * 1024 * 1024
-        {
-            return Err("Project requires distinct sources, at most 256 files and 8 MiB".into());
+        let candidate = self.prepare_mount(request)?;
+        self.publish_mount(candidate)
+    }
+
+    fn prepare_component_project(&mut self, params: &Value) -> Result<Value, String> {
+        let request: ProjectRequest = serde_json::from_value(params.clone())
+            .map_err(|e| format!("Invalid component project request: {e}"))?;
+        if request.component_usages.is_empty() || request.revision <= self.revision {
+            return Err(
+                "Preparing a mount requires an exact usage set and a newer revision".into(),
+            );
         }
+        let candidate = self.prepare_mount(request)?;
+        self.mount_transaction = self
+            .mount_transaction
+            .checked_add(1)
+            .ok_or("Mount transaction limit exceeded")?;
+        let token = format!("mount:{}", self.mount_transaction);
+        let receipt = json!({ "token": token, "revision": candidate.revision });
+        self.components.pending = Some(PendingMount { token, candidate });
+        Ok(receipt)
+    }
+
+    fn adopt_component_project(&mut self, params: &Value) -> Result<Value, String> {
+        let pending = self
+            .components
+            .pending
+            .as_ref()
+            .ok_or("No prepared component project")?;
+        if params["token"].as_str() != Some(pending.token.as_str())
+            || params["revision"].as_u64() != Some(pending.candidate.revision)
+        {
+            return Err("Prepared component project is stale".into());
+        }
+        let candidate = self
+            .components
+            .pending
+            .take()
+            .ok_or("No prepared component project")?
+            .candidate;
+        self.publish_mount(candidate)
+    }
+
+    fn prepare_mount(&mut self, request: ProjectRequest) -> Result<PreparedMount, String> {
         let project = self.check_component_profile(&request)?;
         let context = self
             .components
@@ -349,7 +419,6 @@ impl Host {
         let mut paths = BTreeMap::new();
         let mut seen = BTreeSet::new();
         let mut logical = BTreeSet::new();
-        let mut dependency_nodes = Vec::new();
         for key in &request.component_usages {
             let prepared = self
                 .components
@@ -364,66 +433,73 @@ impl Host {
             texts.extend(prepared.texts.clone());
             paths.extend(prepared.paths.clone());
             dependencies.push(prepared.info.clone());
-            dependency_nodes.extend(prepared.nodes.iter().cloned());
         }
         let mut library_files = Vec::new();
-        if !loaded.library.is_empty() {
-            if self.components.standard.is_none() {
-                self.components.standard = Some(prepare_standard_component(&context, loaded)?);
-            }
-            let standard = self
-                .components
-                .standard
-                .as_ref()
-                .ok_or("Missing standard library")?;
+        let prepared_standard = if !loaded.library.is_empty() && self.components.standard.is_none()
+        {
+            Some(prepare_standard_component(&context, loaded)?)
+        } else {
+            None
+        };
+        let standard = self
+            .components
+            .standard
+            .as_ref()
+            .or(prepared_standard.as_ref());
+        if let Some(standard) = standard {
             library_files.extend(standard.texts.keys().cloned());
             texts.extend(standard.texts.clone());
             paths.extend(standard.paths.clone());
             images.push(standard.image.clone());
-            dependency_nodes.extend(standard.nodes.iter().cloned());
         }
-        self.components.texts = texts;
-        self.components.paths = paths;
-        let preparation = InvocationContext::new(Rc::new(Observer));
-        let analyzed = with_shared_component_language(
-            &loaded.session,
-            &preparation,
-            SysmlBindings {
-                bundle: &loaded.bundle,
-                scopes: &loaded.scopes,
-                identity: &loaded.identity,
-            },
+        let mounted = MountedSources {
             context,
-            |language| language.analyze(&request.sources, &images),
-        )?;
-        let mut nodes = analyzed
-            .model
-            .as_ref()
-            .map(|model| mounted_nodes(model, true))
-            .transpose()?
-            .unwrap_or_default();
-        if analyzed.model.is_some() {
-            nodes.extend(dependency_nodes);
-            nodes.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+            images,
+            texts,
+            paths,
+            metadata: ProjectMetadata {
+                project: project.map(|p| p.to_value()),
+                dependency_uris,
+                dependencies,
+                notes: vec![
+                    "Hosted usages are read only and retained for this open session.".into(),
+                ],
+            },
+            library_files,
+            library_info: standard.map(|standard| standard.info.clone()),
+        };
+        let views = self
+            .views
+            .as_mut()
+            .ok_or("Load a compatible language pack first")?;
+        let previous = self.project.replace(view_loading::ProjectEnvironment {
+            mounted: Some(mounted),
+            ..Default::default()
+        });
+        let prepared = views.prepare_project(request.revision, request.sources, false);
+        let environment = self.project.replace(previous);
+        let project = prepared?;
+        if let Some(standard) = prepared_standard {
+            self.components.standard = Some(standard);
         }
-        let diagnostics: Vec<_> = analyzed
-            .diagnostics
-            .iter()
-            .map(|d| {
-                let text = self.source(&d.source).unwrap_or("");
-                json!({"uri":d.source,"message":d.message,"phase":"component","severity":"Error",
-                "range":{"start":byte_position(text,d.start),"end":byte_position(text,d.end)}})
-            })
-            .collect();
-        let result = json!({"revision":self.revision,"nodes":nodes,"diagnostics":diagnostics,
-            "hasModel":analyzed.model.is_some(),"clean":analyzed.diagnostics.is_empty() && analyzed.model.is_some(),
-            "resolved":analyzed.references.len(),"references":analyzed.references.len(),"project":project.map(|p|p.to_value()),
-            "libraryFiles":library_files,"libraryOrigin":self.components.standard.as_ref().map(|standard|&standard.info),
-            "libraryMount":self.components.standard.as_ref().map(|standard|&standard.info),
-            "dependencyUris":dependency_uris,"dependencyDocuments":self.components.paths.iter().map(|(uri,path)|json!({"uri":uri,"path":path})).collect::<Vec<_>>(),"dependencies":dependencies,"notes":["Hosted usages are read only and retained for this open session. Diagram and evaluation services for mounted projects are not yet available."]});
-        self.components.navigation = analyzed.references;
-        self.components.model = analyzed.model;
-        self.last_analysis = Some(result.clone());
+        Ok(PreparedMount {
+            revision: request.revision,
+            usages: request.component_usages,
+            environment,
+            project,
+        })
+    }
+
+    fn publish_mount(&mut self, candidate: PreparedMount) -> Result<Value, String> {
+        let mut result = self
+            .views
+            .as_mut()
+            .ok_or("Load a compatible language pack first")?
+            .adopt_project(candidate.project)?;
+        self.project.replace(candidate.environment);
+        self.components.usages = candidate.usages;
+        self.components.pending = None;
+        self.sync_analysis(&mut result)?;
         Ok(result)
     }
 }
@@ -466,7 +542,6 @@ fn prepare_standard_component(
         .collect();
     let ComponentSources { texts, paths } =
         component_texts(context, &image, &loaded.library, &sources)?;
-    let nodes = component_nodes(&image, &loaded.library, &paths)?;
     let mut info = loaded.library_info.clone();
     info["mountKey"] = json!(image.key());
     info["identity"] = json!(image.identity());
@@ -478,7 +553,6 @@ fn prepare_standard_component(
         texts,
         paths,
         info,
-        nodes,
     })
 }
 
@@ -522,6 +596,7 @@ fn component_texts(
 // Names, source spans and containment of closed images are immutable. Qualify
 // the ordinary native presentation once, retaining actual runtime identities.
 // Reciprocal project overlays cannot change any of these presentation fields.
+#[cfg(test)]
 fn component_nodes(
     image: &ComponentImage,
     original: &Model,
@@ -553,6 +628,7 @@ fn component_nodes(
     Ok(nodes)
 }
 
+#[cfg(test)]
 fn mounted_nodes(model: &MountedModel, project_only: bool) -> Result<Vec<Value>, String> {
     let mut nodes = BTreeMap::new();
     let mut parents = BTreeMap::<String, String>::new();
@@ -624,6 +700,31 @@ fn mounted_nodes(model: &MountedModel, project_only: bool) -> Result<Vec<Value>,
 mod tests {
     use super::*;
     use intersect_model::frozen::{ById, ModelBuilder};
+
+    #[test]
+    fn rejected_component_analysis_preserves_the_accepted_revision() {
+        let uri = "memory:project.sysml";
+        let mut host = Host {
+            revision: 4,
+            sources: BTreeMap::from([(uri.into(), "accepted source".into())]),
+            last_analysis: Some(json!({"revision":4})),
+            ..Default::default()
+        };
+        host.components.usages = vec!["accepted".into()];
+        let rejected = host.dispatch(json!({
+            "method":"workspace/analyze",
+            "params":{
+                "revision":5,
+                "sources":[{"uri":uri,"text":"candidate source"}],
+                "componentUsages":["missing"]
+            }
+        }));
+        assert!(rejected.is_err());
+        assert_eq!(host.revision, 4);
+        assert_eq!(host.source(uri), Some("accepted source"));
+        assert_eq!(host.components.usages, ["accepted"]);
+        assert_eq!(host.last_analysis, Some(json!({"revision":4})));
+    }
 
     #[test]
     fn standard_component_pack_cache_is_bound_checked_and_invalidated_with_library()

@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.interconnection",
+  "label": "Interconnection",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "layered",
+    "direction": "RIGHT"
+  },
+  "symbols": [
+    {
+      "id": "element",
+      "match": "Element",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "parts",
+          "rows": "ownedParts",
+          "rowLabel": "title",
+          "id": "parts"
+        },
+        {
+          "label": "ports",
+          "rows": "ownedPorts",
+          "rowLabel": "title",
+          "id": "ports"
+        },
+        {
+          "label": "attributes",
+          "rows": "ownedAttributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "definition",
+      "match": "Definition",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "parts",
+          "rows": "ownedParts",
+          "rowLabel": "title",
+          "id": "parts"
+        },
+        {
+          "label": "ports",
+          "rows": "ownedPorts",
+          "rowLabel": "title",
+          "id": "ports"
+        },
+        {
+          "label": "attributes",
+          "rows": "ownedAttributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "part-definition",
+      "match": "PartDefinition",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "parts",
+          "rows": "parts",
+          "rowLabel": "title",
+          "id": "parts"
+        },
+        {
+          "label": "ports",
+          "rows": "ports",
+          "rowLabel": "title",
+          "id": "ports"
+        },
+        {
+          "label": "attributes",
+          "rows": "attributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "create": [
+        {
+          "tool": "part",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "port",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        },
+        {
+          "tool": "connection",
+          "command": "sysml.createConnectionUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "equipment",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "interface",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        }
+      ],
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "package",
+      "match": "Package",
+      "emit": "node",
+      "notation": "package",
+      "title": "label",
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "parts",
+          "rows": "ownedParts",
+          "rowLabel": "title",
+          "id": "parts"
+        },
+        {
+          "label": "ports",
+          "rows": "ownedPorts",
+          "rowLabel": "title",
+          "id": "ports"
+        },
+        {
+          "label": "attributes",
+          "rows": "ownedAttributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "create": [
+        {
+          "tool": "part",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "port",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        },
+        {
+          "tool": "connection",
+          "command": "sysml.createConnectionUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "equipment",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "interface",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        }
+      ],
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "part",
+      "match": "PartUsage",
+      "emit": "node",
+      "notation": "structure",
+      "title": {
+        "parts": [
+          {
+            "id": "name",
+            "subject": {
+              "kind": "self"
+            },
+            "text": "label"
+          },
+          {
+            "id": "separator",
+            "subject": {
+              "kind": "none"
+            },
+            "text": {
+              "text": " : "
+            },
+            "when": "hasType"
+          },
+          {
+            "id": "type",
+            "subject": {
+              "kind": "select",
+              "select": "displayTypes"
+            },
+            "text": "label"
+          }
+        ]
+      },
+      "subtitle": "classLabel",
+      "compartments": [
+        {
+          "label": "attributes",
+          "rows": "attributes",
+          "rowLabel": "title",
+          "id": "attributes"
+        }
+      ],
+      "children": {
+        "select": "parts"
+      },
+      "ports": {
+        "select": "ports",
+        "rule": "port"
+      },
+      "create": [
+        {
+          "tool": "part",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "port",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        },
+        {
+          "tool": "connection",
+          "command": "sysml.createConnectionUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "equipment",
+          "command": "sysml.createPartUsage",
+          "accepts": "canCreatePart"
+        },
+        {
+          "tool": "interface",
+          "command": "sysml.createPortUsage",
+          "accepts": "canCreatePort"
+        }
+      ],
+      "graphic": {
+        "definition": "sysml.symbols/structure",
+        "parameters": {},
+        "slots": {
+          "title": {
+            "kind": "title"
+          },
+          "subtitle": {
+            "kind": "subtitle"
+          },
+          "compartments": {
+            "kind": "compartments"
+          },
+          "children": {
+            "kind": "children"
+          }
+        },
+        "text": {}
+      }
+    },
+    {
+      "id": "port",
+      "match": "PortUsage",
+      "emit": "port",
+      "label": "label",
+      "side": "portSide",
+      "graphic": {
+        "definition": "sysml.symbols/port",
+        "parameters": {
+          "facing": {
+            "kind": "string",
+            "value": "portSide"
+          }
+        },
+        "slots": {
+          "label": {
+            "kind": "label"
+          }
+        },
+        "text": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "connection",
+      "kind": "element",
+      "per": "part",
+      "select": "connections",
+      "notation": "connection",
+      "label": "label",
+      "sourcePath": "sourcePath",
+      "targetPath": "targetPath",
+      "anchor": "owner",
+      "connect": {
+        "command": "sysml.createConnectionUsage",
+        "sourceAccepts": "canConnect",
+        "targetAccepts": "canConnect"
+      }
+    },
+    {
+      "id": "sibling-connection",
+      "kind": "element",
+      "per": "part",
+      "select": "siblingConnections",
+      "notation": "connection",
+      "label": "label",
+      "sourcePath": "sourcePath",
+      "targetPath": "targetPath",
+      "anchor": "root",
+      "connect": {
+        "command": "sysml.createConnectionUsage",
+        "sourceAccepts": "canConnect",
+        "targetAccepts": "canConnect"
+      },
+      "rootOnly": true
+    }
+  ],
+  "projection": {
+    "kind": "nested"
+  },
+  "routing": {
+    "algorithm": "orthogonal",
+    "clearance": 8.0,
+    "stubLength": 18.0,
+    "trunks": "none"
+  }
+}
