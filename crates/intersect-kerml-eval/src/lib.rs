@@ -4,6 +4,7 @@
 //! Behavioral reference: `docs/pilot-expression-evaluator-reference.md`.
 //! Evaluated results and independently verified Pilot agreement are separate claims.
 
+pub mod analysis_case;
 mod condition;
 mod context;
 mod error;
