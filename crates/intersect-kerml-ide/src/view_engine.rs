@@ -210,6 +210,14 @@ pub(super) fn host(
                     format!("{}.template", rule["id"].as_str().ok_or("Missing rule ID")?).into();
                 serde_json::to_string(&rule).map_err(|e| e.to_string())
             })
+            .chain(
+                [
+                    include_str!("../assets/requirements-table.viewrules.json"),
+                    include_str!("../assets/browser.viewrules.json"),
+                    include_str!("../assets/sequence.viewrules.json"),
+                ]
+                .map(|rules| Ok(rules.to_owned())),
+            )
             .collect::<Result<Vec<_>, String>>()?,
             notation: include_str!("../assets/sysml.notation.json").into(),
             palette: include_str!("../assets/structure.palette.json").into(),
@@ -278,9 +286,30 @@ pub(super) fn host(
         .to_owned();
     Ok((host, fingerprint))
 }
+// The grid default uses a checked language rule. The graph presentation
+// manifest keeps its existing fingerprint so saved diagrams stay compatible.
+use crate::view_rendering::{BROWSER, REQUIREMENTS_TABLE, SEQUENCE};
+
+fn supports_root(
+    context: &ModelViewContext<'_>,
+    registration: &str,
+    object: ProjectObject<'_>,
+) -> Result<bool, String> {
+    if registration == REQUIREMENTS_TABLE {
+        return Ok(is(context.model(), object, "RequirementUsage")
+            && object
+                .feature("declaredName")
+                .and_then(|feature| object.str(feature))
+                .is_some_and(|name| !name.is_empty()));
+    }
+    if registration == SEQUENCE {
+        return Ok(is(context.model(), object, "OccurrenceDefinition") && name(object).is_some());
+    }
+    context.boolean(root_predicate(registration), object)
+}
 fn root_predicate(registration: &str) -> &'static str {
     match registration {
-        "sysml.compartments" => "supportedStructuralRoot",
+        "sysml.compartments" | BROWSER => "supportedStructuralRoot",
         "sysml.actionFlow" => "supportedActionRoot",
         "sysml.stateTransition" => "supportedStateRoot",
         _ => "supportedPartRoot",
@@ -294,7 +323,6 @@ impl ModelViews for Catalog {
         view: &View,
         scope: &Scope,
     ) -> Result<(), String> {
-        let predicate = root_predicate(&view.kind);
         for op in &scope.ops {
             if let ScopeOp::AddSeed { element } = op {
                 let object = context.element(element).ok_or_else(|| {
@@ -305,7 +333,7 @@ impl ModelViews for Catalog {
                         view.binding.range.start.character + 1
                     )
                 })?;
-                if !context.boolean(predicate, object)? {
+                if !supports_root(context, &view.kind, object)? {
                     let binding = context.binding(object)?;
                     return Err(format!(
                         "{}:{}:{}: root is incompatible with selected rendering",
@@ -324,7 +352,15 @@ impl ModelViews for Catalog {
             is(context.model(), *o, "ViewUsage") && context.editable(*o) && name(*o).is_some()
         }) {
             let key = context.key(object)?;
-            let mut selection = self.0.resolve(context, object);
+            let mut selection = self.0.intent(context, object).and_then(|intent| {
+                let registration = intent.registration_id;
+                let selection = if matches!(registration, REQUIREMENTS_TABLE | BROWSER | SEQUENCE) {
+                    None
+                } else {
+                    Some(Box::new(self.0.resolve(context, intent)?))
+                };
+                Ok((registration, selection))
+            });
             if selection.is_ok() {
                 let problem = if context.boolean("viewHasFilters", object)? {
                     Some("View filter evaluation is not qualified in this profile")
@@ -347,7 +383,7 @@ impl ModelViews for Catalog {
                 context.elements(
                     if selection
                         .as_ref()
-                        .is_ok_and(|s| s.registration_id == "sysml.compartments")
+                        .is_ok_and(|(registration, _)| *registration == "sysml.compartments")
                     {
                         "structuralViewSeeds"
                     } else {
@@ -358,16 +394,23 @@ impl ModelViews for Catalog {
             } else {
                 vec![]
             };
-            if let Ok(chosen) = &selection {
-                let predicate = root_predicate(&chosen.registration_id);
+            if selection.as_ref().is_ok_and(|(id, _)| *id == SEQUENCE) && seeds.len() != 1 {
+                selection = Err(
+                    "This SequenceView profile requires one exposed occurrence definition".into(),
+                );
+            }
+            if let Ok((registration, _)) = &selection {
+                let registration = *registration;
                 for seed in &seeds {
-                    if !context.boolean(predicate, *seed)? {
+                    if !supports_root(context, registration, *seed)? {
                         selection = Err(
                             "Exposed roots are incompatible with the selected rendering".into(),
                         );
                         break;
                     }
-                    if context.boolean("ambiguous", *seed)? {
+                    if !matches!(registration, REQUIREMENTS_TABLE | BROWSER | SEQUENCE)
+                        && context.boolean("ambiguous", *seed)?
+                    {
                         selection =
                             Err("Ambiguous inherited members require explicit redefinition".into());
                         break;
@@ -376,7 +419,7 @@ impl ModelViews for Catalog {
             }
             let kind = selection
                 .as_ref()
-                .map(|s| s.registration_id.clone())
+                .map(|(registration, _)| (*registration).to_owned())
                 .unwrap_or_else(|_| "unsupported".into());
             let mut owners = BTreeMap::new();
             let mut candidates = if selection.is_ok() {
@@ -441,7 +484,7 @@ impl ModelViews for Catalog {
                 details,
                 problems: selection.as_ref().err().cloned().into_iter().collect(),
             };
-            let selection = match selection {
+            let (registration, selection) = match selection {
                 Ok(selection) => selection,
                 Err(message) => {
                     let diagnostic = intersect_views::RenderingDiagnostic {
@@ -460,7 +503,7 @@ impl ModelViews for Catalog {
                 schema_version: 1,
                 key,
                 name: view.name.clone(),
-                rule_set: selection.rule_set_id.clone(),
+                rule_set: registration.into(),
                 scope: Scope {
                     schema_version: 1,
                     ops: seeds
@@ -476,7 +519,7 @@ impl ModelViews for Catalog {
             result.push(ModelView::Resolved {
                 document,
                 view,
-                selection: Some(Box::new(selection)),
+                selection,
             });
         }
         Ok(result)
@@ -544,7 +587,7 @@ impl Host {
         if let intersect_views::Scene::Graph(scene) = &response.scene
             && matches!(
                 scene.rule_set.as_str(),
-                "sysml.actionFlow" | "sysml.stateTransition"
+                "sysml.actionFlow" | "sysml.stateTransition" | SEQUENCE
             )
         {
             // Generic exploration can carry partial structural scenes. A behavior

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.browser",
+  "label": "Browser",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "outline",
+    "direction": "DOWN"
+  },
+  "symbols": [
+    {
+      "id": "member",
+      "match": "Element",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "subtitle": "classLabel",
+      "children": {
+        "select": "owned"
+      }
+    }
+  ],
+  "edges": [],
+  "projection": {
+    "kind": "nested"
+  },
+  "routing": {
+    "algorithm": "orthogonal",
+    "clearance": 8.0,
+    "stubLength": 18.0,
+    "trunks": "none"
+  }
+}

@@ -497,3 +497,22 @@ pub fn behaviorParameterSide(e:k.Feature)->String = match e.direction {
   Some(d) => if d == k.FeatureDirectionKind.`in` { "WEST" } else { "EAST" },
   None => "EAST"
 };
+
+// Messages own two event parameters, unlike flows with connector-end features.
+// Each event parameter stores a reference subsetting to the authored event.
+pub fn sequenceEvents(p:k.PartUsage)->Sequence<k.EventOccurrenceUsage> =
+  owned(p).selectByKind::<k.EventOccurrenceUsage>();
+pub fn sequenceMessages(o:k.OccurrenceDefinition)->Sequence<k.FlowUsage> =
+  owned(o).selectByKind::<k.FlowUsage>();
+pub fn sequenceSuccessions(p:k.PartUsage)->Sequence<k.SuccessionAsUsage> =
+  owned(p).selectByKind::<k.SuccessionAsUsage>();
+fn messageParameters(f:k.FlowUsage)->Sequence<k.EventOccurrenceUsage> =
+  Sequence(direct(f).selectByKind::<k.ParameterMembership>()
+    .flatMap(|m| direct(m).selectByKind::<k.EventOccurrenceUsage>()));
+fn messagePath(f:k.FlowUsage, end:Int64)->Sequence<k.Element> = {
+  let parameters = messageParameters(f);
+  if parameters.size() != 2 { [] }
+  else { match parameters.at(end) { Some(e) => endPath(e), None => [] } }
+};
+pub fn messageSourcePath(f:k.FlowUsage)->Sequence<k.Element> = messagePath(f, 0);
+pub fn messageTargetPath(f:k.FlowUsage)->Sequence<k.Element> = messagePath(f, 1);

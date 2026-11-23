@@ -6,11 +6,18 @@ use crate::{
 use intersect_view_host::{ModelViewContext, ProjectObject};
 use intersect_views::{RenderingOrigin, RenderingSelection};
 use sha2::{Digest, Sha256};
+
+pub(super) const SEQUENCE: &str = "sysml.sequence";
+pub(super) const BROWSER: &str = "sysml.browser";
+pub(super) const REQUIREMENTS_TABLE: &str = "sysml.requirementsTable";
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Tree,
     Interconnection,
     GeneralDefault,
+    GridDefault,
+    BrowserDefault,
+    SequenceDefault,
     InterconnectionDefault,
     ActionProfile,
     StateProfile,
@@ -66,6 +73,21 @@ impl Registry {
             (
                 "2075fe906ddeefb5e8b38ee681acd3b6409a5ec2c1b04135a4a9d013c9d35ec8",
                 vec![
+                    (
+                        "StandardViewDefinitions::SequenceView",
+                        Kind::SequenceDefault,
+                        "ViewDefinition",
+                    ),
+                    (
+                        "StandardViewDefinitions::BrowserView",
+                        Kind::BrowserDefault,
+                        "ViewDefinition",
+                    ),
+                    (
+                        "StandardViewDefinitions::GridView",
+                        Kind::GridDefault,
+                        "ViewDefinition",
+                    ),
                     (
                         "StandardViewDefinitions::GeneralView",
                         Kind::GeneralDefault,
@@ -204,6 +226,9 @@ impl Registry {
                 && matches!(
                     known.kind,
                     Kind::GeneralDefault
+                        | Kind::GridDefault
+                        | Kind::BrowserDefault
+                        | Kind::SequenceDefault
                         | Kind::InterconnectionDefault
                         | Kind::ActionProfile
                         | Kind::StateProfile
@@ -237,6 +262,24 @@ impl Registry {
             );
         }
         let (kind, origin, origin_object, canonical) = if let Some(member) = members.first() {
+            if defaults
+                .iter()
+                .any(|(kind, _)| *kind == Kind::SequenceDefault)
+            {
+                return Err("Explicit SequenceView renderings require a qualified sequence rendering definition".into());
+            }
+            if defaults
+                .iter()
+                .any(|(kind, _)| *kind == Kind::BrowserDefault)
+            {
+                return Err("Explicit BrowserView renderings require a qualified browser rendering definition".into());
+            }
+            if defaults.iter().any(|(kind, _)| *kind == Kind::GridDefault) {
+                return Err(
+                    "Explicit GridView renderings require a qualified grid rendering definition"
+                        .into(),
+                );
+            }
             let mut targets = Vec::new();
             for target in c.elements("renderingTargets", *member)? {
                 if let Some(known) = self.canonical(target)
@@ -286,6 +329,9 @@ impl Registry {
             Kind::Tree => "sysml.partsTree",
             Kind::Interconnection | Kind::InterconnectionDefault => "sysml.interconnection",
             Kind::GeneralDefault => "sysml.compartments",
+            Kind::GridDefault => REQUIREMENTS_TABLE,
+            Kind::BrowserDefault => BROWSER,
+            Kind::SequenceDefault => SEQUENCE,
             Kind::ActionProfile => "sysml.actionFlow",
             Kind::StateProfile => "sysml.stateTransition",
             Kind::ActionStart | Kind::ActionDone => return Err("Control is not a rendering".into()),
@@ -300,9 +346,8 @@ impl Registry {
     pub(super) fn resolve(
         &self,
         c: &ModelViewContext<'_>,
-        view: ProjectObject<'_>,
+        intent: Intent,
     ) -> Result<RenderingSelection, String> {
-        let intent = self.intent(c, view)?;
         let registry = c
             .rendering_registry()
             .ok_or("Rendering registry capability is unavailable")?;

@@ -13,9 +13,9 @@ publish = false
 
 [workspace.dependencies]
 intersect-load = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "69e2303c7f3ce57c189ea2d8856f54ade1cab0be" }
-# Generic visualization contracts and host adapters live in public Model.
-intersect-views = { git = "https://github.com/mercurio-labs/intersect-views.git", rev = "a64a75e59277c62a527c44977ad7e9c1c235c493" }
-intersect-view-host = { git = "https://github.com/mercurio-labs/intersect-views.git", rev = "a64a75e59277c62a527c44977ad7e9c1c235c493" }
+# Shared scene contracts and host adapters for the M14 SDK preview.
+intersect-views = { git = "https://github.com/mercurio-labs/intersect-views.git", rev = "d5c73127edac4c50dab723890f7ba7adfb6d141a" }
+intersect-view-host = { git = "https://github.com/mercurio-labs/intersect-views.git", rev = "d5c73127edac4c50dab723890f7ba7adfb6d141a" }
 intersect-kerml = { path = "crates/intersect-kerml" }
 intersect-kpar = { path = "crates/intersect-kpar" }
 intersect-build-support = "=0.1.0-alpha.2"
