@@ -78,7 +78,7 @@ impl PreparedLanguageProvider for Definition {
 pub(super) fn host(
     loaded: Rc<Loaded>,
     project: Rc<RefCell<ProjectEnvironment>>,
-) -> Result<(intersect_view_host::Host, String), String> {
+) -> Result<(intersect_view_host::Host, String, String), String> {
     let canonical = crate::view_rendering::Registry::prepare(&loaded)?;
     let definition = {
         let prepared = loaded.session.sysml_definition()?;
@@ -276,18 +276,60 @@ pub(super) fn host(
             include_str!("../assets/renderings.json"),
         ),
     ];
-    let presentation=host.dispatch(json!({"method":"views/preparePresentation","params":{
-      "root":"sysml.presentation@1","manifests":[{"schemaVersion":1,"id":"sysml.presentation","version":"1","language":"https://www.omg.org/spec/SysML/20250201","languageFingerprint":fingerprint,"requires":["rules.graph.v8","views.routing.v1","views.labelPlacement.v1","graphics.composition.v1","graphics.text.v1","views.rendering.v1"],"dependencies":[],"resources":resources.iter().map(|(id,kind,content)|json!({"id":id,"kind":kind,"sha256":format!("{:x}",Sha256::digest(content.as_bytes()))})).collect::<Vec<_>>()}],
-      "resources":resources.iter().map(|(id,_,content)|json!({"id":id,"content":content})).collect::<Vec<_>>()
-    }}))?;
+    let hash = |bytes: &[u8]| format!("{:x}", Sha256::digest(bytes));
+    let mut input: intersect_views::PresentationInput = serde_json::from_value(json!({
+        "root": "sysml.presentation@1",
+        "manifests": [{
+            "schemaVersion": 1, "id": "sysml.presentation", "version": "1",
+            "language": "https://www.omg.org/spec/SysML/20250201",
+            "languageFingerprint": fingerprint,
+            "requires": ["rules.graph.v8", "views.routing.v1", "views.labelPlacement.v1",
+                         "graphics.composition.v1", "graphics.text.v1", "views.rendering.v1"],
+            "dependencies": [],
+            "resources": resources.iter().map(|(id, kind, content)|
+                json!({"id": id, "kind": kind, "sha256": hash(content.as_bytes())})
+            ).collect::<Vec<_>>()
+        }],
+        "resources": resources.iter().map(|(id, _, content)|
+            json!({"id": id, "content": content})
+        ).collect::<Vec<_>>()
+    }))
+    .map_err(|error| error.to_string())?;
+
+    // Recreate the exact shipped Wave 1 package identity. Symbol descriptors
+    // are additive and preserve its projections and occurrence identifiers.
+    let mut legacy = input.clone();
+    let previous_symbols = include_str!("../assets/sysml.symbols-v4.json");
+    for resource in &mut legacy.resources {
+        if resource.id == "sysml.symbols" {
+            resource.content = previous_symbols.into();
+        }
+    }
+    for resource in &mut legacy.manifests[0].resources {
+        if resource.id == "sysml.symbols" {
+            resource.sha256 = hash(previous_symbols.as_bytes());
+        }
+    }
+    let legacy_fingerprint = legacy
+        .resolve(
+            "https://www.omg.org/spec/SysML/20250201",
+            fingerprint,
+            &hash,
+        )?
+        .fingerprint;
+
+    input.manifests[0]
+        .requires
+        .insert(3, "views.symbolProperties.v1".into());
+    let presentation =
+        host.dispatch(json!({"method":"views/preparePresentation","params":input}))?;
     let fingerprint = presentation["presentation"]["fingerprint"]
         .as_str()
         .ok_or("No presentation fingerprint")?
         .to_owned();
-    Ok((host, fingerprint))
+    Ok((host, fingerprint, legacy_fingerprint))
 }
-// The grid default uses a checked language rule. The graph presentation
-// manifest keeps its existing fingerprint so saved diagrams stay compatible.
+// The grid default uses a checked language rule outside the graph package.
 use crate::view_rendering::{BROWSER, REQUIREMENTS_TABLE, SEQUENCE};
 
 fn supports_root(
