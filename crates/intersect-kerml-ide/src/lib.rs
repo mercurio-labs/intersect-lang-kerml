@@ -52,6 +52,7 @@ pub struct Host {
     loaded: Option<Rc<Loaded>>,
     views: Option<intersect_view_host::Host>,
     view_presentation_fingerprint: String,
+    legacy_view_presentation_fingerprint: String,
     project: Rc<RefCell<view_loading::ProjectEnvironment>>,
     #[cfg(test)]
     fixture_model: Option<Model>,
@@ -204,11 +205,13 @@ impl Host {
         let (loaded, result) = Loaded::from_pack(bytes, include_library_nodes, digests, progress)?;
         progress("view-functions");
         let project = Rc::new(RefCell::new(view_loading::ProjectEnvironment::default()));
-        let (views, view_presentation_fingerprint) = views::host(loaded.clone(), project.clone())?;
+        let (views, view_presentation_fingerprint, legacy_view_presentation_fingerprint) =
+            views::host(loaded.clone(), project.clone())?;
         progress("publish");
         self.loaded = Some(loaded);
         self.views = Some(views);
         self.view_presentation_fingerprint = view_presentation_fingerprint;
+        self.legacy_view_presentation_fingerprint = legacy_view_presentation_fingerprint;
         self.project = project;
         #[cfg(feature = "components")]
         {
@@ -230,6 +233,15 @@ impl Host {
             .to_owned();
         if method == "views/scene" {
             return self.views_scene(&request["params"]);
+        }
+        if method == "views/presentationCompatibility" {
+            if self.views.is_none() {
+                return Err("Load a language pack first".into());
+            }
+            return Ok(json!({
+                "previous": self.legacy_view_presentation_fingerprint,
+                "current": self.view_presentation_fingerprint,
+            }));
         }
         if method.starts_with("views/") {
             return self.view_dispatch(request);

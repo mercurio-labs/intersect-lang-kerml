@@ -4,8 +4,11 @@
 //! Behavioral reference: `docs/pilot-expression-evaluator-reference.md`.
 //! Evaluated results and independently verified Pilot agreement are separate claims.
 
+pub mod analysis_case;
+pub mod analysis_execution;
 mod condition;
 mod context;
+pub mod continuous_analysis;
 mod error;
 mod eval;
 mod evaluable;
@@ -16,6 +19,7 @@ mod metadata;
 mod nav;
 mod schema;
 mod sites;
+pub mod stateful_analysis;
 mod text;
 mod trace;
 pub mod value;

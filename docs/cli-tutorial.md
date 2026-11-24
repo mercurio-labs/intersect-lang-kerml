@@ -173,6 +173,120 @@ Inside `--expr`, library functions are not imported: write
 `->ControlFunctions::collect {...}` or `SequenceFunctions::size(...)`, or
 evaluate against a `--target` whose file imports them.
 
+## Run a SysML analysis case
+
+An execution profile selects a versioned analysis engine for the linked SysML
+model. In the [cistern example](examples/sysml-execution-profile/cistern.sysml),
+the analysis usage binds the subject, the case defines an asserted equality,
+and its return parameter declares the quantity type. KerML evaluation computes
+the numeric values of the model-bound inputs, including the authored
+`(2 + 4) [L]` capacity. The shared affine solver solves the equation for the
+return parameter. The profile reports volume flow rates in litres per second.
+
+The [authoring manifest](examples/sysml-execution-profile/language.toml)
+supplies the default profile.
+
+```toml
+[execution]
+default = "sizing"
+
+[execution.profiles.sizing]
+engine = "intersect.scalar-affine@1"
+```
+
+Build the CLI and prepare an identity-matched SysML pack using the steps above.
+The manifest is supplied alongside the pack.
+
+```sh
+python3.13 -B tools/compiler_build.py -- build --release --locked -p intersect-cli
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --case CisternAnalysis::sizeInlet \
+  --inputs "$FIXTURE/four-seconds.json" "$FIXTURE/cistern.sysml"
+# CisternAnalysis::sizeInlet [sizing] flow = 1.25 L/s
+```
+
+The input JSON is an array of named quantities. It binds parameters the
+model leaves open. A caller can select another declared profile with
+`--profile NAME`. With `--json`, the result includes the profile and engine,
+the linked case, subject, input, result, and equation locations, and digests
+for the manifest, pack, inputs, and model sources. Load and analysis diagnostics
+exit with status 1. Invalid configuration and host errors exit with status 2.
+
+This profile admits one affine asserted equality and one unbound scalar return.
+It supports dimensionless scalars and uses litres, seconds, and litres per
+second for volume, duration, and volume flow rate.
+Explicit objectives, foreign bodies, and additional analysis steps receive
+unsupported diagnostics. The evaluator library builds for
+`wasm32-unknown-unknown`.
+
+Cargo pins the shared execution engines to Model commit
+`2b1ecebbb49a14da5c6244a7796db77d50cc687f`.
+
+The qualification script runs the checked fixture, a model-bound duration, a
+unit conversion, and the rejection controls against an already prepared pack.
+
+```sh
+python3.13 -B tools/verify_sysml_execution_profile.py target/release/intersect sysml.pack
+```
+
+### Run state-driven sizing
+
+The [stateful cistern](examples/sysml-execution-profile/stateful-cistern.sysml)
+adds a two-mode controller to the tank. Select the `stateful` profile to run
+the linked state machine and scalar analysis in the same native command.
+The profile binds the active state's numeric `durationSeconds` to the
+analysis input `fillTime` in seconds. The scenario supplies qualified event
+types in millisecond order. Events at the same tick run in file order.
+
+```sh
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --profile stateful \
+  --case StatefulCistern::sizeInlet --events "$FIXTURE/cistern-events.json" \
+  "$FIXTURE/stateful-cistern.sysml"
+```
+
+Start, `Boost`, and `Reset` give `0.5`, `1.25`, and `0.5 L/s`. Events sent in
+the wrong state produce rejected observations. Add `--json` for the linked
+state, transition, parameter, and equation locations, along with file digests.
+This profile supports one flat controller with unguarded item-triggered
+transitions and one binding to an open scalar analysis input.
+
+```sh
+python3.13 -B tools/verify_sysml_stateful_cistern.py target/release/intersect sysml.pack
+```
+
+### Run a thermostat-controlled enclosure
+
+The [thermostat](examples/sysml-execution-profile/thermostat.sysml) links a
+heater state machine and an affine heat-balance analysis. The
+`intersect.coupled-ode@1` profile feeds the current temperature and active
+state's heater power into that analysis to compute the slope at each RK4
+stage. The model supplies the initial temperature and switch thresholds.
+This profile integrates one scalar, with temperatures expressed as numeric
+degrees Celsius and the derivative as degrees Celsius per second.
+
+```sh
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only --json \
+  --execution-profile "$FIXTURE/language.toml" --profile thermostat \
+  --case Thermostat::temperatureRate "$FIXTURE/thermostat.sysml"
+```
+
+The trace contains 121 regular temperature samples and the intervening
+threshold crossings over 30 minutes. A crossing at a sample tick applies its
+linked transition before the sample is recorded. At 120 W the first shutoff
+is at 430.023 seconds. Changing the authored heating value to 250 W moves
+the first shutoff to 122.599 seconds.
+
+```sh
+python3.13 -B tools/verify_sysml_thermostat.py target/release/intersect sysml.pack
+```
+
+Use `--reference` with the Rcore thermostat trace JSON to compare sample and
+crossing times, modes, and temperatures across the two language adapters.
+
 ## Project archives (`.kpar`)
 
 A KerML project interchange archive (`.kpar`, a ZIP file with

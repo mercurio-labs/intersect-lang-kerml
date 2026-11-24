@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.sequence",
+  "label": "Sequence",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "graph",
+  "layout": {
+    "strategy": "sequence",
+    "direction": "DOWN"
+  },
+  "symbols": [
+    {
+      "id": "scenario",
+      "match": "OccurrenceDefinition",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "children": {
+        "select": "ownedParts"
+      }
+    },
+    {
+      "id": "lifeline",
+      "match": "PartUsage",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label",
+      "children": {
+        "select": "sequenceEvents"
+      }
+    },
+    {
+      "id": "event",
+      "match": "EventOccurrenceUsage",
+      "emit": "node",
+      "notation": "definition",
+      "title": "label"
+    }
+  ],
+  "edges": [
+    {
+      "id": "message",
+      "kind": "element",
+      "per": "scenario",
+      "select": "sequenceMessages",
+      "sourcePath": "messageSourcePath",
+      "targetPath": "messageTargetPath",
+      "notation": "message",
+      "label": "label",
+      "anchor": "owner"
+    },
+    {
+      "id": "succession",
+      "kind": "element",
+      "per": "lifeline",
+      "select": "sequenceSuccessions",
+      "sourcePath": "successionSourcePath",
+      "targetPath": "successionTargetPath",
+      "notation": "precedence",
+      "label": {
+        "text": ""
+      },
+      "anchor": "owner"
+    }
+  ],
+  "projection": {
+    "kind": "nested"
+  },
+  "routing": {
+    "algorithm": "orthogonal",
+    "clearance": 8,
+    "stubLength": 18,
+    "trunks": "none"
+  }
+}

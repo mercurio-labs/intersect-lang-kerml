@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 8,
+  "id": "sysml.requirementsTable",
+  "label": "Requirements",
+  "language": "https://www.omg.org/spec/SysML/20250201",
+  "form": "grid",
+  "grid": {
+    "kind": "table",
+    "query": {
+      "from": "RequirementUsage",
+      "select": [
+        {
+          "name": "name",
+          "expression": {
+            "op": "field",
+            "path": "declaredName"
+          }
+        },
+        {
+          "name": "identifier",
+          "expression": {
+            "op": "field",
+            "path": "declaredShortName"
+          }
+        }
+      ],
+      "order_by": [
+        {
+          "expression": {
+            "op": "field",
+            "path": "declaredName"
+          },
+          "descending": false
+        }
+      ]
+    },
+    "rowLabel": "name",
+    "columns": [
+      {
+        "id": "identifier",
+        "label": "Requirement ID",
+        "value": "identifier"
+      }
+    ]
+  },
+  "projection": {
+    "kind": "nested"
+  }
+}
