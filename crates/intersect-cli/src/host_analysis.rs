@@ -6,7 +6,7 @@ use intersect_kerml_eval::{
     continuous_analysis::{ContinuousBinding, ContinuousOutcome},
     stateful_analysis::{StatefulBinding, StatefulEvent, StatefulOutcome},
 };
-use intersect_run_catalog::{Capability, Engine, is_versioned_id};
+use intersect_run_catalog::{Engine, HostEngine, RequestCapability, is_versioned_id};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -16,11 +16,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const INSTALLED_ENGINES: &[Engine] = &[
-    Engine::ScalarAffine,
-    Engine::StateAffine,
-    Engine::CoupledOde,
-];
+const SCALAR_ENGINE: HostEngine = HostEngine::new(Engine::ScalarAffine, &[]);
+const STATEFUL_ENGINE: HostEngine =
+    HostEngine::new(Engine::StateAffine, &[RequestCapability::ScenarioEvents]);
+const COUPLED_ODE_ENGINE: HostEngine = HostEngine::new(Engine::CoupledOde, &[]);
+const INSTALLED_ENGINES: &[HostEngine] = &[SCALAR_ENGINE, STATEFUL_ENGINE, COUPLED_ODE_ENGINE];
 
 #[derive(Default)]
 pub(super) struct Arguments {
@@ -87,11 +87,11 @@ enum Execution {
 }
 
 impl Execution {
-    fn engine(&self) -> Engine {
+    fn registration(&self) -> HostEngine {
         match self {
-            Self::Scalar => Engine::ScalarAffine,
-            Self::Stateful(_) => Engine::StateAffine,
-            Self::CoupledOde(_) => Engine::CoupledOde,
+            Self::Scalar => SCALAR_ENGINE,
+            Self::Stateful(_) => STATEFUL_ENGINE,
+            Self::CoupledOde(_) => COUPLED_ODE_ENGINE,
         }
     }
 }
@@ -123,7 +123,7 @@ fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Exec
         .remove(&name)
         .ok_or_else(|| format!("unknown execution profile {name:?}"))?;
     let execution = match (
-        Engine::select(&profile.engine, INSTALLED_ENGINES),
+        HostEngine::select(&profile.engine, INSTALLED_ENGINES).map(HostEngine::engine),
         profile.state_machine,
         profile.continuous,
     ) {
@@ -180,7 +180,11 @@ pub(super) fn load(arguments: &Arguments) -> Result<Selected, String> {
     let source = read_config(path)?;
     let (name, execution) = select_profile(&source, arguments.profile.as_deref())
         .map_err(|error| format!("{}: {error}", path.display()))?;
-    if !execution.engine().supports(Capability::ScenarioEvents) && arguments.events.is_some() {
+    if !execution
+        .registration()
+        .accepts(RequestCapability::ScenarioEvents)
+        && arguments.events.is_some()
+    {
         return Err("--events requires a stateful execution profile".into());
     }
     let input_source = arguments.inputs.as_deref().map(read_config).transpose()?;
@@ -319,10 +323,10 @@ impl Selected {
                 })
             })
             .collect();
-        let engine = self.execution.engine();
+        let registration = self.execution.registration();
         let mut report = json!({
             "profile": self.name,
-            "engine": engine.id(),
+            "engine": registration.engine().id(),
             (field): result,
             "provenance": {
                 "manifest_sha256": self.manifest_sha256,
@@ -332,7 +336,7 @@ impl Selected {
                 "sources": sources,
             },
         });
-        if engine.supports(Capability::ScenarioEvents) {
+        if registration.accepts(RequestCapability::ScenarioEvents) {
             report["provenance"]["events_sha256"] = json!(self.events_sha256);
         }
         println!("{report}");

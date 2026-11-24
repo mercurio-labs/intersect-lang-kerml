@@ -24,7 +24,7 @@ intersect-model = "=0.1.0-alpha.2"
 intersect-text = "=0.1.0-alpha.2"
 intersect-web = { git = "https://github.com/mercurio-labs/intersect-text.git", rev = "69e2303c7f3ce57c189ea2d8856f54ade1cab0be", default-features = false }
 intersect-project-host = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "11c33990a50cb4074d4f97619687a6b33358e560" }
-intersect-run-catalog = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "b3356a626774d17e49803085e7fd5998783705fa" }
+intersect-run-catalog = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "d9c6677c1773a9b2ff9577ad2a74b326819c62eb" }
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = { version = "1.0.149", features = ["raw_value"] }
 quick-xml = "0.41.0"

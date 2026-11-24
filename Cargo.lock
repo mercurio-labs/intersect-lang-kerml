@@ -348,7 +348,7 @@ dependencies = [
 [[package]]
 name = "intersect-run-catalog"
 version = "0.1.0-alpha.2"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3356a626774d17e49803085e7fd5998783705fa#b3356a626774d17e49803085e7fd5998783705fa"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=d9c6677c1773a9b2ff9577ad2a74b326819c62eb#d9c6677c1773a9b2ff9577ad2a74b326819c62eb"
 
 [[package]]
 name = "intersect-text"
