@@ -2,7 +2,7 @@
 
 use crate::{
     EvalError, Evaluator, ObjId,
-    analysis_case::{Operator, ScalarUnit, SolveBody, Term},
+    analysis_case::{Operator, ScalarUnit, SolveBody, SolveDescription, Term},
 };
 use intersect_run::analysis::{Comparison, Constraint, Expression, Variable, Variables, solve};
 use serde::{Deserialize, Serialize};
@@ -19,26 +19,26 @@ pub struct AnalysisInput {
     pub quantity: Quantity,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnalysisElement {
     pub identity: String,
     pub source: Source,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnalysisSubject {
     pub declaration: AnalysisElement,
     pub target: Option<AnalysisElement>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnalysisBinding {
     pub identity: String,
     pub source: Source,
     pub quantity: Quantity,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnalysisSolution {
     pub case: String,
     pub case_identity: String,
@@ -62,16 +62,34 @@ impl Evaluator<'_> {
         let target = self
             .resolve_target(name)
             .map_err(|issue| self.analysis_error(issue, ErrorCode::Invalid, None))?;
+        let description = self.linked_scalar_analysis(target)?;
+        self.solve_linked_scalar_analysis(name, &description, inputs)
+    }
+
+    pub(crate) fn linked_scalar_analysis(
+        &self,
+        target: ObjId,
+    ) -> Result<SolveDescription, AnalysisError> {
         let incoming = self.analysis_element(target)?;
-        let description = self.describe_analysis(target, true).map_err(|issue| {
+        self.describe_analysis(target, true).map_err(|issue| {
             self.analysis_error(issue, ErrorCode::Unsupported, Some(&incoming.source))
-        })?;
-        let analysis = description.case;
+        })
+    }
+
+    pub(crate) fn solve_linked_scalar_analysis(
+        &self,
+        name: &str,
+        description: &SolveDescription,
+        inputs: &[AnalysisInput],
+    ) -> Result<AnalysisSolution, AnalysisError> {
+        let analysis = &description.case;
+        let target = analysis.object;
+        let incoming = self.analysis_element(target)?;
         let SolveBody::Equation {
             object,
             left,
             right,
-        } = analysis.body
+        } = &analysis.body
         else {
             return Err(AnalysisError::new(
                 ErrorCode::Unsupported,
@@ -79,10 +97,10 @@ impl Evaluator<'_> {
                 Some(&incoming.source),
             ));
         };
-        let equation_source = self.analysis_element(object)?.source;
+        let equation_source = self.analysis_element(*object)?.source;
 
         let mut variables = Variables::new();
-        for (name, parameter) in analysis.parameters {
+        for (name, parameter) in &analysis.parameters {
             let unit = unit_for(parameter.unit);
             let source = self.analysis_element(parameter.source)?.source;
             let value = parameter
@@ -96,7 +114,7 @@ impl Evaluator<'_> {
                 })
                 .transpose()?;
             variables.insert(
-                name,
+                name.clone(),
                 Variable {
                     unit,
                     value,
@@ -156,7 +174,7 @@ impl Evaluator<'_> {
             case_source: incoming.source,
             equation_source,
             subject,
-            result_name: analysis.result,
+            result_name: analysis.result.clone(),
             result,
             inputs: bindings,
         })
@@ -183,7 +201,7 @@ impl Evaluator<'_> {
         })
     }
 
-    fn analysis_element(&self, id: ObjId) -> Result<AnalysisElement, AnalysisError> {
+    pub(crate) fn analysis_element(&self, id: ObjId) -> Result<AnalysisElement, AnalysisError> {
         let object = self
             .nav
             .object(id)
@@ -194,7 +212,7 @@ impl Evaluator<'_> {
         })
     }
 
-    fn analysis_error(
+    pub(crate) fn analysis_error(
         &self,
         issue: EvalError,
         mut code: ErrorCode,
@@ -284,13 +302,13 @@ fn unit_for(unit: ScalarUnit) -> Unit {
     }
 }
 
-fn expression(term: Term) -> Expression {
+fn expression(term: &Term) -> Expression {
     match term {
-        Term::Parameter(name) => Expression::Variable { name },
+        Term::Parameter(name) => Expression::Variable { name: name.clone() },
         Term::Literal(value, unit) => Expression::Literal {
             quantity: Quantity {
-                value,
-                unit: unit_for(unit),
+                value: *value,
+                unit: unit_for(*unit),
             },
         },
         Term::Binary {
@@ -298,8 +316,8 @@ fn expression(term: Term) -> Expression {
             left,
             right,
         } => {
-            let left = Box::new(expression(*left));
-            let right = Box::new(expression(*right));
+            let left = Box::new(expression(left));
+            let right = Box::new(expression(right));
             match operator {
                 Operator::Add => Expression::Add { left, right },
                 Operator::Subtract => Expression::Subtract { left, right },

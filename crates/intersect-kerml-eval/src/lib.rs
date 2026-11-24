@@ -18,6 +18,7 @@ mod metadata;
 mod nav;
 mod schema;
 mod sites;
+pub mod stateful_analysis;
 mod text;
 mod trace;
 pub mod value;

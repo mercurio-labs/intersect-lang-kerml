@@ -41,7 +41,7 @@ const USAGE: &str = "usage:
   intersect export --pack PACK --format kpar --out DIR --project-name NAME --project-version VERSION [OPTIONS] FILE...
   intersect info   --pack PACK
   intersect eval --pack PACK [--target QNAME] [--mode model-level|extended] [--gated] [--json] [--trace] [--explain] (--expr TEXT | --all) [FILE...]
-  intersect analyze --pack PACK --execution-profile LANGUAGE.toml [--profile NAME] --case QNAME [--inputs INPUTS.json] [OPTIONS] FILE...
+  intersect analyze --pack PACK --execution-profile LANGUAGE.toml [--profile NAME] --case QNAME [--inputs INPUTS.json] [--events EVENTS.json] [OPTIONS] FILE...
 FILE is a .kerml or .sysml file or a project archive (.kpar).
 options:
   --library DIR|KPAR  standard library sources (when the pack has no usable snapshot): a
@@ -133,7 +133,7 @@ fn options(args: &[String]) -> Result<Options, String> {
                 .ok_or_else(|| format!("{name} needs a value\n{USAGE}"))
         };
         match arg.as_str() {
-            "--execution-profile" | "--profile" | "--case" | "--inputs" => {
+            "--execution-profile" | "--profile" | "--case" | "--inputs" | "--events" => {
                 let analysis = options
                     .analysis
                     .as_mut()

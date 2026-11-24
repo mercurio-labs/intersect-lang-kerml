@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Qualify the stateful cistern against the native CLI and experimental Run engine."""
+"""Qualify state-driven sizing through the native SysML CLI."""
 
 import argparse
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -9,149 +10,54 @@ from pathlib import Path
 
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "docs/examples/sysml-execution-profile"
-EVENTS = ("Reset", "Boost", "Boost", "Reset")
+EVENTS = EXAMPLE / "cistern-events.json"
+MODEL = EXAMPLE / "stateful-cistern.sysml"
 
 
-def invoke(*command, status=0):
-    result = subprocess.run(command, text=True, capture_output=True, check=False)
+def run(intersect, pack, model=MODEL, events=EVENTS, *, status=0):
+    command = [
+        intersect, "analyze", "--pack", pack, "--read-only", "--json",
+        "--execution-profile", EXAMPLE / "language.toml", "--profile", "stateful",
+        "--case", "StatefulCistern::sizeInlet",
+    ]
+    if events is not None:
+        command.extend(("--events", events))
+    result = subprocess.run([*command, model], text=True, capture_output=True, check=False)
     if result.returncode != status:
         raise AssertionError(f"{command}\nExit {result.returncode}\n{result.stdout}{result.stderr}")
-    return result.stdout
+    return json.loads(result.stdout)
 
 
-def one(values):
-    (value,) = values
-    return value
+def check_trace(report, model):
+    assert report["profile"] == "stateful", report
+    assert report["engine"] == "intersect.state-affine@1", report
+    trace = report["trace"]
+    source = model.read_bytes()
 
+    def excerpt(element):
+        assert element["identity"], element
+        span = element["source"]
+        return source[span["start"]:span["end"]]
 
-def name(element):
-    return element["values"].get("declaredName")
-
-
-def project_chart(snapshot):
-    """Project just the fixture's flat states and unguarded, item-triggered transitions."""
-    elements = {element["id"]: element for element in snapshot["elements"]}
-
-    def relationships(element, kind=None):
-        linked = (elements[key] for key in element["values"].get("ownedRelationship", ()))
-        return [relation for relation in linked if kind is None or relation["class"] == kind]
-
-    def members(element, kind, membership=None):
-        linked = (
-            elements[key]
-            for relation in relationships(element, membership)
-            for key in relation["values"].get("ownedRelatedElement", ())
-        )
-        return [member for member in linked if member["class"] == kind]
-
-    def typed(element):
-        return one(relationships(element, "FeatureTyping"))["values"]["type"]
-
-    def target(succession):
-        _, end = members(succession, "ReferenceUsage", "EndFeatureMembership")
-        return one(relationships(end, "ReferenceSubsetting"))["values"]["referencedFeature"]
-
-    garden = one(
-        element for element in elements.values()
-        if element["class"] == "PartUsage" and name(element) == "garden"
-    )
-    controller = one(members(elements[typed(garden)], "ExhibitStateUsage"))
-    chart = elements[typed(controller)]
-    states = {state["id"]: name(state) for state in members(chart, "StateUsage")}
-    initial = target(one(members(chart, "SuccessionAsUsage")))
-    assert initial in states, initial
-    transitions = []
-    for transition in members(chart, "TransitionUsage"):
-        trigger = one(members(transition, "AcceptActionUsage", "TransitionFeatureMembership"))
-        assert len(relationships(transition, "TransitionFeatureMembership")) == 1, transition
-        payload = one(members(trigger, "ReferenceUsage", "ParameterMembership"))
-        signal = elements[typed(payload)]
-        assert signal["class"] == "ItemDefinition", signal
-        source = one(relationships(transition, "Membership"))["values"]["memberElement"]
-        destination = target(one(members(transition, "SuccessionAsUsage")))
-        assert source in states and destination in states, transition
-        transitions.append((transition["id"], source, signal["id"], destination))
-    signals = {
-        name(element): element["id"]
-        for element in elements.values()
-        if element["class"] == "ItemDefinition"
-    }
-    return garden["id"], name(chart), states, initial, transitions, signals
-
-
-def chart_source(states, initial, transitions, signals):
-    quote = json.dumps
-    nodes = ",\n    ".join(f"{{id: {quote(state)}, parent: None, initial: None}}" for state in states)
-    edges = ",\n    ".join(
-        f"{{id: {quote(edge)}, from: {quote(source)}, event: {quote(signal)}, to: {quote(target)}}}"
-        for edge, source, signal, target in transitions
-    )
-    scenario = ", ".join(
-        f"{{at: {at}, event: {quote(signals[event])}}}" for at, event in enumerate(EVENTS, 1)
-    )
-    return f'''rcore 1;
-package experiment.sysml_cistern version "1";
-pub fn engine() -> String = "intersect.state-machine@1";
-pub fn chart() -> {{
-  initial: String,
-  states: Sequence<{{id: String, parent: Option<String>, initial: Option<String>}}>,
-  transitions: Sequence<{{id: String, from: String, event: String, to: String}}>
-}} = {{initial: {quote(initial)}, states: [
-    {nodes}
-], transitions: [
-    {edges}
-]}};
-pub fn scenario() -> Sequence<{{at: Int, event: String}}> = [{scenario}];
-'''
-
-
-def verify(cli, engine, model, scratch):
-    intersect, *pack_options = cli
-    export = scratch / "linked"
-    invoke(intersect, "export", *pack_options, "--format", "json", "--out", export, model)
-    snapshot = json.loads((export / "model.json").read_text(encoding="utf-8"))
-    subject, controller, states, initial, transitions, signals = project_chart(snapshot)
-    profile = scratch / "chart.rcore"
-    profile.write_text(chart_source(states, initial, transitions, signals), encoding="utf-8")
-    trace = one(json.loads(invoke(engine, profile)))["trace"]
-    assert trace["header"]["profile"]["language_profile"] == "intersect.state-machine@1", trace
-
-    analyze = (
-        intersect, "analyze", *pack_options, "--json", "--execution-profile", EXAMPLE / "language.toml"
-    )
-    unsupported = json.loads(
-        invoke(*analyze, "--case", "StatefulCistern::Tank::fillMode", model, status=1)
-    )
-    assert unsupported["code"] == "unsupported" and unsupported["source"], unsupported
-
+    assert b"exhibit state fillMode" in excerpt(trace["machine"]), trace
+    assert b"state def FillModes" in excerpt(trace["definition"]), trace
     rows = []
-    inputs = scratch / "input.json"
-    for entry in trace["entries"]:
-        if entry["kind"] not in {"run_start", "step_fired", "input_rejected"}:
-            continue
-        state_id = one(entry["observation"]["active"])
-        state = states[state_id]
-        expression = f"StatefulCistern::{controller}::{state}::durationSeconds"
-        evaluated = json.loads(
-            invoke(intersect, "eval", *pack_options, "--json", "--expr", expression, model)
-        )
-        duration = one(evaluated["outcome"]["values"])["value"]
-        binding = {"name": "fillTime", "quantity": {"value": duration, "unit": "s"}}
-        inputs.write_text(json.dumps([binding]), encoding="utf-8")
-        report = json.loads(
-            invoke(*analyze, "--case", "StatefulCistern::sizeInlet", "--inputs", inputs, model)
-        )
-        assert report["engine"] == "intersect.scalar-affine@1", report
-        solution = report["solution"]
-        assert solution["subject"]["target"]["identity"] == subject, solution
-        assert solution["inputs"]["fillTime"]["quantity"] == {"value": duration, "unit": "s"}, solution
-        flow = solution["result"]["quantity"]
-        assert flow["unit"] == "L/s", solution
-        edge = entry["observation"]["transition"]
-        if edge is not None:
-            _, _, event, target = one(record for record in transitions if record[0] == edge)
-            assert target == state_id and event == signals[EVENTS[entry["time"] - 1]], entry
-        rows.append((entry["time"], entry["kind"], state, duration, flow["value"]))
+    for step in trace["steps"]:
+        state = step["state_name"].split("::")[-1]
+        outcome = step["outcome"]
+        kind = outcome["kind"]
+        result = step["solution"]["result"]["quantity"]
+        duration = step["state_output"]["quantity"]["value"]
+        assert result["unit"] == "L/s", step
+        assert step["solution"]["inputs"]["fillTime"]["quantity"] == {"value": duration, "unit": "s"}
+        assert f"state {state}".encode() in excerpt(step["state"]), step
+        assert excerpt(step["state_output"]), step
+        event = step["event"]
+        if kind == "transition":
+            assert f"transition {event.split('::')[-1].lower()} first".encode() in excerpt(outcome["transition"]), step
+        elif kind == "rejected":
+            assert outcome["reason"], step
+        rows.append((step["at"], event, kind, state, duration, result["value"]))
     return rows
 
 
@@ -159,22 +65,48 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("intersect", type=Path)
     parser.add_argument("pack", type=Path)
-    parser.add_argument("rcore_engine", type=Path)
     args = parser.parse_args()
-    cli = (args.intersect.resolve(), "--pack", args.pack.resolve(), "--read-only")
-    model = EXAMPLE / "stateful-cistern.sysml"
-    with tempfile.TemporaryDirectory(prefix="sysml-cistern-") as temporary:
-        rows = verify(cli, args.rcore_engine.resolve(), model, Path(temporary))
+    intersect, pack = args.intersect.resolve(), args.pack.resolve()
+    original = run(intersect, pack)
+    rows = check_trace(original, MODEL)
     assert rows == [
-        (0, "run_start", "normal", 10, 0.5),
-        (1, "input_rejected", "normal", 10, 0.5),
-        (2, "step_fired", "boosted", 4, 1.25),
-        (3, "input_rejected", "boosted", 4, 1.25),
-        (4, "step_fired", "normal", 10, 0.5),
+        (0, None, "start", "normal", 10, 0.5),
+        (1, "StatefulCistern::Reset", "rejected", "normal", 10, 0.5),
+        (2, "StatefulCistern::Boost", "transition", "boosted", 4, 1.25),
+        (3, "StatefulCistern::Boost", "rejected", "boosted", 4, 1.25),
+        (4, "StatefulCistern::Reset", "transition", "normal", 10, 0.5),
     ], rows
+    assert original["provenance"]["events_sha256"] == hashlib.sha256(EVENTS.read_bytes()).hexdigest()
+    assert run(intersect, pack) == original, "The complete trace must be repeatable"
+    assert check_trace(run(intersect, pack, events=None), MODEL) == rows[:1]
+
+    with tempfile.TemporaryDirectory(prefix="sysml-native-cistern-") as scratch:
+        source = MODEL.read_text()
+        modified = Path(scratch) / "cistern.sysml"
+        modified.write_text(source.replace("durationSeconds : Real = 4;", "durationSeconds : Real = 5;"))
+        changed = check_trace(run(intersect, pack, modified), modified)
+        assert changed[2:4] == [
+            (at, event, outcome, state, 5, 1.0) for at, event, outcome, state, _, _ in rows[2:4]
+        ], changed
+
+        modified.write_text(source.replace("signal : Boost then boosted", "signal : Boost if true then boosted"))
+        unsupported = run(intersect, pack, modified, status=1)
+        assert unsupported["phase"] == "analysis" and unsupported["source"], unsupported
+        assert "guard" in unsupported["message"].lower(), unsupported
+
+        scenario = json.loads(EVENTS.read_bytes())
+        varied_events = Path(scratch) / "events.json"
+        varied_events.write_text(json.dumps(list(reversed(scenario))))
+        refused = run(intersect, pack, events=varied_events, status=1)
+        assert refused["phase"] == "analysis" and "ordered by time" in refused["message"], refused
+
+        varied_events.write_text(json.dumps([{**event, "at": 2} for event in scenario]))
+        same_tick = check_trace(run(intersect, pack, events=varied_events), MODEL)
+        assert same_tick == [rows[0], *((2, *row[1:]) for row in rows[1:])], same_tick
+
     print("tick event outcome state fill_time_s flow_L_per_s")
-    for (at, outcome, state, duration, flow), event in zip(rows, ("start", *EVENTS), strict=True):
-        print(at, event, outcome, state, duration, flow)
+    for at, event, outcome, state, duration, flow in rows:
+        print(at, event or "-", outcome, state, duration, flow)
 
 
 if __name__ == "__main__":
