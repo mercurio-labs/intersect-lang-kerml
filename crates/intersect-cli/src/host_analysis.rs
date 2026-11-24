@@ -3,9 +3,10 @@ use super::{UserFile, evaluation::source_position};
 use intersect_kerml_eval::{
     EvalMode, Evaluator, Model,
     analysis_execution::{AnalysisError, AnalysisInput, ENGINE_ID},
+    stateful_analysis::{StatefulBinding, StatefulEvent, StatefulOutcome},
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
@@ -13,12 +14,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
+const STATEFUL_ENGINE_ID: &str = "intersect.state-affine@1";
+
 #[derive(Default)]
 pub(super) struct Arguments {
     manifest: Option<PathBuf>,
     profile: Option<String>,
     case: Option<String>,
     inputs: Option<PathBuf>,
+    events: Option<PathBuf>,
 }
 
 impl Arguments {
@@ -31,6 +35,7 @@ impl Arguments {
             "--profile" => self.profile.replace(value).is_some(),
             "--case" => self.case.replace(value).is_some(),
             "--inputs" => self.inputs.replace(value.into()).is_some(),
+            "--events" => self.events.replace(value.into()).is_some(),
             _ => return Err(format!("unknown analysis option '{flag}'")),
         };
         if previous {
@@ -65,10 +70,16 @@ struct ExecutionManifest {
 #[serde(deny_unknown_fields)]
 struct Profile {
     engine: String,
+    state_machine: Option<StatefulBinding>,
 }
 
-fn select_profile(source: &str, requested: Option<&str>) -> Result<String, String> {
-    let Manifest { execution } = toml::from_str(source).map_err(|error| error.to_string())?;
+enum Execution {
+    Scalar,
+    Stateful(StatefulBinding),
+}
+
+fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Execution), String> {
+    let Manifest { mut execution } = toml::from_str(source).map_err(|error| error.to_string())?;
     if execution.profiles.is_empty() {
         return Err("the [execution] table must declare a profile".into());
     }
@@ -92,18 +103,24 @@ fn select_profile(source: &str, requested: Option<&str>) -> Result<String, Strin
     }
     let name = requested
         .or(execution.default.as_deref())
-        .ok_or("choose an execution profile with --profile or declare a default")?;
+        .ok_or("choose an execution profile with --profile or declare a default")?
+        .to_owned();
     let profile = execution
         .profiles
-        .get(name)
+        .remove(&name)
         .ok_or_else(|| format!("unknown execution profile {name:?}"))?;
-    if profile.engine != ENGINE_ID {
-        return Err(format!(
-            "execution engine {} is unavailable",
-            profile.engine
-        ));
-    }
-    Ok(name.to_owned())
+    let execution = match (profile.engine.as_str(), profile.state_machine) {
+        (ENGINE_ID, None) => Execution::Scalar,
+        (STATEFUL_ENGINE_ID, Some(binding)) => Execution::Stateful(binding),
+        (ENGINE_ID, Some(_)) => {
+            return Err("the scalar engine does not take a state_machine binding".into());
+        }
+        (STATEFUL_ENGINE_ID, None) => {
+            return Err("the stateful engine requires a state_machine binding".into());
+        }
+        (engine, _) => return Err(format!("execution engine {engine} is unavailable")),
+    };
+    Ok((name, execution))
 }
 
 fn identifier(value: &str) -> bool {
@@ -118,10 +135,13 @@ fn identifier(value: &str) -> bool {
 
 pub(super) struct Selected {
     name: String,
+    execution: Execution,
     case: String,
     inputs: Vec<AnalysisInput>,
+    events: Vec<StatefulEvent>,
     manifest_sha256: String,
     inputs_sha256: Option<String>,
+    events_sha256: Option<String>,
 }
 
 pub(super) fn load(arguments: &Arguments) -> Result<Selected, String> {
@@ -130,20 +150,34 @@ pub(super) fn load(arguments: &Arguments) -> Result<Selected, String> {
         .as_ref()
         .ok_or("missing execution manifest")?;
     let source = read_config(path)?;
-    let name = select_profile(&source, arguments.profile.as_deref())
+    let (name, execution) = select_profile(&source, arguments.profile.as_deref())
         .map_err(|error| format!("{}: {error}", path.display()))?;
+    if matches!(execution, Execution::Scalar) && arguments.events.is_some() {
+        return Err("--events requires a stateful execution profile".into());
+    }
     let input_source = arguments.inputs.as_deref().map(read_config).transpose()?;
     let inputs = if let (Some(path), Some(source)) = (&arguments.inputs, &input_source) {
         serde_json::from_str(source).map_err(|error| format!("{}: {error}", path.display()))?
     } else {
         Vec::new()
     };
+    let event_source = arguments.events.as_deref().map(read_config).transpose()?;
+    let events = if let (Some(path), Some(source)) = (&arguments.events, &event_source) {
+        serde_json::from_str(source).map_err(|error| format!("{}: {error}", path.display()))?
+    } else {
+        Vec::new()
+    };
     Ok(Selected {
         name,
+        execution,
         case: arguments.case.clone().ok_or("missing analysis case")?,
         inputs,
+        events,
         manifest_sha256: digest(source.as_bytes()),
         inputs_sha256: input_source
+            .as_ref()
+            .map(|source| digest(source.as_bytes())),
+        events_sha256: event_source
             .as_ref()
             .map(|source| digest(source.as_bytes())),
     })
@@ -168,45 +202,102 @@ impl Selected {
     ) -> Result<bool, String> {
         let evaluator =
             Evaluator::new(model, EvalMode::Extended).map_err(|error| error.to_string())?;
-        let solution = match evaluator.execute_scalar_analysis(&self.case, &self.inputs) {
-            Ok(solution) => solution,
-            Err(error) => {
-                self.report_error(&error, user, json_output);
-                return Ok(false);
-            }
+        let result = match &self.execution {
+            Execution::Scalar => evaluator
+                .execute_scalar_analysis(&self.case, &self.inputs)
+                .map(|solution| {
+                    if json_output {
+                        self.print_json(
+                            ENGINE_ID,
+                            "solution",
+                            json!(solution),
+                            user,
+                            pack,
+                            library_key,
+                        );
+                    } else {
+                        println!(
+                            "{} [{}] {} = {}",
+                            solution.case,
+                            self.name,
+                            solution.result_name,
+                            solution.result.quantity
+                        );
+                    }
+                }),
+            Execution::Stateful(binding) => evaluator
+                .execute_stateful_analysis(&self.case, &self.inputs, binding, &self.events)
+                .map(|trace| {
+                    if json_output {
+                        self.print_json(
+                            STATEFUL_ENGINE_ID,
+                            "trace",
+                            json!(trace),
+                            user,
+                            pack,
+                            library_key,
+                        );
+                    } else {
+                        for step in trace.steps {
+                            let outcome = match &step.outcome {
+                                StatefulOutcome::Start => "start",
+                                StatefulOutcome::Transition { .. } => "transition",
+                                StatefulOutcome::Rejected { .. } => "rejected",
+                            };
+                            println!(
+                                "{} {} {} {} {} = {}",
+                                step.at,
+                                step.event.as_deref().unwrap_or("-"),
+                                outcome,
+                                step.state_name,
+                                step.solution.result_name,
+                                step.solution.result.quantity
+                            );
+                        }
+                    }
+                }),
         };
-        if json_output {
-            let sources: Vec<_> = user
-                .iter()
-                .map(|file| {
-                    json!({
-                        "uri": file.source.uri,
-                        "sha256": digest(file.source.text.as_bytes()),
-                    })
-                })
-                .collect();
-            println!(
-                "{}",
-                json!({
-                    "profile": self.name,
-                    "engine": ENGINE_ID,
-                    "solution": solution,
-                    "provenance": {
-                        "manifest_sha256": self.manifest_sha256,
-                        "pack_sha256": digest(pack),
-                        "library_key": library_key,
-                        "inputs_sha256": self.inputs_sha256,
-                        "sources": sources,
-                    },
-                })
-            );
-        } else {
-            println!(
-                "{} [{}] {} = {}",
-                solution.case, self.name, solution.result_name, solution.result.quantity
-            );
+        if let Err(error) = result {
+            self.report_error(&error, user, json_output);
+            return Ok(false);
         }
         Ok(true)
+    }
+
+    fn print_json(
+        &self,
+        engine: &str,
+        field: &str,
+        result: Value,
+        user: &[UserFile],
+        pack: &[u8],
+        library_key: &str,
+    ) {
+        let sources: Vec<_> = user
+            .iter()
+            .map(|file| {
+                json!({
+                    "uri": file.source.uri,
+                    "sha256": digest(file.source.text.as_bytes()),
+                })
+            })
+            .collect();
+        let mut report = json!({
+            "profile": self.name,
+            "engine": engine,
+            (field): result,
+            "provenance": {
+                "manifest_sha256": self.manifest_sha256,
+                "pack_sha256": digest(pack),
+                "library_key": library_key,
+                "inputs_sha256": self.inputs_sha256,
+                "sources": sources,
+            },
+        });
+        if matches!(self.execution, Execution::Stateful(_)) {
+            report["provenance"]["events_sha256"] = json!(self.events_sha256);
+        }
+        println!("{report}");
     }
 
     fn report_error(&self, error: &AnalysisError, user: &[UserFile], json_output: bool) {
@@ -260,8 +351,10 @@ engine = "intersect.scalar-affine@2"
 
     #[test]
     fn uses_default_and_checks_the_selected_engine_version() -> Result<(), String> {
-        assert_eq!(select_profile(MANIFEST, None)?, "scalar");
-        assert_eq!(select_profile(MANIFEST, Some("scalar"))?, "scalar");
+        assert!(
+            matches!(select_profile(MANIFEST, None)?, (name, Execution::Scalar) if name == "scalar")
+        );
+        assert_eq!(select_profile(MANIFEST, Some("scalar"))?.0, "scalar");
         let missing = select_profile(MANIFEST, Some("other"))
             .err()
             .ok_or("expected failure")?;
@@ -270,6 +363,20 @@ engine = "intersect.scalar-affine@2"
             .err()
             .ok_or("expected failure")?;
         assert!(future.contains("intersect.scalar-affine@2 is unavailable"));
+        Ok(())
+    }
+
+    #[test]
+    fn stateful_profile_requires_the_wiring_table() -> Result<(), String> {
+        let composed = MANIFEST.replace(ENGINE_ID, STATEFUL_ENGINE_ID);
+        assert!(select_profile(&composed, None).is_err());
+        let wired = format!(
+            "{composed}\n[execution.profiles.scalar.state_machine]\nmachine = \"C::Tank::fillMode\"\nstate_output = \"durationSeconds\"\nanalysis_input = \"fillTime\"\nunit = \"s\"\n"
+        );
+        assert!(
+            matches!(select_profile(&wired, None)?, (_, Execution::Stateful(binding)) if binding.analysis_input == "fillTime")
+        );
+        assert!(select_profile(&wired.replace(STATEFUL_ENGINE_ID, ENGINE_ID), None).is_err());
         Ok(())
     }
 

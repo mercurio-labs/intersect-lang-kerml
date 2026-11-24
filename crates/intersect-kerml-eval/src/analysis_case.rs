@@ -370,7 +370,7 @@ impl Evaluator<'_> {
         })
     }
 
-    fn check_scalar_multiplicity(&self, features: &[ObjId]) -> Result<(), EvalError> {
+    pub(crate) fn check_scalar_multiplicity(&self, features: &[ObjId]) -> Result<(), EvalError> {
         for &feature in features {
             for membership in self.nav.relationships(feature)? {
                 for range in self.nav.owned(membership)? {
@@ -414,7 +414,7 @@ impl Evaluator<'_> {
         Ok(None)
     }
 
-    fn analysis_unit(&self, parameter: ObjId) -> Result<ScalarUnit, EvalError> {
+    pub(crate) fn analysis_unit(&self, parameter: ObjId) -> Result<ScalarUnit, EvalError> {
         // Resolve by linked library identity, including imports and aliases.
         let mut unit = None;
         for id in self.nav.types(parameter)? {
@@ -567,7 +567,7 @@ impl Evaluator<'_> {
         Err(self.nav.error(expr, "expected one finite numeric value"))
     }
 
-    fn class_name(&self, id: ObjId) -> Result<&str, EvalError> {
+    pub(crate) fn class_name(&self, id: ObjId) -> Result<&str, EvalError> {
         let object = self.nav.object(id)?;
         self.nav
             .model

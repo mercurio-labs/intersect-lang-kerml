@@ -220,8 +220,8 @@ Explicit objectives, foreign bodies, and additional analysis steps receive
 unsupported diagnostics. The evaluator library builds for
 `wasm32-unknown-unknown`.
 
-Cargo pins the shared affine solver to Model commit
-`c2f8e9802a52100abf576c73e36ad5a80d2a0faa`.
+Cargo pins the shared affine solver and state-machine engine to Model commit
+`7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade`.
 
 The qualification script runs the checked fixture, a model-bound duration, a
 unit conversion, and the rejection controls against an already prepared pack.
@@ -230,24 +230,31 @@ unit conversion, and the rejection controls against an already prepared pack.
 python3.13 -B tools/verify_sysml_execution_profile.py target/release/intersect sysml.pack
 ```
 
-### Test state-driven sizing
+### Run state-driven sizing
 
 The [stateful cistern](examples/sysml-execution-profile/stateful-cistern.sysml)
-adds a two-mode controller to the tank. The qualification harness projects
-the initial state, transitions, and trigger types from the linked model and
-runs them with the experimental Rcore state-machine host. At each observation
-it evaluates the active state's duration and supplies it as `fillTime` to the
-native scalar analysis. Start, `Boost`, and `Reset` give `0.5`, `1.25`, and
-`0.5 L/s`. Events sent in the wrong state leave the result unchanged.
-
-The harness supplies the state-to-analysis binding. The current native
-`analyze` command reports an unsupported diagnostic for a state usage as the
-execution entry point. Build the `rcore-engine-feasibility` executable from
-the engine experiment to run this check.
+adds a two-mode controller to the tank. Select the `stateful` profile to run
+the linked state machine and scalar analysis in the same native command.
+The profile binds the active state's numeric `durationSeconds` to the
+analysis input `fillTime` in seconds. The scenario supplies qualified event
+types in millisecond order. Events at the same tick run in file order.
 
 ```sh
-python3.13 -B tools/verify_sysml_stateful_cistern.py \
-  target/release/intersect sysml.pack /path/to/rcore-engine-feasibility
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --profile stateful \
+  --case StatefulCistern::sizeInlet --events "$FIXTURE/cistern-events.json" \
+  "$FIXTURE/stateful-cistern.sysml"
+```
+
+Start, `Boost`, and `Reset` give `0.5`, `1.25`, and `0.5 L/s`. Events sent in
+the wrong state produce rejected observations. Add `--json` for the linked
+state, transition, parameter, and equation locations, along with file digests.
+This profile supports one flat controller with unguarded item-triggered
+transitions and one binding to an open scalar analysis input.
+
+```sh
+python3.13 -B tools/verify_sysml_stateful_cistern.py target/release/intersect sysml.pack
 ```
 
 ## Project archives (`.kpar`)

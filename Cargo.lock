@@ -337,7 +337,7 @@ dependencies = [
 [[package]]
 name = "intersect-run"
 version = "0.1.0-alpha.2"
-source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=c2f8e9802a52100abf576c73e36ad5a80d2a0faa#c2f8e9802a52100abf576c73e36ad5a80d2a0faa"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade#7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade"
 dependencies = [
  "serde",
  "serde_json",
