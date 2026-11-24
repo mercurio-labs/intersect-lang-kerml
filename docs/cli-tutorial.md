@@ -173,6 +173,83 @@ Inside `--expr`, library functions are not imported: write
 `->ControlFunctions::collect {...}` or `SequenceFunctions::size(...)`, or
 evaluate against a `--target` whose file imports them.
 
+## Run a SysML analysis case
+
+An execution profile selects a versioned analysis engine for the linked SysML
+model. In the [cistern example](examples/sysml-execution-profile/cistern.sysml),
+the analysis usage binds the subject, the case defines an asserted equality,
+and its return parameter declares the quantity type. KerML evaluation computes
+the numeric values of the model-bound inputs, including the authored
+`(2 + 4) [L]` capacity. The shared affine solver solves the equation for the
+return parameter. The profile reports volume flow rates in litres per second.
+
+The [authoring manifest](examples/sysml-execution-profile/language.toml)
+supplies the default profile.
+
+```toml
+[execution]
+default = "sizing"
+
+[execution.profiles.sizing]
+engine = "intersect.scalar-affine@1"
+```
+
+Build the CLI and prepare an identity-matched SysML pack using the steps above.
+The manifest is supplied alongside the pack.
+
+```sh
+python3.13 -B tools/compiler_build.py -- build --release --locked -p intersect-cli
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --case CisternAnalysis::sizeInlet \
+  --inputs "$FIXTURE/four-seconds.json" "$FIXTURE/cistern.sysml"
+# CisternAnalysis::sizeInlet [sizing] flow = 1.25 L/s
+```
+
+The input JSON is an array of named quantities. It binds parameters the
+model leaves open. A caller can select another declared profile with
+`--profile NAME`. With `--json`, the result includes the profile and engine,
+the linked case, subject, input, result, and equation locations, and digests
+for the manifest, pack, inputs, and model sources. Load and analysis diagnostics
+exit with status 1. Invalid configuration and host errors exit with status 2.
+
+This profile admits one affine asserted equality and one unbound scalar return.
+It supports dimensionless scalars and uses litres, seconds, and litres per
+second for volume, duration, and volume flow rate.
+Explicit objectives, foreign bodies, and additional analysis steps receive
+unsupported diagnostics. The evaluator library builds for
+`wasm32-unknown-unknown`.
+
+Cargo pins the shared affine solver to Model commit
+`c2f8e9802a52100abf576c73e36ad5a80d2a0faa`.
+
+The qualification script runs the checked fixture, a model-bound duration, a
+unit conversion, and the rejection controls against an already prepared pack.
+
+```sh
+python3.13 -B tools/verify_sysml_execution_profile.py target/release/intersect sysml.pack
+```
+
+### Test state-driven sizing
+
+The [stateful cistern](examples/sysml-execution-profile/stateful-cistern.sysml)
+adds a two-mode controller to the tank. The qualification harness projects
+the initial state, transitions, and trigger types from the linked model and
+runs them with the experimental Rcore state-machine host. At each observation
+it evaluates the active state's duration and supplies it as `fillTime` to the
+native scalar analysis. Start, `Boost`, and `Reset` give `0.5`, `1.25`, and
+`0.5 L/s`. Events sent in the wrong state leave the result unchanged.
+
+The harness supplies the state-to-analysis binding. The current native
+`analyze` command reports an unsupported diagnostic for a state usage as the
+execution entry point. Build the `rcore-engine-feasibility` executable from
+the engine experiment to run this check.
+
+```sh
+python3.13 -B tools/verify_sysml_stateful_cistern.py \
+  target/release/intersect sysml.pack /path/to/rcore-engine-feasibility
+```
+
 ## Project archives (`.kpar`)
 
 A KerML project interchange archive (`.kpar`, a ZIP file with

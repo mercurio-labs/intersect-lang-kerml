@@ -22,6 +22,8 @@ use intersect_model::{
 use intersect_text::Source;
 use intersect_text::grammar::RuntimeAdmissionLoadMode;
 
+#[path = "host_analysis.rs"]
+mod analysis;
 #[path = "host_kpar.rs"]
 mod archives;
 #[path = "host_eval.rs"]
@@ -39,6 +41,7 @@ const USAGE: &str = "usage:
   intersect export --pack PACK --format kpar --out DIR --project-name NAME --project-version VERSION [OPTIONS] FILE...
   intersect info   --pack PACK
   intersect eval --pack PACK [--target QNAME] [--mode model-level|extended] [--gated] [--json] [--trace] [--explain] (--expr TEXT | --all) [FILE...]
+  intersect analyze --pack PACK --execution-profile LANGUAGE.toml [--profile NAME] --case QNAME [--inputs INPUTS.json] [OPTIONS] FILE...
 FILE is a .kerml or .sysml file or a project archive (.kpar).
 options:
   --library DIR|KPAR  standard library sources (when the pack has no usable snapshot): a
@@ -47,7 +50,7 @@ options:
                       (repeatable)
   --read-only         never write the library snapshot into the pack
   --no-library-cache  parse the library even when the pack holds a snapshot
-  --json              diagnostics as JSON lines on stdout
+  --json              diagnostics and analysis results as JSON lines on stdout
   --timing            phase times on stderr";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -56,6 +59,7 @@ enum Command {
     Export,
     Info,
     Eval,
+    Analyze,
 }
 
 struct Options {
@@ -79,6 +83,7 @@ struct Options {
     gated: bool,
     trace: bool,
     explain: bool,
+    analysis: Option<analysis::Arguments>,
 }
 
 fn options(args: &[String]) -> Result<Options, String> {
@@ -88,6 +93,7 @@ fn options(args: &[String]) -> Result<Options, String> {
         Some("export") => Command::Export,
         Some("info") => Command::Info,
         Some("eval") => Command::Eval,
+        Some("analyze") => Command::Analyze,
         Some("--help" | "-h" | "help") | None => return Err(USAGE.into()),
         Some(other) => return Err(format!("unknown command '{other}'\n{USAGE}")),
     };
@@ -112,6 +118,7 @@ fn options(args: &[String]) -> Result<Options, String> {
         gated: false,
         trace: false,
         explain: false,
+        analysis: (command == Command::Analyze).then(analysis::Arguments::default),
     };
     let mut pack = None;
     let mut eval_option = false;
@@ -126,6 +133,13 @@ fn options(args: &[String]) -> Result<Options, String> {
                 .ok_or_else(|| format!("{name} needs a value\n{USAGE}"))
         };
         match arg.as_str() {
+            "--execution-profile" | "--profile" | "--case" | "--inputs" => {
+                let analysis = options
+                    .analysis
+                    .as_mut()
+                    .ok_or_else(|| format!("{arg} requires the analyze command"))?;
+                analysis.set(arg, value(arg)?)?;
+            }
             "--expr" => {
                 if options.expression.is_some() {
                     return Err("--expr may appear only once".into());
@@ -191,6 +205,12 @@ fn options(args: &[String]) -> Result<Options, String> {
         // Validate imports before reading any files or pack.
         eval_source(options.target.as_deref(), "", 0).map_err(|e| e.to_string())?;
     }
+    if let Some(analysis) = &options.analysis {
+        analysis.validate()?;
+        if options.format.is_some() || options.out.is_some() {
+            return Err("analyze does not take --format or --out".into());
+        }
+    }
     if (options.project_name.is_some() || options.project_version.is_some())
         && options.format != Some(OutputFormat::Kpar)
     {
@@ -208,7 +228,7 @@ fn options(args: &[String]) -> Result<Options, String> {
         Command::Info if !options.files.is_empty() => {
             return Err("info takes no files".into());
         }
-        Command::Check | Command::Export if options.files.is_empty() => {
+        Command::Check | Command::Export | Command::Analyze if options.files.is_empty() => {
             return Err(format!("no input files\n{USAGE}"));
         }
         Command::Export if options.format.is_none() || options.out.is_none() => {
@@ -382,6 +402,7 @@ impl Timer {
 /// Run one command; `Ok(false)` when the input has diagnostics.
 pub fn run(args: &[String]) -> Result<bool, String> {
     let options = options(args)?;
+    let analysis = options.analysis.as_ref().map(analysis::load).transpose()?;
     let mut timer = Timer {
         enabled: options.timing,
         clock: Instant::now(),
@@ -518,6 +539,17 @@ pub fn run(args: &[String]) -> Result<bool, String> {
                 .ok_or("evaluation load produced no model")?;
             evaluation::run(&options, &user, model)?;
             timer.lap("evaluate");
+        }
+        if let Some(analysis) = &analysis
+            && clean
+        {
+            let model = load
+                .model
+                .as_ref()
+                .ok_or("analysis load produced no model")?;
+            let solved = analysis.run(model, &user, pack.bytes(), &prepared.key, options.json)?;
+            timer.lap("analyze");
+            return Ok(solved);
         }
         if options.command == Command::Export {
             let (Some(model), Some(format), Some(out)) =
@@ -778,6 +810,30 @@ mod tests {
         let parsed = options(&args("check --pack p.pack --read-only a.sysml b.kerml"))?;
         assert!(parsed.read_only);
         assert_eq!(parsed.files.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn analyze_requires_a_profile_manifest_case_and_model_files() -> Result<(), String> {
+        let selected = options(&args(
+            "analyze --pack p.pack --execution-profile run.toml --case P::size --profile scalar --inputs values.json --json a.sysml",
+        ))?;
+        assert!(selected.command == Command::Analyze);
+        assert!(selected.analysis.is_some() && selected.json);
+        assert_eq!(selected.files, [PathBuf::from("a.sysml")]);
+
+        for invalid in [
+            "analyze --pack p.pack --case P::size a.sysml",
+            "analyze --pack p.pack --execution-profile run.toml a.sysml",
+            "analyze --pack p.pack --execution-profile run.toml --case P::size",
+            "analyze --pack p.pack --execution-profile run.toml --case P::size --case P::other a.sysml",
+            "analyze --pack p.pack --execution-profile run.toml --case --json a.sysml",
+            "analyze --pack p.pack --execution-profile run.toml --case P::size --expr 1 a.sysml",
+            "analyze --pack p.pack --execution-profile run.toml --case P::size --out output a.sysml",
+            "check --pack p.pack --execution-profile run.toml a.sysml",
+        ] {
+            assert!(options(&args(invalid)).is_err(), "{invalid}");
+        }
         Ok(())
     }
 

@@ -5,6 +5,7 @@
 //! Evaluated results and independently verified Pilot agreement are separate claims.
 
 pub mod analysis_case;
+pub mod analysis_execution;
 mod condition;
 mod context;
 mod error;

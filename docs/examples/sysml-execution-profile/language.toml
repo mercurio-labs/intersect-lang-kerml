@@ -1,0 +1,5 @@
+[execution]
+default = "sizing"
+
+[execution.profiles.sizing]
+engine = "intersect.scalar-affine@1"

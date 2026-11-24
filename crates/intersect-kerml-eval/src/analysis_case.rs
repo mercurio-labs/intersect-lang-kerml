@@ -1,8 +1,8 @@
 //! Handwritten extraction of the scalar solve subset of SysML analysis cases.
-//! The consumer owns unit conversion, solver selection and execution.
+//! Solver selection and execution live in the linked analysis adapter.
 use crate::{EvalError, Evaluator, ObjId, Outcome, Value};
 use intersect_model::core::frozen::ValueRef;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScalarUnit {
@@ -59,6 +59,14 @@ struct Parameters {
     values: BTreeMap<String, Parameter>,
     result: String,
     references: BTreeMap<ObjId, String>,
+    declarations: BTreeMap<String, ObjId>,
+    subject: Option<(ObjId, Option<ObjId>)>,
+}
+
+pub(crate) struct SolveDescription {
+    pub case: SolveCase,
+    pub declarations: BTreeMap<String, ObjId>,
+    pub subject: Option<(ObjId, Option<ObjId>)>,
 }
 
 impl Evaluator<'_> {
@@ -67,27 +75,58 @@ impl Evaluator<'_> {
     /// feature identities, inheritance and redefinition.
     pub fn describe_solve(&self, name: &str) -> Result<SolveCase, EvalError> {
         let case = self.resolve_target(name)?;
+        Ok(self.describe_analysis(case, false)?.case)
+    }
+
+    pub(crate) fn describe_analysis(
+        &self,
+        case: ObjId,
+        execute: bool,
+    ) -> Result<SolveDescription, EvalError> {
         if self.class_name(case)? != "AnalysisCaseUsage" {
             return Err(self
                 .nav
                 .error(case, "expected the name of a SysML analysis usage"));
         }
-        let definition = self
-            .nav
-            .types(case)?
-            .into_iter()
-            .find(|id| {
-                self.class_name(*id)
-                    .is_ok_and(|name| name == "AnalysisCaseDefinition")
-            })
-            .ok_or_else(|| self.nav.error(case, "analysis has no definition"))?;
-        let Parameters {
-            values,
-            result,
-            references,
-        } = self.solve_parameters(case, definition)?;
+        let mut definitions = Vec::new();
+        for id in self.nav.types(case)? {
+            if self.class_name(id)? == "AnalysisCaseDefinition"
+                && (!execute
+                    || self.nav.qualified_name(id)?.as_deref()
+                        != Some("AnalysisCases::AnalysisCase"))
+            {
+                definitions.push(id);
+            }
+        }
+        let Some(&definition) = definitions.first() else {
+            return Err(self.nav.error(case, "analysis has no definition"));
+        };
+        if execute {
+            if definitions.len() != 1 {
+                return Err(self.nav.error(case, "analysis must have one definition"));
+            }
+            self.check_case_specialization(case, definition)?;
+        }
         let mut bodies = Vec::new();
-        for owner in [case, definition] {
+        let mm = self.nav.model.metamodel();
+        let action_class = if execute {
+            Some(
+                mm.schema()
+                    .classes
+                    .iter()
+                    .find(|(_, class)| class.name == "ActionUsage")
+                    .and_then(|(key, _)| mm.class(key))
+                    .ok_or_else(|| EvalError::Schema("ActionUsage".into()))?,
+            )
+        } else {
+            None
+        };
+        let mut pending = vec![(definition, false), (case, false)];
+        let mut seen = BTreeSet::new();
+        while let Some((owner, nested)) = pending.pop() {
+            if !seen.insert(owner) {
+                continue;
+            }
             for relation in self.nav.relationships(owner)? {
                 if self.class_name(relation)? == "ObjectiveMembership" {
                     return Err(self.nav.error(
@@ -96,9 +135,26 @@ impl Evaluator<'_> {
                     ));
                 }
                 for element in self.nav.owned(relation)? {
+                    if let Some(action_class) = action_class {
+                        if nested
+                            && (mm.is_a(self.nav.object(element)?.class(), action_class)
+                                || self.nav.is(element, "ConstraintUsage")?)
+                        {
+                            return Err(self.nav.error(
+                                element,
+                                "nested actions and constraints are outside the scalar-affine profile",
+                            ));
+                        }
+                        pending.push((element, true));
+                    }
                     if self.class_name(element)? == "TextualRepresentation" {
+                        if execute {
+                            return Err(self.nav.error(
+                                element,
+                                "foreign analysis bodies are outside the scalar-affine profile",
+                            ));
+                        }
                         let object = self.nav.object(element)?;
-                        let mm = self.nav.model.metamodel();
                         let content = |feature| {
                             mm.feature(object.class(), feature)
                                 .and_then(|field| object.str(field))
@@ -119,6 +175,13 @@ impl Evaluator<'_> {
                 }
             }
         }
+        let Parameters {
+            values,
+            result,
+            references,
+            declarations,
+            subject,
+        } = self.solve_parameters(case, definition, execute)?;
         for feature in self.nav.all_features(case)? {
             if self.class_name(feature)? != "AssertConstraintUsage" {
                 continue;
@@ -157,26 +220,58 @@ impl Evaluator<'_> {
             });
         }
         if bodies.len() != 1 {
-            return Err(self.nav.error(
-                case,
-                "expected exactly one asserted equality or foreign representation",
-            ));
+            let expected = if execute {
+                "expected exactly one asserted equality"
+            } else {
+                "expected exactly one asserted equality or foreign representation"
+            };
+            return Err(self.nav.error(case, expected));
         }
         let body = bodies
             .pop()
             .ok_or_else(|| self.nav.error(case, "analysis body is missing"))?;
-        Ok(SolveCase {
-            object: case,
-            parameters: values,
-            result,
-            body,
+        Ok(SolveDescription {
+            case: SolveCase {
+                object: case,
+                parameters: values,
+                result,
+                body,
+            },
+            declarations,
+            subject,
         })
     }
 
-    fn solve_parameters(&self, case: ObjId, definition: ObjId) -> Result<Parameters, EvalError> {
+    fn check_case_specialization(&self, case: ObjId, definition: ObjId) -> Result<(), EvalError> {
+        for owner in [case, definition] {
+            for general in self.nav.generals(owner)? {
+                if general != definition
+                    && !matches!(
+                        self.nav.qualified_name(general)?.as_deref(),
+                        Some("AnalysisCases::AnalysisCase" | "AnalysisCases::analysisCases")
+                    )
+                {
+                    return Err(self.nav.error(
+                        owner,
+                        "additional analysis specializations are outside the scalar-affine profile",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn solve_parameters(
+        &self,
+        case: ObjId,
+        definition: ObjId,
+        execute: bool,
+    ) -> Result<Parameters, EvalError> {
         let mut parameters = BTreeMap::new();
         let mut references = BTreeMap::new();
+        let mut declarations = BTreeMap::new();
         let mut result = None;
+        let mut subject = None;
         for feature in self.nav.all_features(case)? {
             let closure = self.nav.redefined_closure(feature)?;
             let owned_here = self
@@ -190,6 +285,14 @@ impl Evaluator<'_> {
             if let Some((membership, _)) = object.container()
                 && self.class_name(membership.id())? == "SubjectMembership"
             {
+                if execute {
+                    let target = self.analysis_subject(&closure)?;
+                    if subject.replace((feature, target)).is_some() {
+                        return Err(self
+                            .nav
+                            .error(feature, "analysis has multiple effective subjects"));
+                    }
+                }
                 continue;
             }
             let returns = self.nav.is_return(feature)?;
@@ -201,7 +304,19 @@ impl Evaluator<'_> {
                     binding = self.nav.feature_value(*id)?;
                 }
             }
-            if !returns && !input {
+            if execute {
+                let class = self.class_name(feature)?;
+                if class == "AssertConstraintUsage" && !returns && !input {
+                    continue;
+                }
+                if !(returns || input) || !matches!(class, "ReferenceUsage" | "AttributeUsage") {
+                    return Err(self.nav.error(
+                        feature,
+                        format!("analysis member {class} is outside the scalar-affine profile"),
+                    ));
+                }
+                self.check_scalar_multiplicity(&closure)?;
+            } else if !returns && !input {
                 continue;
             }
             let name = self
@@ -235,6 +350,7 @@ impl Evaluator<'_> {
             {
                 return Err(self.nav.error(feature, "ambiguous analysis parameter name"));
             }
+            declarations.insert(name.clone(), feature);
             for id in closure {
                 if references.insert(id, name.clone()).is_some() {
                     return Err(self
@@ -249,7 +365,53 @@ impl Evaluator<'_> {
             values: parameters,
             result,
             references,
+            declarations,
+            subject,
         })
+    }
+
+    fn check_scalar_multiplicity(&self, features: &[ObjId]) -> Result<(), EvalError> {
+        for &feature in features {
+            for membership in self.nav.relationships(feature)? {
+                for range in self.nav.owned(membership)? {
+                    if !self.nav.is(range, "MultiplicityRange")? {
+                        continue;
+                    }
+                    let mut bounds = Vec::new();
+                    for member in self.nav.relationships(range)? {
+                        for bound in self.nav.owned(member)? {
+                            if self.nav.is(bound, "Expression")? {
+                                bounds.push(self.multiplicity_bound(bound)?);
+                            }
+                        }
+                    }
+                    if !matches!(bounds.as_slice(), [Some(1)] | [Some(1), Some(1)]) {
+                        return Err(self
+                            .nav
+                            .error(range, "the scalar-affine profile requires multiplicity one"));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn analysis_subject(&self, features: &[ObjId]) -> Result<Option<ObjId>, EvalError> {
+        for &feature in features {
+            if let Some(expression) = self.nav.feature_value(feature)? {
+                if self.nav.is(expression, "FeatureReferenceExpression")?
+                    && let Some(target) = self.nav.referent(expression)?
+                    && self.nav.is(target, "Feature")?
+                {
+                    return Ok(Some(target));
+                }
+                return Err(self.nav.error(
+                    expression,
+                    "the scalar-affine profile requires a directly referenced subject",
+                ));
+            }
+        }
+        Ok(None)
     }
 
     fn analysis_unit(&self, parameter: ObjId) -> Result<ScalarUnit, EvalError> {
