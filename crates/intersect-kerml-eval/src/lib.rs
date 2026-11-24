@@ -8,6 +8,7 @@ pub mod analysis_case;
 pub mod analysis_execution;
 mod condition;
 mod context;
+pub mod continuous_analysis;
 mod error;
 mod eval;
 mod evaluable;

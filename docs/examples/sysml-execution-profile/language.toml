@@ -12,3 +12,29 @@ machine = "StatefulCistern::Tank::fillMode"
 state_output = "durationSeconds"
 analysis_input = "fillTime"
 unit = "s"
+
+[execution.profiles.thermostat]
+engine = "intersect.coupled-ode@1"
+
+[execution.profiles.thermostat.continuous]
+state_input = "temperatureC"
+initial = "Thermostat::initialTemperatureC"
+end_ms = 1800000
+sample_ms = 15000
+max_step_ms = 2000
+
+[execution.profiles.thermostat.continuous.state_machine]
+machine = "Thermostat::ThermalEnclosure::controller"
+state_output = "heaterPowerW"
+analysis_input = "powerW"
+unit = "1"
+
+[[execution.profiles.thermostat.continuous.crossings]]
+level = "Thermostat::shutoffTemperatureC"
+rising = true
+event = "Thermostat::TooHot"
+
+[[execution.profiles.thermostat.continuous.crossings]]
+level = "Thermostat::restartTemperatureC"
+rising = false
+event = "Thermostat::TooCool"

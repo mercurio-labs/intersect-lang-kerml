@@ -58,17 +58,17 @@ pub enum StatefulOutcome {
     Rejected { reason: String },
 }
 
-struct ProjectedState {
-    element: AnalysisElement,
-    name: String,
-    output: AnalysisBinding,
+pub(crate) struct ProjectedState {
+    pub(crate) element: AnalysisElement,
+    pub(crate) name: String,
+    pub(crate) output: AnalysisBinding,
 }
 
-struct LinkedChart {
-    definition: ObjId,
-    spec: ChartSpec,
-    states: BTreeMap<String, ProjectedState>,
-    signals: BTreeMap<String, String>,
+pub(crate) struct LinkedChart {
+    pub(crate) definition: ObjId,
+    pub(crate) spec: ChartSpec,
+    pub(crate) states: BTreeMap<String, ProjectedState>,
+    pub(crate) signals: BTreeMap<String, String>,
 }
 
 impl Evaluator<'_> {
@@ -213,7 +213,7 @@ impl Evaluator<'_> {
         })
     }
 
-    fn project_linked_chart(
+    pub(crate) fn project_linked_chart(
         &self,
         machine: ObjId,
         subject: ObjId,
@@ -390,29 +390,7 @@ impl Evaluator<'_> {
                 ),
             )
         })?;
-        self.check_scalar_multiplicity(&[attribute])?;
-        if self.analysis_unit(attribute)? != ScalarUnit::Scalar
-            || self.nav.feature_value(attribute)?.is_none()
-        {
-            return Err(self.nav.error(
-                attribute,
-                "state output must be a bound, scalar Real attribute",
-            ));
-        }
-        let Outcome::Values(values) = self.evaluate_feature(attribute, Some(state))? else {
-            return Err(self
-                .nav
-                .error(attribute, "state output could not be evaluated"));
-        };
-        let value = match values.as_slice() {
-            [Value::Int(value)] if value.unsigned_abs() <= (1_u64 << 53) => *value as f64,
-            [Value::Real(value)] if value.is_finite() => *value,
-            _ => {
-                return Err(self
-                    .nav
-                    .error(attribute, "state output must evaluate to one finite number"));
-            }
-        };
+        let value = self.linked_real_value(attribute, state, "state output")?;
         let identity = |id| {
             self.analysis_element(id)
                 .map_err(|issue| self.nav.error(id, issue.message))
@@ -434,6 +412,37 @@ impl Evaluator<'_> {
                 },
             },
         })
+    }
+
+    pub(crate) fn linked_real_value(
+        &self,
+        attribute: ObjId,
+        target: ObjId,
+        label: &str,
+    ) -> Result<f64, EvalError> {
+        self.check_scalar_multiplicity(&[attribute])?;
+        if self.class_name(attribute)? != "AttributeUsage"
+            || self.analysis_unit(attribute)? != ScalarUnit::Scalar
+            || self.nav.feature_value(attribute)?.is_none()
+        {
+            return Err(self.nav.error(
+                attribute,
+                format!("{label} must be a bound, scalar Real attribute"),
+            ));
+        }
+        let Outcome::Values(values) = self.evaluate_feature(attribute, Some(target))? else {
+            return Err(self
+                .nav
+                .error(attribute, format!("{label} could not be evaluated")));
+        };
+        match values.as_slice() {
+            [Value::Int(value)] if value.unsigned_abs() <= (1_u64 << 53) => Ok(*value as f64),
+            [Value::Real(value)] if value.is_finite() => Ok(*value),
+            _ => Err(self.nav.error(
+                attribute,
+                format!("{label} must evaluate to one finite number"),
+            )),
+        }
     }
 
     fn check_state_attribute(&self, attribute: ObjId) -> Result<(), EvalError> {

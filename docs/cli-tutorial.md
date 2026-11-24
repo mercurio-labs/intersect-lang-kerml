@@ -220,8 +220,8 @@ Explicit objectives, foreign bodies, and additional analysis steps receive
 unsupported diagnostics. The evaluator library builds for
 `wasm32-unknown-unknown`.
 
-Cargo pins the shared affine solver and state-machine engine to Model commit
-`7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade`.
+Cargo pins the shared execution engines to Model commit
+`33102b3707fb68b5377a901548311ddb258a22d8`.
 
 The qualification script runs the checked fixture, a model-bound duration, a
 unit conversion, and the rejection controls against an already prepared pack.
@@ -256,6 +256,36 @@ transitions and one binding to an open scalar analysis input.
 ```sh
 python3.13 -B tools/verify_sysml_stateful_cistern.py target/release/intersect sysml.pack
 ```
+
+### Run a thermostat-controlled enclosure
+
+The [thermostat](examples/sysml-execution-profile/thermostat.sysml) links a
+heater state machine and an affine heat-balance analysis. The
+`intersect.coupled-ode@1` profile feeds the current temperature and active
+state's heater power into that analysis to compute the slope at each RK4
+stage. The model supplies the initial temperature and switch thresholds.
+This profile integrates one scalar, with temperatures expressed as numeric
+degrees Celsius and the derivative as degrees Celsius per second.
+
+```sh
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only --json \
+  --execution-profile "$FIXTURE/language.toml" --profile thermostat \
+  --case Thermostat::temperatureRate "$FIXTURE/thermostat.sysml"
+```
+
+The trace contains 121 regular temperature samples and the intervening
+threshold crossings over 30 minutes. A crossing at a sample tick applies its
+linked transition before the sample is recorded. At 120 W the first shutoff
+is at 430.023 seconds. Changing the authored heating value to 250 W moves
+the first shutoff to 122.599 seconds.
+
+```sh
+python3.13 -B tools/verify_sysml_thermostat.py target/release/intersect sysml.pack
+```
+
+Use `--reference` with the Rcore thermostat trace JSON to compare sample and
+crossing times, modes, and temperatures across the two language adapters.
 
 ## Project archives (`.kpar`)
 

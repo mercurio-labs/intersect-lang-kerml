@@ -3,6 +3,7 @@ use super::{UserFile, evaluation::source_position};
 use intersect_kerml_eval::{
     EvalMode, Evaluator, Model,
     analysis_execution::{AnalysisError, AnalysisInput, ENGINE_ID},
+    continuous_analysis::{ContinuousBinding, ContinuousOutcome},
     stateful_analysis::{StatefulBinding, StatefulEvent, StatefulOutcome},
 };
 use serde::Deserialize;
@@ -15,6 +16,7 @@ use std::{
 };
 
 const STATEFUL_ENGINE_ID: &str = "intersect.state-affine@1";
+const COUPLED_ODE_ENGINE_ID: &str = "intersect.coupled-ode@1";
 
 #[derive(Default)]
 pub(super) struct Arguments {
@@ -71,11 +73,13 @@ struct ExecutionManifest {
 struct Profile {
     engine: String,
     state_machine: Option<StatefulBinding>,
+    continuous: Option<ContinuousBinding>,
 }
 
 enum Execution {
     Scalar,
     Stateful(StatefulBinding),
+    CoupledOde(ContinuousBinding),
 }
 
 fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Execution), String> {
@@ -109,16 +113,26 @@ fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Exec
         .profiles
         .remove(&name)
         .ok_or_else(|| format!("unknown execution profile {name:?}"))?;
-    let execution = match (profile.engine.as_str(), profile.state_machine) {
-        (ENGINE_ID, None) => Execution::Scalar,
-        (STATEFUL_ENGINE_ID, Some(binding)) => Execution::Stateful(binding),
-        (ENGINE_ID, Some(_)) => {
-            return Err("the scalar engine does not take a state_machine binding".into());
+    let execution = match (
+        profile.engine.as_str(),
+        profile.state_machine,
+        profile.continuous,
+    ) {
+        (ENGINE_ID, None, None) => Execution::Scalar,
+        (STATEFUL_ENGINE_ID, Some(binding), None) => Execution::Stateful(binding),
+        (COUPLED_ODE_ENGINE_ID, None, Some(binding)) => Execution::CoupledOde(binding),
+        (ENGINE_ID, _, _) => {
+            return Err(
+                "the scalar engine does not take a state_machine or continuous binding".into(),
+            );
         }
-        (STATEFUL_ENGINE_ID, None) => {
-            return Err("the stateful engine requires a state_machine binding".into());
+        (STATEFUL_ENGINE_ID, _, _) => {
+            return Err("the stateful engine requires exactly a state_machine binding".into());
         }
-        (engine, _) => return Err(format!("execution engine {engine} is unavailable")),
+        (COUPLED_ODE_ENGINE_ID, _, _) => {
+            return Err("the coupled ODE engine requires exactly a continuous binding".into());
+        }
+        (engine, _, _) => return Err(format!("execution engine {engine} is unavailable")),
     };
     Ok((name, execution))
 }
@@ -152,7 +166,7 @@ pub(super) fn load(arguments: &Arguments) -> Result<Selected, String> {
     let source = read_config(path)?;
     let (name, execution) = select_profile(&source, arguments.profile.as_deref())
         .map_err(|error| format!("{}: {error}", path.display()))?;
-    if matches!(execution, Execution::Scalar) && arguments.events.is_some() {
+    if !matches!(execution, Execution::Stateful(_)) && arguments.events.is_some() {
         return Err("--events requires a stateful execution profile".into());
     }
     let input_source = arguments.inputs.as_deref().map(read_config).transpose()?;
@@ -253,6 +267,37 @@ impl Selected {
                                 step.solution.result_name,
                                 step.solution.result.quantity
                             );
+                        }
+                    }
+                }),
+            Execution::CoupledOde(binding) => evaluator
+                .execute_continuous_analysis(&self.case, &self.inputs, binding)
+                .map(|trace| {
+                    if json_output {
+                        self.print_json(
+                            COUPLED_ODE_ENGINE_ID,
+                            "trace",
+                            json!(trace),
+                            user,
+                            pack,
+                            library_key,
+                        );
+                    } else {
+                        for step in trace.steps {
+                            match step.outcome {
+                                ContinuousOutcome::Sample => {
+                                    println!(
+                                        "{} sample {} {}",
+                                        step.at, step.state_name, step.value
+                                    );
+                                }
+                                ContinuousOutcome::Crossing { event, .. } => {
+                                    println!(
+                                        "{} crossing {} {} {}",
+                                        step.at, event, step.state_name, step.value
+                                    );
+                                }
+                            }
                         }
                     }
                 }),
@@ -377,6 +422,19 @@ engine = "intersect.scalar-affine@2"
             matches!(select_profile(&wired, None)?, (_, Execution::Stateful(binding)) if binding.analysis_input == "fillTime")
         );
         assert!(select_profile(&wired.replace(STATEFUL_ENGINE_ID, ENGINE_ID), None).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn coupled_profile_requires_only_its_continuous_binding() -> Result<(), String> {
+        let missing = MANIFEST.replace(ENGINE_ID, COUPLED_ODE_ENGINE_ID);
+        assert!(select_profile(&missing, None).is_err());
+        let example = include_str!("../../../docs/examples/sysml-execution-profile/language.toml");
+        assert!(matches!(
+            select_profile(example, Some("thermostat"))?,
+            (_, Execution::CoupledOde(binding))
+                if binding.state_input == "temperatureC" && binding.crossings.len() == 2
+        ));
         Ok(())
     }
 
