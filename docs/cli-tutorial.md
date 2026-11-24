@@ -221,7 +221,7 @@ unsupported diagnostics. The evaluator library builds for
 `wasm32-unknown-unknown`.
 
 Cargo pins the shared execution engines to Model commit
-`33102b3707fb68b5377a901548311ddb258a22d8`.
+`2b1ecebbb49a14da5c6244a7796db77d50cc687f`.
 
 The qualification script runs the checked fixture, a model-bound duration, a
 unit conversion, and the rejection controls against an already prepared pack.
