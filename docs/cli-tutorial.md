@@ -173,6 +173,90 @@ Inside `--expr`, library functions are not imported: write
 `->ControlFunctions::collect {...}` or `SequenceFunctions::size(...)`, or
 evaluate against a `--target` whose file imports them.
 
+## Run a SysML analysis case
+
+An execution profile selects a versioned analysis engine for the linked SysML
+model. In the [cistern example](examples/sysml-execution-profile/cistern.sysml),
+the analysis usage binds the subject, the case defines an asserted equality,
+and its return parameter declares the quantity type. KerML evaluation computes
+the numeric values of the model-bound inputs, including the authored
+`(2 + 4) [L]` capacity. The shared affine solver solves the equation for the
+return parameter. The profile reports volume flow rates in litres per second.
+
+The [authoring manifest](examples/sysml-execution-profile/language.toml)
+supplies the default profile.
+
+```toml
+[execution]
+default = "sizing"
+
+[execution.profiles.sizing]
+engine = "intersect.scalar-affine@1"
+```
+
+Build the CLI and prepare an identity-matched SysML pack using the steps above.
+The manifest is supplied alongside the pack.
+
+```sh
+python3.13 -B tools/compiler_build.py -- build --release --locked -p intersect-cli
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --case CisternAnalysis::sizeInlet \
+  --inputs "$FIXTURE/four-seconds.json" "$FIXTURE/cistern.sysml"
+# CisternAnalysis::sizeInlet [sizing] flow = 1.25 L/s
+```
+
+The input JSON is an array of named quantities. It binds parameters the
+model leaves open. A caller can select another declared profile with
+`--profile NAME`. With `--json`, the result includes the profile and engine,
+the linked case, subject, input, result, and equation locations, and digests
+for the manifest, pack, inputs, and model sources. Load and analysis diagnostics
+exit with status 1. Invalid configuration and host errors exit with status 2.
+
+This profile admits one affine asserted equality and one unbound scalar return.
+It supports dimensionless scalars and uses litres, seconds, and litres per
+second for volume, duration, and volume flow rate.
+Explicit objectives, foreign bodies, and additional analysis steps receive
+unsupported diagnostics. The evaluator library builds for
+`wasm32-unknown-unknown`.
+
+Cargo pins the shared affine solver and state-machine engine to Model commit
+`7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade`.
+
+The qualification script runs the checked fixture, a model-bound duration, a
+unit conversion, and the rejection controls against an already prepared pack.
+
+```sh
+python3.13 -B tools/verify_sysml_execution_profile.py target/release/intersect sysml.pack
+```
+
+### Run state-driven sizing
+
+The [stateful cistern](examples/sysml-execution-profile/stateful-cistern.sysml)
+adds a two-mode controller to the tank. Select the `stateful` profile to run
+the linked state machine and scalar analysis in the same native command.
+The profile binds the active state's numeric `durationSeconds` to the
+analysis input `fillTime` in seconds. The scenario supplies qualified event
+types in millisecond order. Events at the same tick run in file order.
+
+```sh
+FIXTURE=docs/examples/sysml-execution-profile
+target/release/intersect analyze --pack sysml.pack --read-only \
+  --execution-profile "$FIXTURE/language.toml" --profile stateful \
+  --case StatefulCistern::sizeInlet --events "$FIXTURE/cistern-events.json" \
+  "$FIXTURE/stateful-cistern.sysml"
+```
+
+Start, `Boost`, and `Reset` give `0.5`, `1.25`, and `0.5 L/s`. Events sent in
+the wrong state produce rejected observations. Add `--json` for the linked
+state, transition, parameter, and equation locations, along with file digests.
+This profile supports one flat controller with unguarded item-triggered
+transitions and one binding to an open scalar analysis input.
+
+```sh
+python3.13 -B tools/verify_sysml_stateful_cistern.py target/release/intersect sysml.pack
+```
+
 ## Project archives (`.kpar`)
 
 A KerML project interchange archive (`.kpar`, a ZIP file with

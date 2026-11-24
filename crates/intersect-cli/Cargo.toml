@@ -1,6 +1,6 @@
 [package]
 name = "intersect-cli"
-description = "The intersect command: check, evaluate and export KerML/SysML models against the prepared standard library of a language pack"
+description = "The intersect command: check, evaluate, analyze and export KerML/SysML models against the prepared standard library of a language pack"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -20,7 +20,10 @@ intersect-kerml = { path = "../intersect-kerml" }
 intersect-kerml-eval = { path = "../intersect-kerml-eval" }
 # Project archive (.kpar) inputs, library archives and kpar export.
 intersect-kpar = { path = "../intersect-kpar" }
+serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
+toml = { version = "1.2", default-features = false, features = ["parse", "serde"] }
 
 [features]
 milestone-tests = []

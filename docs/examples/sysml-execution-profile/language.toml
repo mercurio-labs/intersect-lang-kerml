@@ -1,0 +1,14 @@
+[execution]
+default = "sizing"
+
+[execution.profiles.sizing]
+engine = "intersect.scalar-affine@1"
+
+[execution.profiles.stateful]
+engine = "intersect.state-affine@1"
+
+[execution.profiles.stateful.state_machine]
+machine = "StatefulCistern::Tank::fillMode"
+state_output = "durationSeconds"
+analysis_input = "fillTime"
+unit = "s"

@@ -1,0 +1,6 @@
+[
+  { "at": 1, "event": "StatefulCistern::Reset" },
+  { "at": 2, "event": "StatefulCistern::Boost" },
+  { "at": 3, "event": "StatefulCistern::Boost" },
+  { "at": 4, "event": "StatefulCistern::Reset" }
+]

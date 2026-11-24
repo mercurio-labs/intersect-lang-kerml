@@ -8,6 +8,8 @@ publish = false
 
 [dependencies]
 intersect-model.workspace = true
+intersect-run = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "7ee62f29d9c0dab4ec1bbc6bc314b02afe2c3ade" }
+serde.workspace = true
 intersect-kerml = { path = "../intersect-kerml" }
 serde_json.workspace = true
 # Source is the host-loaded expression wrapper; evaluation itself never parses.
