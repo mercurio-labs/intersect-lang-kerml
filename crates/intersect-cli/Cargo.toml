@@ -15,6 +15,7 @@ path = "src/main.rs"
 # Features must match the pack builder's (`sysml_pack`): a pack keys on the
 # enabled features of the crates that built it.
 intersect-model.workspace = true
+intersect-run-catalog.workspace = true
 intersect-text.workspace = true
 intersect-kerml = { path = "../intersect-kerml" }
 intersect-kerml-eval = { path = "../intersect-kerml-eval" }

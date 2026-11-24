@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub use intersect_run::analysis::{AnalysisError, ErrorCode, Quantity, Source, Unit};
 
-pub const ENGINE_ID: &str = "intersect.scalar-affine@1";
+pub const ENGINE_ID: &str = intersect_run_catalog::Engine::ScalarAffine.id();
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

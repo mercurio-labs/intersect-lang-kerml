@@ -2,10 +2,11 @@
 use super::{UserFile, evaluation::source_position};
 use intersect_kerml_eval::{
     EvalMode, Evaluator, Model,
-    analysis_execution::{AnalysisError, AnalysisInput, ENGINE_ID},
+    analysis_execution::{AnalysisError, AnalysisInput},
     continuous_analysis::{ContinuousBinding, ContinuousOutcome},
     stateful_analysis::{StatefulBinding, StatefulEvent, StatefulOutcome},
 };
+use intersect_run_catalog::{Engine, HostEngine, RequestCapability, is_versioned_id};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -15,8 +16,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const STATEFUL_ENGINE_ID: &str = "intersect.state-affine@1";
-const COUPLED_ODE_ENGINE_ID: &str = "intersect.coupled-ode@1";
+const SCALAR_ENGINE: HostEngine = HostEngine::new(Engine::ScalarAffine, &[]);
+const STATEFUL_ENGINE: HostEngine =
+    HostEngine::new(Engine::StateAffine, &[RequestCapability::ScenarioEvents]);
+const COUPLED_ODE_ENGINE: HostEngine = HostEngine::new(Engine::CoupledOde, &[]);
+const INSTALLED_ENGINES: &[HostEngine] = &[SCALAR_ENGINE, STATEFUL_ENGINE, COUPLED_ODE_ENGINE];
 
 #[derive(Default)]
 pub(super) struct Arguments {
@@ -82,6 +86,16 @@ enum Execution {
     CoupledOde(ContinuousBinding),
 }
 
+impl Execution {
+    fn registration(&self) -> HostEngine {
+        match self {
+            Self::Scalar => SCALAR_ENGINE,
+            Self::Stateful(_) => STATEFUL_ENGINE,
+            Self::CoupledOde(_) => COUPLED_ODE_ENGINE,
+        }
+    }
+}
+
 fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Execution), String> {
     let Manifest { mut execution } = toml::from_str(source).map_err(|error| error.to_string())?;
     if execution.profiles.is_empty() {
@@ -91,12 +105,7 @@ fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Exec
         if !identifier(name) {
             return Err(format!("invalid execution profile name {name:?}"));
         }
-        if !profile.engine.split_once('@').is_some_and(|(id, version)| {
-            identifier(id)
-                && !version.starts_with('0')
-                && version.bytes().all(|byte| byte.is_ascii_digit())
-                && version.parse::<u32>().is_ok()
-        }) {
+        if !is_versioned_id(&profile.engine) {
             return Err(format!("profile {name:?} needs a versioned engine ID"));
         }
     }
@@ -114,25 +123,30 @@ fn select_profile(source: &str, requested: Option<&str>) -> Result<(String, Exec
         .remove(&name)
         .ok_or_else(|| format!("unknown execution profile {name:?}"))?;
     let execution = match (
-        profile.engine.as_str(),
+        HostEngine::select(&profile.engine, INSTALLED_ENGINES).map(HostEngine::engine),
         profile.state_machine,
         profile.continuous,
     ) {
-        (ENGINE_ID, None, None) => Execution::Scalar,
-        (STATEFUL_ENGINE_ID, Some(binding), None) => Execution::Stateful(binding),
-        (COUPLED_ODE_ENGINE_ID, None, Some(binding)) => Execution::CoupledOde(binding),
-        (ENGINE_ID, _, _) => {
+        (Some(Engine::ScalarAffine), None, None) => Execution::Scalar,
+        (Some(Engine::StateAffine), Some(binding), None) => Execution::Stateful(binding),
+        (Some(Engine::CoupledOde), None, Some(binding)) => Execution::CoupledOde(binding),
+        (Some(Engine::ScalarAffine), _, _) => {
             return Err(
                 "the scalar engine does not take a state_machine or continuous binding".into(),
             );
         }
-        (STATEFUL_ENGINE_ID, _, _) => {
+        (Some(Engine::StateAffine), _, _) => {
             return Err("the stateful engine requires exactly a state_machine binding".into());
         }
-        (COUPLED_ODE_ENGINE_ID, _, _) => {
+        (Some(Engine::CoupledOde), _, _) => {
             return Err("the coupled ODE engine requires exactly a continuous binding".into());
         }
-        (engine, _, _) => return Err(format!("execution engine {engine} is unavailable")),
+        _ => {
+            return Err(format!(
+                "execution engine {} is unavailable",
+                profile.engine
+            ));
+        }
     };
     Ok((name, execution))
 }
@@ -166,7 +180,11 @@ pub(super) fn load(arguments: &Arguments) -> Result<Selected, String> {
     let source = read_config(path)?;
     let (name, execution) = select_profile(&source, arguments.profile.as_deref())
         .map_err(|error| format!("{}: {error}", path.display()))?;
-    if !matches!(execution, Execution::Stateful(_)) && arguments.events.is_some() {
+    if !execution
+        .registration()
+        .accepts(RequestCapability::ScenarioEvents)
+        && arguments.events.is_some()
+    {
         return Err("--events requires a stateful execution profile".into());
     }
     let input_source = arguments.inputs.as_deref().map(read_config).transpose()?;
@@ -221,14 +239,7 @@ impl Selected {
                 .execute_scalar_analysis(&self.case, &self.inputs)
                 .map(|solution| {
                     if json_output {
-                        self.print_json(
-                            ENGINE_ID,
-                            "solution",
-                            json!(solution),
-                            user,
-                            pack,
-                            library_key,
-                        );
+                        self.print_json("solution", json!(solution), user, pack, library_key);
                     } else {
                         println!(
                             "{} [{}] {} = {}",
@@ -243,14 +254,7 @@ impl Selected {
                 .execute_stateful_analysis(&self.case, &self.inputs, binding, &self.events)
                 .map(|trace| {
                     if json_output {
-                        self.print_json(
-                            STATEFUL_ENGINE_ID,
-                            "trace",
-                            json!(trace),
-                            user,
-                            pack,
-                            library_key,
-                        );
+                        self.print_json("trace", json!(trace), user, pack, library_key);
                     } else {
                         for step in trace.steps {
                             let outcome = match &step.outcome {
@@ -274,14 +278,7 @@ impl Selected {
                 .execute_continuous_analysis(&self.case, &self.inputs, binding)
                 .map(|trace| {
                     if json_output {
-                        self.print_json(
-                            COUPLED_ODE_ENGINE_ID,
-                            "trace",
-                            json!(trace),
-                            user,
-                            pack,
-                            library_key,
-                        );
+                        self.print_json("trace", json!(trace), user, pack, library_key);
                     } else {
                         for step in trace.steps {
                             match step.outcome {
@@ -311,7 +308,6 @@ impl Selected {
 
     fn print_json(
         &self,
-        engine: &str,
         field: &str,
         result: Value,
         user: &[UserFile],
@@ -327,9 +323,10 @@ impl Selected {
                 })
             })
             .collect();
+        let registration = self.execution.registration();
         let mut report = json!({
             "profile": self.name,
-            "engine": engine,
+            "engine": registration.engine().id(),
             (field): result,
             "provenance": {
                 "manifest_sha256": self.manifest_sha256,
@@ -339,7 +336,7 @@ impl Selected {
                 "sources": sources,
             },
         });
-        if matches!(self.execution, Execution::Stateful(_)) {
+        if registration.accepts(RequestCapability::ScenarioEvents) {
             report["provenance"]["events_sha256"] = json!(self.events_sha256);
         }
         println!("{report}");
@@ -412,8 +409,19 @@ engine = "intersect.scalar-affine@2"
     }
 
     #[test]
+    fn refuses_a_catalog_engine_without_a_sysml_adapter() -> Result<(), String> {
+        let ode = MANIFEST.replace(Engine::ScalarAffine.id(), Engine::Ode.id());
+        let failure = select_profile(&ode, None).err().ok_or("expected failure")?;
+        assert_eq!(
+            failure,
+            format!("execution engine {} is unavailable", Engine::Ode.id())
+        );
+        Ok(())
+    }
+
+    #[test]
     fn stateful_profile_requires_the_wiring_table() -> Result<(), String> {
-        let composed = MANIFEST.replace(ENGINE_ID, STATEFUL_ENGINE_ID);
+        let composed = MANIFEST.replace(Engine::ScalarAffine.id(), Engine::StateAffine.id());
         assert!(select_profile(&composed, None).is_err());
         let wired = format!(
             "{composed}\n[execution.profiles.scalar.state_machine]\nmachine = \"C::Tank::fillMode\"\nstate_output = \"durationSeconds\"\nanalysis_input = \"fillTime\"\nunit = \"s\"\n"
@@ -421,13 +429,19 @@ engine = "intersect.scalar-affine@2"
         assert!(
             matches!(select_profile(&wired, None)?, (_, Execution::Stateful(binding)) if binding.analysis_input == "fillTime")
         );
-        assert!(select_profile(&wired.replace(STATEFUL_ENGINE_ID, ENGINE_ID), None).is_err());
+        assert!(
+            select_profile(
+                &wired.replace(Engine::StateAffine.id(), Engine::ScalarAffine.id()),
+                None
+            )
+            .is_err()
+        );
         Ok(())
     }
 
     #[test]
     fn coupled_profile_requires_only_its_continuous_binding() -> Result<(), String> {
-        let missing = MANIFEST.replace(ENGINE_ID, COUPLED_ODE_ENGINE_ID);
+        let missing = MANIFEST.replace(Engine::ScalarAffine.id(), Engine::CoupledOde.id());
         assert!(select_profile(&missing, None).is_err());
         let example = include_str!("../../../docs/examples/sysml-execution-profile/language.toml");
         assert!(matches!(
