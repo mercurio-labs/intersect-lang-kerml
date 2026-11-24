@@ -186,6 +186,7 @@ dependencies = [
  "intersect-kerml-eval",
  "intersect-kpar",
  "intersect-model",
+ "intersect-run-catalog",
  "intersect-text",
  "serde",
  "serde_json",
@@ -215,6 +216,7 @@ dependencies = [
  "intersect-kerml",
  "intersect-model",
  "intersect-run",
+ "intersect-run-catalog",
  "intersect-text",
  "serde",
  "serde_json",
@@ -342,6 +344,11 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "intersect-run-catalog"
+version = "0.1.0-alpha.2"
+source = "git+https://github.com/mercurio-labs/intersect-model.git?rev=b3356a626774d17e49803085e7fd5998783705fa#b3356a626774d17e49803085e7fd5998783705fa"
 
 [[package]]
 name = "intersect-text"

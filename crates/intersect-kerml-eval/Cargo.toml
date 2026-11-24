@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 intersect-model.workspace = true
 intersect-run = { git = "https://github.com/mercurio-labs/intersect-model.git", rev = "33102b3707fb68b5377a901548311ddb258a22d8" }
+intersect-run-catalog.workspace = true
 serde.workspace = true
 intersect-kerml = { path = "../intersect-kerml" }
 serde_json.workspace = true
