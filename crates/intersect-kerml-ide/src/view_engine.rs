@@ -297,31 +297,21 @@ pub(super) fn host(
     .map_err(|error| error.to_string())?;
 
     // Recreate the exact identities of the packages already shipped, so a layout
-    // saved with one of them can be carried to this package. Both shipped the
-    // rule sets kept under assets/wave2. Wave 1 paired them with the v4 symbol
-    // library; Wave 2 added Symbol properties. The rule and symbol changes
-    // since keep rule-set ids and occurrence identifiers, so saved geometry
-    // still addresses the same symbols.
-    let shipped = |symbols: &str, mut package: intersect_views::PresentationInput| {
-        let contents = [
-            (
-                "sysml.compartments",
-                include_str!("../assets/wave2/general.viewrules.json"),
-            ),
-            (
-                "sysml.partsTree",
-                include_str!("../assets/wave2/parts-tree.viewrules.json"),
-            ),
-            ("sysml.symbols", symbols),
-        ];
+    // saved with one of them can be carried to this package. Each is this
+    // package with the resources that have changed since replaced by frozen
+    // copies. Wave 1 paired the Wave 2 rule sets with the v4 symbol library;
+    // Wave 2 added Symbol properties; Wave 3 changed those rule sets and the
+    // symbols. Every change since keeps rule-set ids and occurrence
+    // identifiers, so saved geometry still addresses the same symbols.
+    let shipped = |contents: &[(&str, &str)], mut package: intersect_views::PresentationInput| {
         for (id, content) in contents {
             for resource in &mut package.resources {
-                if resource.id == id {
-                    resource.content = content.into();
+                if resource.id == *id {
+                    resource.content = (*content).into();
                 }
             }
             for resource in &mut package.manifests[0].resources {
-                if resource.id == id {
+                if resource.id == *id {
                     resource.sha256 = hash(content.as_bytes());
                 }
             }
@@ -334,8 +324,23 @@ pub(super) fn host(
             )
             .map(|resolved| resolved.fingerprint)
     };
+    let wave2_general = (
+        "sysml.compartments",
+        include_str!("../assets/wave2/general.viewrules.json"),
+    );
+    let wave2_tree = (
+        "sysml.partsTree",
+        include_str!("../assets/wave2/parts-tree.viewrules.json"),
+    );
     let wave1 = shipped(
-        include_str!("../assets/sysml.symbols-v4.json"),
+        &[
+            wave2_general,
+            wave2_tree,
+            (
+                "sysml.symbols",
+                include_str!("../assets/sysml.symbols-v4.json"),
+            ),
+        ],
         input.clone(),
     )?;
 
@@ -343,16 +348,35 @@ pub(super) fn host(
         .requires
         .insert(3, "views.symbolProperties.v1".into());
     let wave2 = shipped(
-        include_str!("../assets/wave2/sysml.symbols.json"),
+        &[
+            wave2_general,
+            wave2_tree,
+            (
+                "sysml.symbols",
+                include_str!("../assets/wave2/sysml.symbols.json"),
+            ),
+        ],
         input.clone(),
     )?;
+    let wave3 = shipped(
+        &[(
+            "sysml.symbols",
+            include_str!("../assets/wave3/sysml.symbols.json"),
+        )],
+        input.clone(),
+    )?;
+
+    // Port symbols straddle their owner's border.
+    input.manifests[0]
+        .requires
+        .push("graphics.borderAnchor.v1".into());
     let presentation =
         host.dispatch(json!({"method":"views/preparePresentation","params":input}))?;
     let fingerprint = presentation["presentation"]["fingerprint"]
         .as_str()
         .ok_or("No presentation fingerprint")?
         .to_owned();
-    Ok((host, fingerprint, vec![wave1, wave2]))
+    Ok((host, fingerprint, vec![wave1, wave2, wave3]))
 }
 // The grid default uses a checked language rule outside the graph package.
 use crate::view_rendering::{BROWSER, REQUIREMENTS_TABLE, SEQUENCE};

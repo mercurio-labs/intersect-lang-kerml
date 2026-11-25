@@ -452,7 +452,9 @@
           "kind": "choice",
           "values": [
             "WEST",
-            "EAST"
+            "EAST",
+            "NORTH",
+            "SOUTH"
           ],
           "default": "EAST"
         },
@@ -526,17 +528,35 @@
                     "kind": "transform",
                     "x": 0,
                     "y": 0,
-                    "rotate": 0,
-                    "scaleX": {
+                    "rotate": {
                       "op": "select",
                       "condition": {
                         "op": "equal",
                         "name": "facing",
                         "value": "EAST"
                       },
-                      "ifTrue": 1,
-                      "ifFalse": -1
+                      "ifTrue": 0,
+                      "ifFalse": {
+                        "op": "select",
+                        "condition": {
+                          "op": "equal",
+                          "name": "facing",
+                          "value": "WEST"
+                        },
+                        "ifTrue": 180,
+                        "ifFalse": {
+                          "op": "select",
+                          "condition": {
+                            "op": "equal",
+                            "name": "facing",
+                            "value": "NORTH"
+                          },
+                          "ifTrue": -90,
+                          "ifFalse": 90
+                        }
+                      }
                     },
+                    "scaleX": 1,
                     "scaleY": 1,
                     "child": {
                       "id": "glyph",
@@ -545,6 +565,13 @@
                         {
                           "id": "tip",
                           "x": 16,
+                          "y": 8,
+                          "dx": 1,
+                          "dy": 0
+                        },
+                        {
+                          "id": "border",
+                          "x": 8,
                           "y": 8,
                           "dx": 1,
                           "dy": 0
@@ -577,49 +604,6 @@
                                 "parameter": "outline.stroke"
                               }
                             }
-                          },
-                          {
-                            "id": "arrow",
-                            "when": null,
-                            "anchors": [],
-                            "content": {
-                              "kind": "geometry",
-                              "geometry": {
-                                "kind": "path",
-                                "width": 16,
-                                "height": 16,
-                                "commands": [
-                                  {
-                                    "kind": "move",
-                                    "x": 3,
-                                    "y": 8
-                                  },
-                                  {
-                                    "kind": "line",
-                                    "x": 12,
-                                    "y": 8
-                                  },
-                                  {
-                                    "kind": "move",
-                                    "x": 8,
-                                    "y": 4
-                                  },
-                                  {
-                                    "kind": "line",
-                                    "x": 12,
-                                    "y": 8
-                                  },
-                                  {
-                                    "kind": "line",
-                                    "x": 8,
-                                    "y": 12
-                                  }
-                                ]
-                              },
-                              "fill": "none",
-                              "stroke": "#375b43",
-                              "strokeWidth": 1.4
-                            }
                           }
                         ]
                       }
@@ -641,17 +625,53 @@
                     "name": "facing",
                     "value": "EAST"
                   },
-                  "ifTrue": 28,
+                  "ifTrue": 20,
                   "ifFalse": {
-                    "op": "subtract",
-                    "left": -12,
-                    "right": {
-                      "op": "slotWidth",
-                      "slot": "label"
+                    "op": "select",
+                    "condition": {
+                      "op": "equal",
+                      "name": "facing",
+                      "value": "WEST"
+                    },
+                    "ifTrue": {
+                      "op": "subtract",
+                      "left": -4,
+                      "right": {
+                        "op": "slotWidth",
+                        "slot": "label"
+                      }
+                    },
+                    "ifFalse": 13
+                  }
+                },
+                "y": {
+                  "op": "select",
+                  "condition": {
+                    "op": "equal",
+                    "name": "facing",
+                    "value": "EAST"
+                  },
+                  "ifTrue": -10,
+                  "ifFalse": {
+                    "op": "select",
+                    "condition": {
+                      "op": "equal",
+                      "name": "facing",
+                      "value": "WEST"
+                    },
+                    "ifTrue": -10,
+                    "ifFalse": {
+                      "op": "select",
+                      "condition": {
+                        "op": "equal",
+                        "name": "facing",
+                        "value": "NORTH"
+                      },
+                      "ifTrue": -18,
+                      "ifFalse": 19
                     }
                   }
                 },
-                "y": -24,
                 "rotate": 0,
                 "scaleX": 1,
                 "scaleY": 1,
@@ -789,7 +809,8 @@
           },
           "editable": true
         }
-      ]
+      ],
+      "borderAnchor": "border"
     },
     {
       "id": "sysml.symbols/behavior",
@@ -1661,7 +1682,9 @@
           "kind": "choice",
           "values": [
             "WEST",
-            "EAST"
+            "EAST",
+            "NORTH",
+            "SOUTH"
           ],
           "default": "EAST"
         },
@@ -1735,17 +1758,35 @@
                     "kind": "transform",
                     "x": 0,
                     "y": 0,
-                    "rotate": 0,
-                    "scaleX": {
+                    "rotate": {
                       "op": "select",
                       "condition": {
                         "op": "equal",
                         "name": "facing",
                         "value": "EAST"
                       },
-                      "ifTrue": 1,
-                      "ifFalse": -1
+                      "ifTrue": 0,
+                      "ifFalse": {
+                        "op": "select",
+                        "condition": {
+                          "op": "equal",
+                          "name": "facing",
+                          "value": "WEST"
+                        },
+                        "ifTrue": 180,
+                        "ifFalse": {
+                          "op": "select",
+                          "condition": {
+                            "op": "equal",
+                            "name": "facing",
+                            "value": "NORTH"
+                          },
+                          "ifTrue": -90,
+                          "ifFalse": 90
+                        }
+                      }
                     },
+                    "scaleX": 1,
                     "scaleY": 1,
                     "child": {
                       "id": "glyph",
@@ -1754,6 +1795,13 @@
                         {
                           "id": "tip",
                           "x": 16,
+                          "y": 8,
+                          "dx": 1,
+                          "dy": 0
+                        },
+                        {
+                          "id": "border",
+                          "x": 8,
                           "y": 8,
                           "dx": 1,
                           "dy": 0
@@ -1788,46 +1836,77 @@
                             }
                           },
                           {
-                            "id": "arrow",
+                            "id": "flow",
                             "when": null,
                             "anchors": [],
                             "content": {
-                              "kind": "geometry",
-                              "geometry": {
-                                "kind": "path",
-                                "width": 16,
-                                "height": 16,
-                                "commands": [
-                                  {
-                                    "kind": "move",
-                                    "x": 3,
-                                    "y": 8
+                              "kind": "transform",
+                              "x": 0,
+                              "y": 0,
+                              "rotate": {
+                                "op": "select",
+                                "condition": {
+                                  "op": "equal",
+                                  "name": "facing",
+                                  "value": "WEST"
+                                },
+                                "ifTrue": 180,
+                                "ifFalse": {
+                                  "op": "select",
+                                  "condition": {
+                                    "op": "equal",
+                                    "name": "facing",
+                                    "value": "NORTH"
                                   },
-                                  {
-                                    "kind": "line",
-                                    "x": 12,
-                                    "y": 8
-                                  },
-                                  {
-                                    "kind": "move",
-                                    "x": 8,
-                                    "y": 4
-                                  },
-                                  {
-                                    "kind": "line",
-                                    "x": 12,
-                                    "y": 8
-                                  },
-                                  {
-                                    "kind": "line",
-                                    "x": 8,
-                                    "y": 12
-                                  }
-                                ]
+                                  "ifTrue": 180,
+                                  "ifFalse": 0
+                                }
                               },
-                              "fill": "none",
-                              "stroke": "#375b43",
-                              "strokeWidth": 1.4
+                              "scaleX": 1,
+                              "scaleY": 1,
+                              "child": {
+                                "id": "arrow",
+                                "when": null,
+                                "anchors": [],
+                                "content": {
+                                  "kind": "geometry",
+                                  "geometry": {
+                                    "kind": "path",
+                                    "width": 16,
+                                    "height": 16,
+                                    "commands": [
+                                      {
+                                        "kind": "move",
+                                        "x": 3,
+                                        "y": 8
+                                      },
+                                      {
+                                        "kind": "line",
+                                        "x": 12,
+                                        "y": 8
+                                      },
+                                      {
+                                        "kind": "move",
+                                        "x": 8,
+                                        "y": 4
+                                      },
+                                      {
+                                        "kind": "line",
+                                        "x": 12,
+                                        "y": 8
+                                      },
+                                      {
+                                        "kind": "line",
+                                        "x": 8,
+                                        "y": 12
+                                      }
+                                    ]
+                                  },
+                                  "fill": "none",
+                                  "stroke": "#375b43",
+                                  "strokeWidth": 1.4
+                                }
+                              }
                             }
                           }
                         ]
@@ -1850,17 +1929,53 @@
                     "name": "facing",
                     "value": "EAST"
                   },
-                  "ifTrue": 28,
+                  "ifTrue": 20,
                   "ifFalse": {
-                    "op": "subtract",
-                    "left": -12,
-                    "right": {
-                      "op": "slotWidth",
-                      "slot": "label"
+                    "op": "select",
+                    "condition": {
+                      "op": "equal",
+                      "name": "facing",
+                      "value": "WEST"
+                    },
+                    "ifTrue": {
+                      "op": "subtract",
+                      "left": -4,
+                      "right": {
+                        "op": "slotWidth",
+                        "slot": "label"
+                      }
+                    },
+                    "ifFalse": 13
+                  }
+                },
+                "y": {
+                  "op": "select",
+                  "condition": {
+                    "op": "equal",
+                    "name": "facing",
+                    "value": "EAST"
+                  },
+                  "ifTrue": -10,
+                  "ifFalse": {
+                    "op": "select",
+                    "condition": {
+                      "op": "equal",
+                      "name": "facing",
+                      "value": "WEST"
+                    },
+                    "ifTrue": -10,
+                    "ifFalse": {
+                      "op": "select",
+                      "condition": {
+                        "op": "equal",
+                        "name": "facing",
+                        "value": "NORTH"
+                      },
+                      "ifTrue": -18,
+                      "ifFalse": 19
                     }
                   }
                 },
-                "y": -24,
                 "rotate": 0,
                 "scaleX": 1,
                 "scaleY": 1,
@@ -1998,7 +2113,8 @@
           },
           "editable": true
         }
-      ]
+      ],
+      "borderAnchor": "border"
     }
   ]
 }
