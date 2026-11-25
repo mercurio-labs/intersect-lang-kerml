@@ -366,7 +366,7 @@ dependencies = [
 [[package]]
 name = "intersect-view-engine"
 version = "0.0.0"
-source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=7b2d9a042cd0c09f18f2ee9fa633d6540e37250b#7b2d9a042cd0c09f18f2ee9fa633d6540e37250b"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=fe526c7d115a6b3a57fa7e418b66c75300eaa2cf#fe526c7d115a6b3a57fa7e418b66c75300eaa2cf"
 dependencies = [
  "intersect-views",
  "serde_json",
@@ -376,7 +376,7 @@ dependencies = [
 [[package]]
 name = "intersect-view-host"
 version = "0.0.0"
-source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=7b2d9a042cd0c09f18f2ee9fa633d6540e37250b#7b2d9a042cd0c09f18f2ee9fa633d6540e37250b"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=fe526c7d115a6b3a57fa7e418b66c75300eaa2cf#fe526c7d115a6b3a57fa7e418b66c75300eaa2cf"
 dependencies = [
  "intersect-build-support",
  "intersect-load",
@@ -393,7 +393,7 @@ dependencies = [
 [[package]]
 name = "intersect-views"
 version = "0.0.0"
-source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=7b2d9a042cd0c09f18f2ee9fa633d6540e37250b#7b2d9a042cd0c09f18f2ee9fa633d6540e37250b"
+source = "git+https://github.com/mercurio-labs/intersect-views.git?rev=fe526c7d115a6b3a57fa7e418b66c75300eaa2cf#fe526c7d115a6b3a57fa7e418b66c75300eaa2cf"
 dependencies = [
  "serde",
  "serde_json",

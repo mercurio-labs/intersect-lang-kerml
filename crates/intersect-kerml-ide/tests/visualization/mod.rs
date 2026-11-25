@@ -482,16 +482,19 @@ fn shipped_layout_identities_are_distinct_from_the_current_package() -> Result<(
     let shipped = compatibility["upgradable"]
         .as_array()
         .ok_or("Missing shipped identities")?;
-    // Wave 1 then Wave 2. Older editors read only `previous`.
-    assert_eq!(shipped.len(), 2, "{compatibility}");
+    // Wave 1, Wave 2, Wave 3. Older editors read only `previous`.
+    assert_eq!(shipped.len(), 3, "{compatibility}");
     assert_eq!(shipped[0], compatibility["previous"]);
     assert_ne!(shipped[0], shipped[1]);
+    assert_ne!(shipped[1], shipped[2]);
+    assert_ne!(shipped[0], shipped[2]);
     assert!(!shipped.contains(&compatibility["current"]));
     // The Mercurio pack yields these exact values; another pack differs only
     // through its language fingerprint.
     for (variable, identity) in [
         ("INTERSECT_WAVE1_FINGERPRINT", &shipped[0]),
         ("INTERSECT_WAVE2_FINGERPRINT", &shipped[1]),
+        ("INTERSECT_WAVE3_FINGERPRINT", &shipped[2]),
     ] {
         if let Ok(expected) = std::env::var(variable) {
             assert_eq!(identity.as_str(), Some(expected.as_str()));
