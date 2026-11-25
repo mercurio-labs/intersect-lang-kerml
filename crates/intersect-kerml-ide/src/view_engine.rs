@@ -359,6 +359,11 @@ fn root_predicate(registration: &str) -> &'static str {
 }
 struct Catalog(crate::view_rendering::Registry);
 impl ModelViews for Catalog {
+    /// View usages, their rendering intent and bindings are read from the
+    /// accepted model through a fixed registry; nothing else feeds the catalog.
+    fn snapshot_stable(&self) -> bool {
+        true
+    }
     fn validate_scope(
         &self,
         context: &ModelViewContext<'_>,
