@@ -78,7 +78,7 @@ impl PreparedLanguageProvider for Definition {
 pub(super) fn host(
     loaded: Rc<Loaded>,
     project: Rc<RefCell<ProjectEnvironment>>,
-) -> Result<(intersect_view_host::Host, String, String), String> {
+) -> Result<(intersect_view_host::Host, String, Vec<String>), String> {
     let canonical = crate::view_rendering::Registry::prepare(&loaded)?;
     let definition = {
         let prepared = loaded.session.sysml_definition()?;
@@ -296,38 +296,63 @@ pub(super) fn host(
     }))
     .map_err(|error| error.to_string())?;
 
-    // Recreate the exact shipped Wave 1 package identity. Symbol descriptors
-    // are additive and preserve its projections and occurrence identifiers.
-    let mut legacy = input.clone();
-    let previous_symbols = include_str!("../assets/sysml.symbols-v4.json");
-    for resource in &mut legacy.resources {
-        if resource.id == "sysml.symbols" {
-            resource.content = previous_symbols.into();
+    // Recreate the exact identities of the packages already shipped, so a layout
+    // saved with one of them can be carried to this package. Both shipped the
+    // rule sets kept under assets/wave2. Wave 1 paired them with the v4 symbol
+    // library; Wave 2 added Symbol properties. The rule and symbol changes
+    // since keep rule-set ids and occurrence identifiers, so saved geometry
+    // still addresses the same symbols.
+    let shipped = |symbols: &str, mut package: intersect_views::PresentationInput| {
+        let contents = [
+            (
+                "sysml.compartments",
+                include_str!("../assets/wave2/general.viewrules.json"),
+            ),
+            (
+                "sysml.partsTree",
+                include_str!("../assets/wave2/parts-tree.viewrules.json"),
+            ),
+            ("sysml.symbols", symbols),
+        ];
+        for (id, content) in contents {
+            for resource in &mut package.resources {
+                if resource.id == id {
+                    resource.content = content.into();
+                }
+            }
+            for resource in &mut package.manifests[0].resources {
+                if resource.id == id {
+                    resource.sha256 = hash(content.as_bytes());
+                }
+            }
         }
-    }
-    for resource in &mut legacy.manifests[0].resources {
-        if resource.id == "sysml.symbols" {
-            resource.sha256 = hash(previous_symbols.as_bytes());
-        }
-    }
-    let legacy_fingerprint = legacy
-        .resolve(
-            "https://www.omg.org/spec/SysML/20250201",
-            fingerprint,
-            &hash,
-        )?
-        .fingerprint;
+        package
+            .resolve(
+                "https://www.omg.org/spec/SysML/20250201",
+                fingerprint,
+                &hash,
+            )
+            .map(|resolved| resolved.fingerprint)
+    };
+    let wave1 = shipped(
+        include_str!("../assets/sysml.symbols-v4.json"),
+        input.clone(),
+    )?;
 
     input.manifests[0]
         .requires
         .insert(3, "views.symbolProperties.v1".into());
+    let wave2 = shipped(
+        include_str!("../assets/wave2/sysml.symbols.json"),
+        input.clone(),
+    )?;
     let presentation =
         host.dispatch(json!({"method":"views/preparePresentation","params":input}))?;
     let fingerprint = presentation["presentation"]["fingerprint"]
         .as_str()
         .ok_or("No presentation fingerprint")?
         .to_owned();
-    Ok((host, fingerprint, legacy_fingerprint))
+    Ok((host, fingerprint, vec![wave1, wave2]))
 }
 // The grid default uses a checked language rule outside the graph package.
 use crate::view_rendering::{BROWSER, REQUIREMENTS_TABLE, SEQUENCE};

@@ -122,15 +122,29 @@ pub fn title(e:k.Element)->String {
   let ty = typeLabel(e);
   if ty == "" { label(e) } else { label(e) + " : " + ty }
 }
+// The textual-notation keyword of the element, as SysML graphical notation shows
+// it above the name. Subclasses come before their general class.
 pub fn classLabel(e:k.Element)->String = match e {
-  _:k.PartDefinition => "PartDefinition", _:k.PortDefinition => "PortDefinition",
-  _:k.AttributeDefinition => "AttributeDefinition", _:k.ConnectionUsage => "ConnectionUsage",
-  _:k.PartUsage => "PartUsage", _:k.PortUsage => "PortUsage", _:k.AttributeUsage => "AttributeUsage",
-  _:k.Package => "Package", _ => "Element"
+  _:k.InterfaceDefinition => "«interface def»", _:k.ConnectionDefinition => "«connection def»",
+  _:k.ViewDefinition => "«view def»", _:k.PartDefinition => "«part def»", _:k.ItemDefinition => "«item def»",
+  _:k.PortDefinition => "«port def»", _:k.EnumerationDefinition => "«enum def»",
+  _:k.AttributeDefinition => "«attribute def»", _:k.StateDefinition => "«state def»",
+  _:k.UseCaseDefinition => "«use case def»", _:k.ActionDefinition => "«action def»",
+  _:k.RequirementDefinition => "«requirement def»", _:k.ConstraintDefinition => "«constraint def»",
+  _:k.OccurrenceDefinition => "«occurrence def»",
+  _:k.InterfaceUsage => "«interface»", _:k.ConnectionUsage => "«connection»", _:k.ViewUsage => "«view»",
+  _:k.PartUsage => "«part»", _:k.ItemUsage => "«item»", _:k.PortUsage => "«port»",
+  _:k.EnumerationUsage => "«enum»", _:k.AttributeUsage => "«attribute»", _:k.StateUsage => "«state»",
+  _:k.UseCaseUsage => "«use case»", _:k.ActionUsage => "«action»", _:k.RequirementUsage => "«requirement»",
+  _:k.ConstraintUsage => "«constraint»", _:k.OccurrenceUsage => "«occurrence»",
+  _:k.Package => "«package»", _ => "«element»"
 };
-pub fn portSide(p:k.PortUsage)->String =
-  if direct(p).selectByKind::<k.Conjugation>().notEmpty()
-    || direct(p).selectByKind::<k.ConjugatedPortTyping>().notEmpty() { "WEST" } else { "EAST" };
+// A structural port has no inherent side. The renderer places it on the face
+// its connections use; conjugation does not say where a port is drawn.
+pub fn portSide(p:k.PortUsage)->String = "AUTO";
+// Top-to-bottom projections keep ports on the east face: the port glyph only
+// faces east or west, and an automatic side would follow the vertical flow.
+pub fn eastPortSide(p:k.PortUsage)->String = "EAST";
 pub fn ownedParts(e:k.Element)->Sequence<k.PartUsage> = owned(e).selectByKind::<k.PartUsage>()
   .reject(|p| match p { _:k.ViewUsage => true, _:k.ConnectionUsage => true, _ => false });
 pub fn ownedPorts(e:k.Element)->Sequence<k.PortUsage> = owned(e).selectByKind::<k.PortUsage>();

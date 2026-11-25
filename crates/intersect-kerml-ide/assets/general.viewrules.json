@@ -353,13 +353,13 @@
       "match": "PortUsage",
       "emit": "port",
       "label": "label",
-      "side": "portSide",
+      "side": "eastPortSide",
       "graphic": {
         "definition": "sysml.symbols/port",
         "parameters": {
           "facing": {
             "kind": "string",
-            "value": "portSide"
+            "value": "eastPortSide"
           }
         },
         "slots": {
