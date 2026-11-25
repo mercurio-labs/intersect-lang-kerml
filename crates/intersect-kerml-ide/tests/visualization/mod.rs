@@ -474,6 +474,34 @@ fn general_view_creates_connections_from_visible_occurrences() -> Result<(), Str
 
 #[test]
 #[cfg_attr(not(feature = "milestone-tests"), ignore = "milestone")]
+fn shipped_layout_identities_are_distinct_from_the_current_package() -> Result<(), String> {
+    let path = std::env::var("INTERSECT_IDE_TEST_PACK").map_err(|e| e.to_string())?;
+    let mut host = Host::default();
+    host.load_pack_for_analysis(std::fs::read(path).map_err(|e| e.to_string())?)?;
+    let compatibility = request(&mut host, "views/presentationCompatibility", json!({}))?;
+    let shipped = compatibility["upgradable"]
+        .as_array()
+        .ok_or("Missing shipped identities")?;
+    // Wave 1 then Wave 2. Older editors read only `previous`.
+    assert_eq!(shipped.len(), 2, "{compatibility}");
+    assert_eq!(shipped[0], compatibility["previous"]);
+    assert_ne!(shipped[0], shipped[1]);
+    assert!(!shipped.contains(&compatibility["current"]));
+    // The Mercurio pack yields these exact values; another pack differs only
+    // through its language fingerprint.
+    for (variable, identity) in [
+        ("INTERSECT_WAVE1_FINGERPRINT", &shipped[0]),
+        ("INTERSECT_WAVE2_FINGERPRINT", &shipped[1]),
+    ] {
+        if let Ok(expected) = std::env::var(variable) {
+            assert_eq!(identity.as_str(), Some(expected.as_str()));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(not(feature = "milestone-tests"), ignore = "milestone")]
 fn lunar_rover_scenes_fit_the_registered_budget() -> Result<(), String> {
     let path = std::env::var("INTERSECT_IDE_TEST_PACK").map_err(|e| e.to_string())?;
     let mut host = Host::default();

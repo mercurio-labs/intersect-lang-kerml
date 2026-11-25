@@ -52,7 +52,8 @@ pub struct Host {
     loaded: Option<Rc<Loaded>>,
     views: Option<intersect_view_host::Host>,
     view_presentation_fingerprint: String,
-    legacy_view_presentation_fingerprint: String,
+    /// Shipped package identities whose saved layouts this package accepts, oldest first.
+    shipped_view_presentation_fingerprints: Vec<String>,
     project: Rc<RefCell<view_loading::ProjectEnvironment>>,
     #[cfg(test)]
     fixture_model: Option<Model>,
@@ -205,13 +206,13 @@ impl Host {
         let (loaded, result) = Loaded::from_pack(bytes, include_library_nodes, digests, progress)?;
         progress("view-functions");
         let project = Rc::new(RefCell::new(view_loading::ProjectEnvironment::default()));
-        let (views, view_presentation_fingerprint, legacy_view_presentation_fingerprint) =
+        let (views, view_presentation_fingerprint, shipped_view_presentation_fingerprints) =
             views::host(loaded.clone(), project.clone())?;
         progress("publish");
         self.loaded = Some(loaded);
         self.views = Some(views);
         self.view_presentation_fingerprint = view_presentation_fingerprint;
-        self.legacy_view_presentation_fingerprint = legacy_view_presentation_fingerprint;
+        self.shipped_view_presentation_fingerprints = shipped_view_presentation_fingerprints;
         self.project = project;
         #[cfg(feature = "components")]
         {
@@ -238,8 +239,11 @@ impl Host {
             if self.views.is_none() {
                 return Err("Load a language pack first".into());
             }
+            // `previous` stays the Wave 1 identity for editors that only migrate
+            // v4 layouts. `upgradable` lists every shipped identity.
             return Ok(json!({
-                "previous": self.legacy_view_presentation_fingerprint,
+                "previous": self.shipped_view_presentation_fingerprints.first(),
+                "upgradable": self.shipped_view_presentation_fingerprints,
                 "current": self.view_presentation_fingerprint,
             }));
         }

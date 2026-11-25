@@ -956,7 +956,25 @@
             "name": "control",
             "value": "action"
           },
-          "ifTrue": 300,
+          "ifTrue": {
+            "op": "max",
+            "left": 180,
+            "right": {
+              "op": "add",
+              "left": 40,
+              "right": {
+                "op": "max",
+                "left": {
+                  "op": "slotWidth",
+                  "slot": "title"
+                },
+                "right": {
+                  "op": "slotWidth",
+                  "slot": "actions"
+                }
+              }
+            }
+          },
           "ifFalse": {
             "op": "select",
             "condition": {
@@ -1112,7 +1130,7 @@
               "anchors": [],
               "content": {
                 "kind": "frame",
-                "padding": 12,
+                "padding": 16,
                 "radius": 8,
                 "fill": "#fff0e8",
                 "stroke": "#8e4734",
